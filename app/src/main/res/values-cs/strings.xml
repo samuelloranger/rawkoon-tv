@@ -400,7 +400,7 @@
     <string name="commercial">Komerční</string>
     <string name="download_and_update">Download &amp; Update</string>
     <string name="immediate">Bezprostředně</string>
-    <string name="search_and_download"><![CDATA[Najít &amp; Stáhnout]]></string>
+    <string name="search_and_download"><![CDATA[Najít & Stáhnout]]></string>
     <string name="runtime_sort">Trvání</string>
     <plurals name="samples">
         <item quantity="one">Vzorky</item>

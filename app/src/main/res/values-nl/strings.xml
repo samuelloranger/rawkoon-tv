@@ -602,7 +602,7 @@
     <string name="confirm_enable_experimental_body">Experimentele instellingen kunnen instabiel zijn!\n\nDeze instellingen kunnen in elke nieuwe versie worden gewijzigd of verwijderd.</string>
     <string name="confirm_enable_experimental_title">Experimentele instellingen inschakelen?</string>
     <string name="experimental_settings">Experimentele instellingen</string>
-    <string name="search_and_download_subtitles"><![CDATA[Zoek &amp; download ondertiteling]]></string>
+    <string name="search_and_download_subtitles"><![CDATA[Zoek & download ondertiteling]]></string>
     <string name="updated_toast">RawkoonTV is geüpdatet naar %s</string>
     <string name="last_played">Laatst afgespeeld</string>
     <string name="ass_subtitle_mode_exoplayer">Direct afspelen met de ingebouwde ExoPlayer</string>
@@ -647,7 +647,7 @@
     <string name="view_options_type_grid">Raster</string>
     <string name="view_options_type_list">Lijst</string>
     <string name="view_options_type_list_compact">Compacte lijst</string>
-    <string name="enter_url_api_key"><![CDATA[Vul URL &amp; API sleutel in]]></string>
+    <string name="enter_url_api_key"><![CDATA[Vul URL & API sleutel in]]></string>
     <string name="api_key">API Sleutel</string>
     <string name="mixer">Mixer</string>
     <string name="album">Album</string>

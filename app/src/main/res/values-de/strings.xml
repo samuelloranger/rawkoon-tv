@@ -265,7 +265,7 @@
     <string name="disable_if_crash">Deaktivieren, wenn Abstürze auftreten</string>
     <string name="mpv_options">MPV Optionen</string>
     <string name="exoplayer_options">ExoPlayer Optionen</string>
-    <string name="combine_continue_next"><![CDATA[Kombiniere Weiterschauen &amp; Als Nächstes]]></string>
+    <string name="combine_continue_next"><![CDATA[Kombiniere Weiterschauen & Als Nächstes]]></string>
     <string name="nav_drawer_pins_summary">Wähle die Standardobjekte zur Anzeige aus, andere werden ausgeblendet</string>
     <string name="nav_drawer_pins">Navigationsmenü anpassen</string>
     <string name="nav_drawer_switch_on_focus">Navigationsmenü-Seiten beim Fokus wechseln</string>
@@ -547,7 +547,7 @@
     <string name="image_subtitle_opacity">Deckkraft des Bilduntertitels</string>
     <string name="image_type_thumb">Vorschaubild</string>
     <string name="use_series">Serien-Vorschaubilder verwenden</string>
-    <string name="enter_url_api_key"><![CDATA[URL &amp; API-Schlüssel eingeben]]></string>
+    <string name="enter_url_api_key"><![CDATA[URL & API-Schlüssel eingeben]]></string>
     <string name="search_and_download_subtitles"><![CDATA[Untertitel suchen & herunterladen]]></string>
     <string name="creator">Ersteller</string>
     <string name="background_style_wrap">Textmarker</string>

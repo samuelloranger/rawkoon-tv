@@ -8,7 +8,7 @@
     <string name="confirm">Konfirmo</string>
     <string name="continue_watching">Vazhdo shikimin</string>
     <string name="delete">Fshij</string>
-    <string name="download_and_update"><![CDATA[Shkarko &amp; Përditëso]]></string>
+    <string name="download_and_update"><![CDATA[Shkarko & Përditëso]]></string>
     <string name="decimal_seconds">%.2f sekonda</string>
     <string name="duration_hours_minutes_seconds">%1$dh%2$dm%3$ds</string>
     <string name="duration_hours_minutes">%1$dh%2$dm</string>

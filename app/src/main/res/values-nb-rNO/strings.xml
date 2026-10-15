@@ -530,7 +530,7 @@
     <string name="view_options_type_list_compact">Kompakt Liste</string>
     <string name="backdrop_style_dynamic">Bilde med dynamisk farge</string>
     <string name="backdrop_style_image">Bare bilde</string>
-    <string name="enter_url_api_key"><![CDATA[Skriv inn URL &amp; API-nøkkel]]></string>
+    <string name="enter_url_api_key"><![CDATA[Skriv inn URL & API-nøkkel]]></string>
     <string name="api_key">API-nøkkel</string>
     <string name="seerr_login">Logg inn på Seerr-tjener</string>
     <string name="seerr_jellyfin_user">Jellyfinbruker</string>
