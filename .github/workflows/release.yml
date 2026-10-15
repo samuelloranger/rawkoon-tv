@@ -1,9 +1,10 @@
 name: Create release
 
+# Releases are built locally with scripts/release.sh, which can read the MPV and
+# decoder extensions without storing a token in this repo. Run this by hand only
+# once EXTENSIONS_USERNAME and EXTENSIONS_PASSWORD secrets exist.
 on:
-  push:
-    tags:
-      - v*
+  workflow_dispatch:
 
 defaults:
   run:
