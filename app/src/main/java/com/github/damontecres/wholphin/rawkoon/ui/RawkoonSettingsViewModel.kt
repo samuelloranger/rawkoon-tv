@@ -14,10 +14,14 @@ import javax.inject.Inject
 class RawkoonSettingsViewModel
     @Inject
     constructor(
-        repository: RawkoonSettingsRepository,
+        private val repository: RawkoonSettingsRepository,
         private val session: RawkoonSession,
     ) : ViewModel() {
         val config: Flow<RawkoonConfig> = repository.config
+
+        fun setInterfaceScale(percent: Int) {
+            viewModelScope.launchIO { repository.update { it.copy(interfaceScalePercent = percent) } }
+        }
 
         /** Forget the Rawkoon and Jellyfin sessions; the app returns to the Rawkoon sign-in */
         fun signOut() {

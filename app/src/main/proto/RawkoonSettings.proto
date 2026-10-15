@@ -8,4 +8,6 @@ message RawkoonSettings {
   // Rawkoon bearer token of the signed-in user, empty when signed out
   string token = 2;
   string user_name = 3;
+  // Interface size in percent; 0 until chosen, which means the default
+  int32 interface_scale_percent = 4;
 }

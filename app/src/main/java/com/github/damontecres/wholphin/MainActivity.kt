@@ -34,6 +34,7 @@ import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
+import com.github.damontecres.wholphin.rawkoon.RawkoonDensity
 import com.github.damontecres.wholphin.rawkoon.RawkoonSettingsRepository
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
 import com.github.damontecres.wholphin.services.BackdropService
@@ -230,6 +231,7 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.appStart(intent)
         setContent {
+            RawkoonDensity {
             MaterialTheme(colorScheme = PurpleThemeColors.darkScheme) {
                 Surface(Modifier.fillMaxSize()) {
                     val userPreferences by userPreferencesService.flow.collectAsState(null)
@@ -283,6 +285,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
+            }
             }
         }
     }

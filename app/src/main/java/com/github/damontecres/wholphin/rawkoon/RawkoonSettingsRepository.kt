@@ -11,6 +11,7 @@ data class RawkoonConfig(
     val url: String = "",
     val token: String = "",
     val userName: String = "",
+    val interfaceScalePercent: Int = InterfaceScale.DEFAULT_PERCENT,
 ) {
     val hasUrl: Boolean get() = url.isNotBlank()
 
@@ -39,6 +40,7 @@ class RawkoonSettingsRepository
                     .setUrl(updated.url.trim())
                     .setToken(updated.token.trim())
                     .setUserName(updated.userName)
+                    .setInterfaceScalePercent(updated.interfaceScalePercent)
                     .build()
             }
         }
@@ -46,5 +48,6 @@ class RawkoonSettingsRepository
         /** Forget the session but keep the server URL */
         suspend fun clearSession() = update { it.copy(token = "", userName = "") }
 
-        private fun RawkoonSettings.toConfig() = RawkoonConfig(url, token, userName)
+        private fun RawkoonSettings.toConfig() =
+            RawkoonConfig(url, token, userName, InterfaceScale.normalize(interfaceScalePercent))
     }

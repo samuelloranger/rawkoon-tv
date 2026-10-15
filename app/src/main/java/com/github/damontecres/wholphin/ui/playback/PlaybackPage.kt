@@ -50,7 +50,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -74,6 +73,7 @@ import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.DpadSeekMode
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.unscaledDensity
 import com.github.damontecres.wholphin.preferences.skipBackOnResume
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.AspectRatios
@@ -165,7 +165,8 @@ fun PlaybackPageContent(
 
     val prefs = preferences.appPreferences.playbackPreferences
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
+    // Player subtitles keep their size when the interface is scaled
+    val density = unscaledDensity()
     LaunchedEffect(density) { viewModel.updateDensity(density) }
     val userDto by viewModel.currentUserDto.collectAsState()
 

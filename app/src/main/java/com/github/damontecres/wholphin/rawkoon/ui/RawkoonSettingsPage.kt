@@ -19,6 +19,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.rawkoon.RawkoonConfig
+import com.github.damontecres.wholphin.rawkoon.InterfaceScale
+import com.github.damontecres.wholphin.ui.preferences.ChoicePreference
 import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -61,6 +63,17 @@ fun RawkoonSettingsPage(
                 title = stringResource(R.string.rawkoon_signed_in_as),
                 summary = config.userName.ifBlank { notSet },
                 onClick = {},
+            )
+        }
+        item {
+            val options = InterfaceScale.OPTIONS_PERCENT
+            val selected = options.indexOf(config.interfaceScalePercent).coerceAtLeast(0)
+            ChoicePreference(
+                title = stringResource(R.string.rawkoon_interface_size),
+                summary = "${options[selected]}%",
+                possibleValues = options.map { "$it%" },
+                selectedIndex = selected,
+                onValueChange = { viewModel.setInterfaceScale(options[it]) },
             )
         }
         item {
