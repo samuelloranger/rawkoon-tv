@@ -72,7 +72,7 @@ configure<ApplicationExtension> {
     compileSdk = libs.versions.compileSdk.getInt()
 
     defaultConfig {
-        applicationId = "com.github.damontecres.wholphin"
+        applicationId = "cloud.rawkoon.tv"
         minSdk = libs.versions.minSdk.getInt()
         targetSdk = libs.versions.targetSdk.getInt()
         versionCode = gitTags.trim().lines().size
@@ -147,7 +147,8 @@ configure<ApplicationExtension> {
             dimension = "version"
             isDefault = true
             manifestPlaceholders += mapOf(featureLeanback to false)
-            setFeatureFlag(featureUpdate, true)
+            // RawkoonTV: the updater points at upstream Wholphin releases, so it stays off
+            setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, true)
         }
         create("appstore") {

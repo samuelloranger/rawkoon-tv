@@ -54,6 +54,6 @@ class DisplayPreferencesService
 
         companion object {
             const val DEFAULT_DISPLAY_PREF_ID = "default"
-            val DEFAULT_CLIENT = if (BuildConfig.DEBUG) "Wholphin (Debug)" else "Wholphin"
+            val DEFAULT_CLIENT = if (BuildConfig.DEBUG) "RawkoonTV (Debug)" else "RawkoonTV"
         }
     }
