@@ -6,6 +6,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.rawkoon.RawkoonThemeColors
+import com.github.damontecres.wholphin.rawkoon.RawkoonTypography
 import com.github.damontecres.wholphin.ui.theme.colors.BlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BoldBlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BrownThemeColors
@@ -52,7 +53,7 @@ fun WholphinTheme(
         ) {
             MaterialTheme(
                 colorScheme = colorScheme,
-                typography = AppTypography,
+                typography = if (appThemeColors == AppThemeColors.RAWKOON) RawkoonTypography else AppTypography,
                 content = content,
             )
         }

@@ -72,6 +72,13 @@ fun RawkoonSettingsPage(
         }
         item {
             ClickPreference(
+                title = stringResource(R.string.license_info),
+                summary = stringResource(R.string.rawkoon_fonts),
+                onClick = {},
+            )
+        }
+        item {
+            ClickPreference(
                 title = stringResource(R.string.rawkoon_sign_out),
                 summary = stringResource(R.string.rawkoon_sign_out_summary),
                 onClick = viewModel::signOut,

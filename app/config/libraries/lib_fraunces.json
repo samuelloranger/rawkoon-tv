@@ -1,0 +1,11 @@
+{
+  "uniqueId": "org.undercasetype.fraunces",
+  "developers": [],
+  "artifactVersion": "static instances",
+  "description": "Fraunces, a display serif used for titles in the Rawkoon theme",
+  "name": "Fraunces",
+  "licenses": [
+    "ofl_fraunces"
+  ],
+  "website": "https://github.com/undercasetype/Fraunces"
+}

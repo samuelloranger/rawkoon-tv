@@ -1,0 +1,11 @@
+{
+  "uniqueId": "com.hanken.design.hankengrotesk",
+  "developers": [],
+  "artifactVersion": "static instances",
+  "description": "Hanken Grotesk, the sans-serif used for text in the Rawkoon theme",
+  "name": "Hanken Grotesk",
+  "licenses": [
+    "ofl_hanken_grotesk"
+  ],
+  "website": "https://github.com/marcologous/hanken-grotesk"
+}

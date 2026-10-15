@@ -21,6 +21,7 @@
     <string name="rawkoon_server">Serveur</string>
     <string name="rawkoon_not_set">Non défini</string>
     <string name="rawkoon_credits_title">À propos de RawkoonTV</string>
+    <string name="rawkoon_fonts">Polices : Fraunces et Hanken Grotesk, licence SIL Open Font 1.1 (voir Paramètres, Informations de licence)</string>
     <string name="rawkoon_credits">Basé sur Wholphin de damontecres, sous licence GPL-3.0</string>
     <string name="rawkoon_error_credentials">Courriel ou mot de passe incorrect</string>
     <string name="rawkoon_error_rate_limited">Trop de tentatives, réessaie dans un instant</string>
