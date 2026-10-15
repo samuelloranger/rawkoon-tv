@@ -7,6 +7,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.MostRecentServerProvider
 import com.github.damontecres.wholphin.data.MostRecentServerSharedPreferences
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.rawkoon.seerr.RawkoonSeerrInterceptor
 import com.github.damontecres.wholphin.services.SeerrApi
 import com.github.damontecres.wholphin.util.CoroutineContextApiClientFactory
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -189,7 +190,8 @@ object AppModule {
     @Singleton
     fun seerrApi(
         @StandardOkHttpClient okHttpClient: OkHttpClient,
-    ) = SeerrApi(okHttpClient)
+        rawkoonSeerr: RawkoonSeerrInterceptor,
+    ) = SeerrApi(okHttpClient.newBuilder().addInterceptor(rawkoonSeerr).build())
 
     @Provides
     @Singleton

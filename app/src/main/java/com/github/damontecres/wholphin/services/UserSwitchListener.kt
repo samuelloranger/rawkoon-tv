@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.SeerrServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.SeerrAuthMethod
+import com.github.damontecres.wholphin.rawkoon.seerr.RawkoonSeerrActivator
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -36,6 +37,7 @@ class UserSwitchListener
         private val seerrServerDao: SeerrServerDao,
         private val seerrApi: SeerrApi,
         private val homeSettingsService: HomeSettingsService,
+        private val rawkoonSeerr: RawkoonSeerrActivator,
     ) {
         init {
             context as AppCompatActivity
@@ -72,6 +74,8 @@ class UserSwitchListener
                 if (BuildConfig.DISCOVER_ENABLED) {
                     // Check for seerr server
                     launchIO {
+                        // Signed in to Rawkoon: it provides discovery and requests instead of a Seerr server
+                        if (rawkoonSeerr.activate(user)) return@launchIO
                         seerrServerDao
                             .getUsersByJellyfinUser(user.rowId)
                             .lastOrNull()

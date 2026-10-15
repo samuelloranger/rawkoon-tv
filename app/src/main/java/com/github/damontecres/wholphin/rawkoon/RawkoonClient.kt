@@ -103,6 +103,16 @@ class RawkoonClient
             response.bodyOrThrow()
         }
 
+        /**
+         * Any authorized call with the status left to the caller; a 401 still ends the session
+         */
+        suspend fun call(
+            method: String,
+            path: String,
+            query: Map<String, String> = emptyMap(),
+            body: String? = null,
+        ): RawResponse = send(method, path, query, body)
+
         private suspend fun authorized(
             method: String,
             path: String,
