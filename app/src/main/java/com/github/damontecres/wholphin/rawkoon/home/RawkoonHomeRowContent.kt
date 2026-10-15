@@ -11,18 +11,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.tv.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.MaterialTheme
@@ -36,13 +42,18 @@ import com.github.damontecres.wholphin.ui.cards.ItemRow
 import java.time.LocalDate
 import java.util.Locale
 
+private val EPISODE_PILL_COLOR = Color(0xFFE8A06A)
+private val EPISODE_PILL_TEXT = Color(0xFF1C1715)
+
 @Composable
 fun UpcomingRowContent(
     title: String,
     cards: List<UpcomingCard>,
     onClick: (UpcomingCard) -> Unit,
+    onFocus: (UpcomingCard, details: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    DisposableEffect(Unit) { onDispose { RawkoonHomePreview.clear() } }
     val locale = remember { Locale.getDefault() }
     val today = remember { LocalDate.now() }
     val today1 = stringResource(R.string.rawkoon_today)
@@ -61,16 +72,24 @@ fun UpcomingRowContent(
                         DateLabel.Tomorrow -> tomorrow
                         is DateLabel.Text -> label.text
                     }
+                val pill =
+                    when (val p = card.pill) {
+                        is EpisodePill.Numbers -> p.text
+                        is EpisodePill.Count -> pluralStringResource(R.plurals.rawkoon_episodes, p.count, p.count)
+                        null -> null
+                    }
+                val details = listOfNotNull(date, pill).joinToString(" · ")
                 RawkoonPosterCard(
                     title = card.title,
-                    subtitle = listOfNotNull(date, card.episodeLabel).joinToString(" · "),
+                    subtitle = date,
                     posterUrl = card.posterUrl,
-                    chipText = null,
-                    chipColor = Color.Transparent,
-                    markText = if (card.inLibrary) stringResource(R.string.rawkoon_in_library) else null,
+                    chipText = pill,
+                    chipColor = EPISODE_PILL_COLOR,
+                    chipTextColor = EPISODE_PILL_TEXT,
+                    inLibrary = card.inLibrary,
                     onClick = onItemClick,
                     onLongClick = onLongClick,
-                    modifier = cardModifier,
+                    modifier = cardModifier.onFocusChanged { if (it.isFocused) onFocus(card, details) },
                 )
             }
         },
@@ -82,8 +101,10 @@ fun RequestsRowContent(
     title: String,
     cards: List<RequestCardData>,
     onClick: (RequestCardData) -> Unit,
+    onFocus: (RequestCardData, details: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    DisposableEffect(Unit) { onDispose { RawkoonHomePreview.clear() } }
     ItemRow(
         title = title,
         items = cards,
@@ -92,16 +113,21 @@ fun RequestsRowContent(
         modifier = modifier.fillMaxWidth().focusGroup(),
         cardContent = { _, card, cardModifier, onItemClick, onLongClick ->
             if (card != null) {
+                val chip = chipText(card.chip)
                 RawkoonPosterCard(
                     title = card.request.title,
                     subtitle = card.request.year?.toString(),
                     posterUrl = card.request.posterUrl,
-                    chipText = chipText(card.chip),
+                    chipText = chip,
                     chipColor = chipColor(card.chip),
-                    markText = null,
+                    chipTextColor = Color.White,
+                    inLibrary = false,
                     onClick = onItemClick,
                     onLongClick = onLongClick,
-                    modifier = cardModifier,
+                    modifier =
+                        cardModifier.onFocusChanged {
+                            if (it.isFocused) onFocus(card, listOfNotNull(card.request.year?.toString(), chip).joinToString(" · "))
+                        },
                 )
             }
         },
@@ -137,7 +163,8 @@ private fun RawkoonPosterCard(
     posterUrl: String?,
     chipText: String?,
     chipColor: Color,
-    markText: String?,
+    chipTextColor: Color,
+    inLibrary: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -168,13 +195,29 @@ private fun RawkoonPosterCard(
                     contentScale = ContentScale.FillBounds,
                     modifier = Modifier.fillMaxSize(),
                 )
-                markText?.let { Pill(it, Color.Black.copy(alpha = .75f), Modifier.align(Alignment.TopEnd)) }
-                chipText?.let { Pill(it, chipColor.copy(alpha = .92f), Modifier.align(Alignment.BottomStart)) }
+                if (inLibrary) {
+                    val description = stringResource(R.string.rawkoon_in_library)
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = description,
+                        tint = Color.White,
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .background(Color.Black.copy(alpha = .65f), CircleShape)
+                                .padding(3.dp)
+                                .size(18.dp),
+                    )
+                }
+                chipText?.let { Pill(it, chipColor, chipTextColor, Modifier.align(Alignment.BottomStart)) }
             }
         }
         Text(
             text = title,
-            maxLines = 1,
+            maxLines = 2,
+            minLines = 2,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
@@ -194,18 +237,19 @@ private fun RawkoonPosterCard(
 private fun Pill(
     text: String,
     color: Color,
+    textColor: Color,
     modifier: Modifier = Modifier,
 ) {
+    // titleSmall is Hanken Grotesk SemiBold in the Rawkoon theme
     Text(
         text = text,
         maxLines = 1,
-        style = MaterialTheme.typography.bodySmall,
-        fontSize = 10.sp,
-        color = Color.White,
+        style = MaterialTheme.typography.titleSmall,
+        color = textColor,
         modifier =
             modifier
-                .padding(4.dp)
+                .padding(6.dp)
                 .background(color, RoundedCornerShape(50))
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+                .padding(horizontal = 10.dp, vertical = 3.dp),
     )
 }

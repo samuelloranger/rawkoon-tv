@@ -64,7 +64,19 @@ class RawkoonHomeLogicTest {
         libraryId: Int? = null,
         season: Int? = null,
         episode: Int? = null,
-    ) = RkUpcomingItem(id = id, title = title, mediaType = type, releaseDate = date, libraryId = libraryId, seasonNumber = season, episodeNumber = episode)
+        end: Int? = null,
+        count: Int? = null,
+    ) = RkUpcomingItem(
+        id = id,
+        title = title,
+        mediaType = type,
+        releaseDate = date,
+        libraryId = libraryId,
+        seasonNumber = season,
+        episodeNumber = episode,
+        episodeNumberEnd = end,
+        episodeCount = count,
+    )
 
     @Test
     fun upcoming_keeps_today_or_later_soonest_first() {
@@ -91,12 +103,57 @@ class RawkoonHomeLogicTest {
                 .single()
         assertEquals(77, card.tmdbId)
         assertEquals(false, card.isMovie)
-        assertEquals("S2 E5", card.episodeLabel)
+        assertEquals(EpisodePill.Numbers("S2 · E5"), card.pill)
         assertTrue(card.inLibrary)
         // An item only a downloader knows has no TMDB id; the TMDB link is the other source
         assertTrue(RawkoonHomeLogic.upcoming(listOf(item("sonarr-9-2026-10-20", "2026-10-20", type = "tv")), today).isEmpty())
         val byUrl = item("sonarr-9", "2026-10-20", type = "tv").copy(tmdbUrl = "https://www.themoviedb.org/tv/555")
         assertEquals(555, RawkoonHomeLogic.upcoming(listOf(byUrl), today).single().tmdbId)
+    }
+
+    private fun pill(
+        season: Int? = null,
+        episode: Int? = null,
+        end: Int? = null,
+        count: Int? = null,
+        type: String = "tv",
+    ) = RawkoonHomeLogic
+        .upcoming(listOf(item("$type-1-2026-10-20", "2026-10-20", type = type, season = season, episode = episode, end = end, count = count)), today)
+        .single()
+        .pill
+
+    @Test
+    fun the_pill_says_a_single_episode_a_range_a_count_or_nothing() {
+        assertEquals(EpisodePill.Numbers("S1 · E7"), pill(season = 1, episode = 7))
+        assertEquals(EpisodePill.Numbers("S1 · E7"), pill(season = 1, episode = 7, end = 7, count = 1))
+        assertEquals(EpisodePill.Numbers("S1 · E3–4"), pill(season = 1, episode = 3, end = 4, count = 2))
+        assertEquals(EpisodePill.Count(2), pill(count = 2))
+        assertEquals(EpisodePill.Count(3), pill(season = 1, count = 3))
+        assertNull(pill())
+        assertNull(pill(count = 1))
+        // A movie never has one
+        assertNull(pill(type = "movie", count = 2))
+    }
+
+    @Test
+    fun older_servers_without_the_new_fields_still_decode() {
+        val json = Json { ignoreUnknownKeys = true }
+        val old = json.decodeFromString<RkUpcoming>("""{"enabled":true,"items":[{"id":"tv-1-2026-10-20","title":"T","media_type":"tv","release_date":"2026-10-20"}]}""")
+        val card = RawkoonHomeLogic.upcoming(old.items, today).single()
+        assertEquals(1, card.episodeCount)
+        assertNull(card.pill)
+        val new = json.decodeFromString<RkUpcoming>("""{"enabled":true,"items":[{"id":"tv-1","title":"T","media_type":"tv","release_date":"2026-10-20","season_number":1,"episode_number":3,"episode_number_end":4,"episode_count":2}]}""")
+        assertEquals(EpisodePill.Numbers("S1 · E3–4"), RawkoonHomeLogic.upcoming(new.items, today).single().pill)
+    }
+
+    @Test
+    fun duplicate_upcoming_items_are_dropped_by_id() {
+        val cards =
+            RawkoonHomeLogic.upcoming(
+                listOf(item("movie-1", "2026-10-20", "First"), item("movie-1", "2026-10-20", "Again"), item("movie-2", "2026-10-21")),
+                today,
+            )
+        assertEquals(listOf("First", "movie-2"), cards.map { it.title })
     }
 
     private val now = Instant.parse("2026-10-14T12:00:00Z")
@@ -189,7 +246,7 @@ class RawkoonHomeLogicTest {
         assertEquals(settings, decoded)
     }
 
-    private fun rows(settings: RawkoonSettingsRepository) = RawkoonHomeRows(mockk(), mockk(), settings, mockk(), mockk(), mockk())
+    private fun rows(settings: RawkoonSettingsRepository) = RawkoonHomeRows(mockk(), mockk(), settings, mockk(), mockk(), mockk(), mockk())
 
     @Test
     fun a_saved_home_page_gets_the_rows_once_right_after_continue_watching() =

@@ -26,6 +26,9 @@ data class RkUpcomingItem(
     @SerialName("library_id") val libraryId: Int? = null,
     @SerialName("season_number") val seasonNumber: Int? = null,
     @SerialName("episode_number") val episodeNumber: Int? = null,
+    // Newer servers only: the last episode of a range, and how many episodes air that day
+    @SerialName("episode_number_end") val episodeNumberEnd: Int? = null,
+    @SerialName("episode_count") val episodeCount: Int? = null,
 )
 
 @Serializable
@@ -44,9 +47,26 @@ data class UpcomingCard(
     val backdropUrl: String?,
     val date: LocalDate,
     val inLibrary: Boolean,
-    /** "S2 E5" for an episode */
-    val episodeLabel: String?,
-)
+    val season: Int?,
+    val episode: Int?,
+    val episodeEnd: Int?,
+    val episodeCount: Int,
+) {
+    val pill: EpisodePill? get() = RawkoonHomeLogic.episodePill(this)
+}
+
+/** What the pill on a poster says about the episodes */
+sealed interface EpisodePill {
+    /** "S1 · E7" or "S1 · E3–4" */
+    data class Numbers(
+        val text: String,
+    ) : EpisodePill
+
+    /** Several episodes with no numbers: "2 episodes" */
+    data class Count(
+        val count: Int,
+    ) : EpisodePill
+}
 
 /** How a date reads on a card; the words "Today" and "Tomorrow" are strings, so only their kind is decided here */
 sealed interface DateLabel {
@@ -79,6 +99,8 @@ object RawkoonHomeLogic {
         today: LocalDate,
     ): List<UpcomingCard> =
         items
+            // The server may send the same item more than once
+            .distinctBy { it.id.ifBlank { null } ?: Any() }
             .mapNotNull { item ->
                 val date = item.releaseDate?.take(DATE_LENGTH)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
                 val tmdbId = tmdbIdOf(item)
@@ -93,17 +115,36 @@ object RawkoonHomeLogic {
                     backdropUrl = item.backdropUrl,
                     date = date,
                     inLibrary = item.libraryId != null,
-                    episodeLabel =
-                        if (item.mediaType == "tv" && item.seasonNumber != null && item.episodeNumber != null) {
-                            "S${item.seasonNumber} E${item.episodeNumber}"
-                        } else {
-                            null
-                        },
+                    season = item.seasonNumber.takeIf { item.mediaType == "tv" },
+                    episode = item.episodeNumber.takeIf { item.mediaType == "tv" },
+                    episodeEnd = item.episodeNumberEnd.takeIf { item.mediaType == "tv" },
+                    episodeCount = (item.episodeCount ?: 1).coerceAtLeast(1),
                 )
             }.sortedWith(compareBy<UpcomingCard> { it.date }.thenBy { it.title })
             .take(MAX_ITEMS)
 
     private const val DATE_LENGTH = 10
+
+    /** Numbers when known (a range when the last episode differs), else the count when there are several, else nothing */
+    fun episodePill(card: UpcomingCard): EpisodePill? {
+        if (card.isMovie) return null
+        val season = card.season
+        val episode = card.episode
+        return when {
+            season != null && episode != null -> {
+                val end = card.episodeEnd?.takeIf { it != episode }
+                EpisodePill.Numbers(if (end != null) "S$season · E$episode–$end" else "S$season · E$episode")
+            }
+
+            card.episodeCount > 1 -> {
+                EpisodePill.Count(card.episodeCount)
+            }
+
+            else -> {
+                null
+            }
+        }
+    }
 
     /** Today, tomorrow, the weekday for the next six days, otherwise a short date (with the year when it is not this one) */
     fun dateLabel(

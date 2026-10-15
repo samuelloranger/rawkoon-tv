@@ -53,6 +53,8 @@ import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.home.RawkoonHeaderOr
+import com.github.damontecres.wholphin.rawkoon.home.RawkoonHomePreview
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
@@ -131,7 +133,13 @@ fun HomePage(
             val playlistState by playlistViewModel.playlistState.collectAsState()
             var position by rememberPosition()
 
-            val onFocusPosition = remember { { it: RowColumn -> position = it } }
+            val onFocusPosition =
+                remember {
+                    { it: RowColumn ->
+                        position = it
+                        RawkoonHomePreview.clear()
+                    }
+                }
             val currentHomePrefs by rememberUpdatedState(preferences.appPreferences.homePagePreferences)
             val onClickItem =
                 remember {
@@ -292,11 +300,13 @@ fun HomePageContent(
     takeFocus: Boolean = true,
     showEmptyRows: Boolean = false,
     headerComposable: @Composable (focusedItem: BaseItem?) -> Unit = { focusedItem ->
-        HomePageHeader(
-            item = focusedItem,
-            showLogo = showLogo,
-            modifier = HeaderUtils.modifier,
-        )
+        RawkoonHeaderOr(HeaderUtils.modifier) {
+            HomePageHeader(
+                item = focusedItem,
+                showLogo = showLogo,
+                modifier = HeaderUtils.modifier,
+            )
+        }
     },
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
 ) {
@@ -335,8 +345,10 @@ fun HomePageContent(
             }
         }
     }
-    LaunchedEffect(onUpdateBackdrop, focusedItem) {
-        focusedItem?.let { onUpdateBackdrop.invoke(it) }
+    val rawkoonPreviewActive by RawkoonHomePreview.state.collectAsState()
+    LaunchedEffect(onUpdateBackdrop, focusedItem, rawkoonPreviewActive == null) {
+        // While a Rawkoon card has focus it sets the backdrop itself
+        if (rawkoonPreviewActive == null) focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
     Box(modifier = modifier) {
         Column(

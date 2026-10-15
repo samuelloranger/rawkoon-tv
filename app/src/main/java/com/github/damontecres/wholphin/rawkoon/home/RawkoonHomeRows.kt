@@ -16,6 +16,7 @@ import com.github.damontecres.wholphin.rawkoon.RawkoonSettingsRepository
 import com.github.damontecres.wholphin.rawkoon.TitleStatus
 import com.github.damontecres.wholphin.rawkoon.seerr.JellyfinTmdbLookup
 import com.github.damontecres.wholphin.rawkoon.seerr.RkRequests
+import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.HomeRowConfigDisplay
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.hilt.IoCoroutineScope
@@ -52,6 +53,7 @@ class RawkoonHomeRows
         private val rawkoon: RawkoonClient,
         private val settings: RawkoonSettingsRepository,
         private val navigationManager: NavigationManager,
+        private val backdropService: BackdropService,
         private val jellyfinLookup: JellyfinTmdbLookup,
         @param:IoCoroutineScope private val scope: CoroutineScope,
     ) {
@@ -123,6 +125,7 @@ class RawkoonHomeRows
                     title = title(config).getString(),
                     cards = cards,
                     onClick = ::openUpcoming,
+                    onFocus = { card, details -> preview(card.title, details, card.overview, card.backdropUrl ?: card.posterUrl, "upcoming_${card.tmdbId}") },
                     modifier = modifier,
                 )
             }
@@ -136,9 +139,24 @@ class RawkoonHomeRows
                     title = title(config).getString(),
                     cards = cards,
                     onClick = ::openRequest,
+                    onFocus = { card, details ->
+                        preview(card.request.title, details, null, card.request.posterUrl, "request_${card.request.id}")
+                    },
                     modifier = modifier,
                 )
             }
+        }
+
+        /** Home's header and backdrop show the focused card instead of the last Jellyfin item */
+        private fun preview(
+            title: String,
+            details: String,
+            overview: String?,
+            backdropUrl: String?,
+            key: String,
+        ) {
+            RawkoonHomePreview.show(RawkoonPreview(title, details, overview))
+            scope.launchIO { backdropService.submit("rawkoon_$key", backdropUrl) }
         }
 
         private fun <T> cached(

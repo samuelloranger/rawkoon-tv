@@ -50,4 +50,9 @@
     <string name="rawkoon_chip_downloading_percent">Téléchargement %1$d %%</string>
     <string name="rawkoon_chip_ready">Prête</string>
     <string name="rawkoon_chip_denied">Refusée</string>
+    <plurals name="rawkoon_episodes">
+        <item quantity="one">%d épisode</item>
+        <item quantity="many">%d épisodes</item>
+        <item quantity="other">%d épisodes</item>
+    </plurals>
 </resources>
