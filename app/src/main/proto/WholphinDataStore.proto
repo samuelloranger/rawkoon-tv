@@ -128,6 +128,8 @@ enum AppThemeColors {
   OLED_BLACK = 5;
   RED = 6;
   BROWN = 7;
+  // High number so a value added upstream later cannot collide
+  RAWKOON = 100;
 }
 
 enum EdgeStyle{
@@ -211,6 +213,8 @@ message InterfacePreferences {
   bool show_logos = 13;
   SearchPreferences search_preferences = 14;
   repeated DisplayToggle display_toggles = 15;
+  // Set once the old default theme has been replaced by the Rawkoon one
+  bool rawkoon_theme_applied = 1000;
 }
 
 message AdvancedPreferences {

@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.preferences.AppThemeColors
+import com.github.damontecres.wholphin.rawkoon.RawkoonThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BoldBlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BrownThemeColors
@@ -27,6 +28,7 @@ fun getThemeColors(appThemeColors: AppThemeColors): ThemeColors =
         AppThemeColors.BOLD_BLUE -> BoldBlueThemeColors
         AppThemeColors.RED -> RedThemeColors
         AppThemeColors.BROWN -> BrownThemeColors
+        AppThemeColors.RAWKOON -> RawkoonThemeColors
         AppThemeColors.UNRECOGNIZED -> PurpleThemeColors
     }
 

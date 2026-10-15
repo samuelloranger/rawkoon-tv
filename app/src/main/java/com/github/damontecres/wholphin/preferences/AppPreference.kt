@@ -7,6 +7,7 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
+import com.github.damontecres.wholphin.rawkoon.RawkoonTheme
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.ConditionalPreferences
@@ -559,14 +560,14 @@ sealed interface AppPreference<Pref, T> {
         val ThemeColors =
             AppChoicePreference<AppPreferences, AppThemeColors>(
                 title = R.string.app_theme,
-                defaultValue = AppThemeColors.PURPLE,
+                defaultValue = AppThemeColors.RAWKOON,
                 getter = { it.interfacePreferences.appThemeColors },
                 setter = { prefs, value ->
                     prefs.updateInterfacePreferences { appThemeColors = value }
                 },
                 displayValues = R.array.app_theme_colors,
-                indexToValue = { AppThemeColors.forNumber(it) },
-                valueToIndex = { if (it != AppThemeColors.UNRECOGNIZED) it.number else 0 },
+                indexToValue = { RawkoonTheme.fromIndex(it) },
+                valueToIndex = { RawkoonTheme.toIndex(it) },
             )
 
         val ShowLogos =

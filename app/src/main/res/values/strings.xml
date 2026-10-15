@@ -633,6 +633,7 @@
         <item>@string/black</item>
         <item>@string/red</item>
         <item>@string/brown</item>
+        <item>@string/rawkoon_name</item>
     </string-array>
 
     <string name="skip_ignore">Ignore</string>

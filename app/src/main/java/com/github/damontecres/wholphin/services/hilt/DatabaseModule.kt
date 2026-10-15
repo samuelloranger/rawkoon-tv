@@ -21,6 +21,7 @@ import com.github.damontecres.wholphin.data.SeerrServerDao
 import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppPreferencesSerializer
+import com.github.damontecres.wholphin.rawkoon.ThemeMigration
 import com.github.damontecres.wholphin.rawkoon.UpdateUrlMigration
 import dagger.Module
 import dagger.Provides
@@ -89,7 +90,7 @@ object DatabaseModule {
         DataStoreFactory.create(
             serializer = userPreferencesSerializer,
             produceFile = { context.dataStoreFile("app_preferences.pb") },
-            migrations = listOf(UpdateUrlMigration),
+            migrations = listOf(UpdateUrlMigration, ThemeMigration),
             corruptionHandler =
                 ReplaceFileCorruptionHandler(
                     produceNewData = { AppPreferences.getDefaultInstance() },
