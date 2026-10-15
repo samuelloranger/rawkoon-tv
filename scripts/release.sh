@@ -13,7 +13,8 @@ set -euo pipefail
 tag="${1:?usage: scripts/release.sh vX.Y.Z}"
 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must look like v1.2.3" >&2; exit 2; }
 signing="${RAWKOONTV_SIGNING_DIR:?set RAWKOONTV_SIGNING_DIR}"
-repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+# From the origin remote: gh's own default for a fork is its parent repo.
+repo="$(git remote get-url origin | sed -E 's#^(https://github.com/|git@github.com:)##; s#\.git$##')"
 
 cd "$(git rev-parse --show-toplevel)"
 [[ -z "$(git status --porcelain)" ]] || { echo "working tree is not clean" >&2; exit 2; }
@@ -40,5 +41,5 @@ for apk in "$out"/*.apk; do
 done
 (cd "$out" && sha256sum ./*.apk)
 
-git push origin "$tag"
+git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || git push origin "$tag"
 gh release create "$tag" --repo "$repo" --verify-tag --latest --title "$tag" --generate-notes "$out"/*.apk
