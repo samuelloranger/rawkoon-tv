@@ -23,10 +23,12 @@ class RawkoonTypographyTest {
         assertEquals(FontWeight.SemiBold, RawkoonTypography.headlineMedium.fontWeight)
         assertEquals(serif, RawkoonTypography.displayLarge.fontFamily)
         assertEquals(serif, RawkoonTypography.titleLarge.fontFamily)
-        assertEquals(serif, RawkoonTypography.titleMedium.fontFamily)
         val sans = RawkoonTypography.bodyMedium.fontFamily
         assertNotEquals(serif, sans)
         assertEquals(sans, RawkoonTypography.titleSmall.fontFamily)
+        // Nav drawer, list rows and settings take titleMedium: UI labels are never Fraunces
+        assertEquals(sans, RawkoonTypography.titleMedium.fontFamily)
+        assertEquals(FontWeight.SemiBold, RawkoonTypography.titleMedium.fontWeight)
         assertEquals(sans, RawkoonTypography.labelLarge.fontFamily)
         assertEquals(FontWeight.SemiBold, RawkoonTypography.titleSmall.fontWeight)
     }

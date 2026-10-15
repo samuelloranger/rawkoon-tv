@@ -22,7 +22,8 @@ private val HankenGrotesk =
     )
 
 /**
- * The Rawkoon theme's type: Fraunces SemiBold for display, headline and the larger titles, Hanken Grotesk for the rest.
+ * The Rawkoon theme's type: Fraunces SemiBold for display, headline and titleLarge (page and row titles), Hanken Grotesk for
+ * the rest, UI labels included.
  * Sizes and line heights are Wholphin's. A glyph a font lacks falls back to the system font, which Compose does per glyph.
  */
 val RawkoonTypography: Typography =
@@ -35,8 +36,9 @@ val RawkoonTypography: Typography =
             headlineMedium = base.headlineMedium.copy(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold),
             headlineSmall = base.headlineSmall.copy(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold),
             titleLarge = base.titleLarge.copy(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold),
-            titleMedium = base.titleMedium.copy(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold),
-            // Too small for a display serif to stay crisp on a TV
+            // The nav drawer, list and settings rows and dialog items take titleMedium without naming it, and
+            // Fraunces is for titles and headers only, so it is sans: the few headers that name it follow
+            titleMedium = base.titleMedium.copy(fontFamily = HankenGrotesk, fontWeight = FontWeight.SemiBold),
             titleSmall = base.titleSmall.copy(fontFamily = HankenGrotesk, fontWeight = FontWeight.SemiBold),
             bodyLarge = base.bodyLarge.copy(fontFamily = HankenGrotesk),
             bodyMedium = base.bodyMedium.copy(fontFamily = HankenGrotesk),
