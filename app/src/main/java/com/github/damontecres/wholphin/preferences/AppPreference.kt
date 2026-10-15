@@ -5,7 +5,6 @@ import androidx.annotation.ArrayRes
 import androidx.annotation.StringRes
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
-import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.services.UpdateChecker
@@ -638,6 +637,13 @@ sealed interface AppPreference<Pref, T> {
                 summary = R.string.update_url_summary,
             )
 
+        val RawkoonAccount =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.rawkoon_name,
+                summary = R.string.rawkoon_summary,
+                destination = Destination.RawkoonAccount,
+            )
+
         val OssLicenseInfo =
             AppDestinationPreference<AppPreferences>(
                 title = R.string.license_info,
@@ -1228,9 +1234,8 @@ val basicPreferences =
             title = R.string.more,
             preferences =
                 buildList {
-                    if (BuildConfig.DISCOVER_ENABLED) {
-                        add(AppPreference.SeerrIntegration)
-                    }
+                    // RawkoonTV: Rawkoon provides discovery and requests, so there is no Seerr server to add
+                    add(AppPreference.RawkoonAccount)
                     add(AppPreference.AdvancedSettings)
                 },
         ),

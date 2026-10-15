@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.filter.DefaultForStudiosFilterOption
 import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.RawkoonSettingsPage
 import com.github.damontecres.wholphin.ui.components.ItemGrid
 import com.github.damontecres.wholphin.ui.components.LicenseInfo
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
@@ -360,6 +361,10 @@ fun DestinationContent(
 
         Destination.License -> {
             LicenseInfo(modifier)
+        }
+
+        Destination.RawkoonAccount -> {
+            RawkoonSettingsPage(modifier)
         }
 
         is Destination.Search -> {

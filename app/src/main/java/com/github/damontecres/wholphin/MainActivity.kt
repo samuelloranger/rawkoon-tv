@@ -34,6 +34,7 @@ import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
+import com.github.damontecres.wholphin.rawkoon.RawkoonSettingsRepository
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DatePlayedInvalidationService
@@ -428,6 +429,7 @@ class MainActivityViewModel
         private val backdropService: BackdropService,
         private val appUpgradeHandler: AppUpgradeHandler,
         private val intentService: IntentService,
+        private val rawkoonSettings: RawkoonSettingsRepository,
     ) : ViewModel() {
         private val mutex = Mutex()
 
@@ -557,6 +559,11 @@ class MainActivityViewModel
          */
         @VisibleForTesting
         internal suspend fun handleAppStart() {
+            if (!rawkoonSettings.current().isConfigured) {
+                // Rawkoon first: without a Rawkoon session the start is its server and sign-in screens
+                setupNavigationManager.navigateTo(SetupDestination.RawkoonFlow)
+                return
+            }
             val signInAutomatically = preferences.data.first().signInAutomatically
             val currentUser = serverRepository.current.value
             if (signInAutomatically && currentUser != null && !currentUser.user.isProtected) {
@@ -574,7 +581,10 @@ class MainActivityViewModel
                         serverRepository.getMostRecentServer()
                     }
                 Timber.d("Restore last session result=%s", restoredSession)
-                setupNavigationManager.navigateTo(restoredSession.destination)
+                setupNavigationManager.navigateTo(
+                    // No Jellyfin server known: Rawkoon sets it up instead of the manual server screen
+                    restoredSession.destination.takeIf { it != SetupDestination.ServerList } ?: SetupDestination.RawkoonFlow,
+                )
             }
         }
     }

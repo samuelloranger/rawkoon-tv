@@ -9,6 +9,8 @@ import com.github.damontecres.wholphin.data.RestoredSession
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.update
+import com.github.damontecres.wholphin.rawkoon.RawkoonConfig
+import com.github.damontecres.wholphin.rawkoon.RawkoonSettingsRepository
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DeviceProfileService
@@ -58,6 +60,7 @@ class TestMainActivityViewModel {
     private val backdropService: BackdropService = mockk(relaxed = true)
     private val appUpgradeHandler: AppUpgradeHandler = mockk()
     private val intentService: IntentService = mockk()
+    private val rawkoonSettings: RawkoonSettingsRepository = mockk()
 
     val viewModel =
         MainActivityViewModel(
@@ -70,6 +73,7 @@ class TestMainActivityViewModel {
             backdropService,
             appUpgradeHandler,
             intentService,
+            rawkoonSettings,
         )
 
     private val serverId = UUID.randomUUID()
@@ -88,6 +92,7 @@ class TestMainActivityViewModel {
         WholphinDispatchers.configure(testDispatcher)
         every { appUpgradeHandler.needUpgrade() } returns false
         every { appUpgradeHandler.copySubfont(any()) } returns Unit
+        coEvery { rawkoonSettings.current() } returns RawkoonConfig("https://rawkoon.example.test", "tok", "Alex")
         mockkStatic(Toast::class)
         val mockToast = mockk<Toast>()
         every { Toast.makeText(any(), any<CharSequence>(), any()) } returns mockToast
@@ -242,7 +247,7 @@ class TestMainActivityViewModel {
             slot.captured.let { destination ->
                 Assert.assertTrue(
                     "destination is ${destination::class}",
-                    destination is SetupDestination.ServerList,
+                    destination is SetupDestination.RawkoonFlow,
                 )
             }
         }
@@ -428,5 +433,19 @@ class TestMainActivityViewModel {
                     destination is SetupDestination.ServerList,
                 )
             }
+        }
+
+    @Test
+    fun `Test no Rawkoon session starts at the Rawkoon flow`() =
+        runTest(testDispatcher) {
+            coEvery { rawkoonSettings.current() } returns RawkoonConfig("https://rawkoon.example.test")
+            setupPreferences { signInAutomatically = true }
+
+            viewModel.handleAppStart()
+
+            val slot = slot<SetupDestination>()
+            verify { setupNavigationManager.navigateTo(capture(slot)) }
+            Assert.assertEquals(SetupDestination.RawkoonFlow, slot.captured)
+            coVerify(exactly = 0) { serverRepository.restoreLastSession() }
         }
 }

@@ -303,6 +303,7 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.protobuf.kotlin.lite)
+    implementation(libs.zxing.core)
     implementation(libs.androidx.tvprovider)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)

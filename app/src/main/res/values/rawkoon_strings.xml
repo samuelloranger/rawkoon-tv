@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawkoon_name" translatable="false">Rawkoon</string>
+    <string name="rawkoon_url_title">Connect to Rawkoon</string>
+    <string name="rawkoon_url_instructions">Enter the address of your Rawkoon server</string>
+    <string name="rawkoon_continue">Continue</string>
+    <string name="rawkoon_sign_in_title">Sign in to Rawkoon</string>
+    <string name="rawkoon_sign_in_instructions">On your phone, scan the code or open the address and enter the code</string>
+    <string name="rawkoon_sign_in_denied">The sign-in was denied</string>
+    <string name="rawkoon_try_again">Try again</string>
+    <string name="rawkoon_sign_in_with_email">Sign in with email and password</string>
+    <string name="rawkoon_sign_in_with_code">Sign in with a code instead</string>
+    <string name="rawkoon_change_server">Change server</string>
+    <string name="rawkoon_email">Email</string>
+    <string name="rawkoon_setup_title">Setting up</string>
+    <string name="rawkoon_setup_account">Reading your account…</string>
+    <string name="rawkoon_setup_server">Connecting to your media server…</string>
+    <string name="rawkoon_setup_jellyfin">Signing in to your media server…</string>
+    <string name="rawkoon_sign_out">Sign out</string>
+    <string name="rawkoon_sign_out_summary">Forget this account on this device</string>
+    <string name="rawkoon_signed_in_as">Signed in as</string>
+    <string name="rawkoon_server">Server</string>
+    <string name="rawkoon_not_set">Not set</string>
+    <string name="rawkoon_credits_title">About RawkoonTV</string>
+    <string name="rawkoon_credits">Based on Wholphin by damontecres, licensed under GPL-3.0</string>
+    <string name="rawkoon_error_credentials">Wrong email or password</string>
+    <string name="rawkoon_error_rate_limited">Too many attempts, try again in a moment</string>
+    <string name="rawkoon_error_quick_connect">The media server forgot the sign-in code, try again</string>
+    <string name="rawkoon_error_jellyfin_unreachable">Could not reach the media server</string>
+    <string name="rawkoon_error_jellyfin_signin">Could not sign in to the media server</string>
+    <string name="rawkoon_summary">Server and account</string>
+    <string name="rawkoon_error_not_configured">Rawkoon is not configured</string>
+    <string name="rawkoon_error_unauthorized">Your Rawkoon session ended: sign in again</string>
+    <string name="rawkoon_error_not_linked">This Jellyfin account is not linked to Rawkoon: ask an admin</string>
+    <string name="rawkoon_error_no_integration">Rawkoon has no Jellyfin integration</string>
+    <string name="rawkoon_error_invalid_url">Invalid Rawkoon URL</string>
+    <string name="rawkoon_error_unreachable">Rawkoon is unreachable</string>
+    <string name="rawkoon_error_http">Rawkoon error (%1$d)</string>
+    <string name="rawkoon_error_invalid">Unexpected response from Rawkoon</string>
+</resources>

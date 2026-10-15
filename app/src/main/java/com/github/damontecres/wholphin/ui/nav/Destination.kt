@@ -173,5 +173,8 @@ sealed class Destination(
     data object License : Destination(true)
 
     @Serializable
+    data object RawkoonAccount : Destination(true)
+
+    @Serializable
     data object Debug : Destination(true)
 }

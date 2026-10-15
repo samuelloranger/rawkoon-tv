@@ -29,6 +29,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.RawkoonFlowContent
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
@@ -87,6 +88,10 @@ fun MainContent(
 
                             SetupDestination.ServerList -> {
                                 SwitchServerContent(Modifier.fillMaxSize())
+                            }
+
+                            SetupDestination.RawkoonFlow -> {
+                                RawkoonFlowContent(Modifier.fillMaxSize())
                             }
 
                             is SetupDestination.UserList -> {

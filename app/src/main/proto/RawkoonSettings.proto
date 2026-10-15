@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option java_package = "com.github.damontecres.wholphin.rawkoon";
+option java_multiple_files = true;
+
+message RawkoonSettings {
+  string url = 1;
+  // Rawkoon bearer token of the signed-in user, empty when signed out
+  string token = 2;
+  string user_name = 3;
+}

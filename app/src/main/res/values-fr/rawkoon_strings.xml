@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawkoon_url_title">Connexion à Rawkoon</string>
+    <string name="rawkoon_url_instructions">Entre l\'adresse de ton serveur Rawkoon</string>
+    <string name="rawkoon_continue">Continuer</string>
+    <string name="rawkoon_sign_in_title">Connexion à Rawkoon</string>
+    <string name="rawkoon_sign_in_instructions">Sur ton téléphone, scanne le code ou ouvre l\'adresse et entre le code</string>
+    <string name="rawkoon_sign_in_denied">La connexion a été refusée</string>
+    <string name="rawkoon_try_again">Réessayer</string>
+    <string name="rawkoon_sign_in_with_email">Se connecter avec un courriel et un mot de passe</string>
+    <string name="rawkoon_sign_in_with_code">Se connecter avec un code</string>
+    <string name="rawkoon_change_server">Changer de serveur</string>
+    <string name="rawkoon_email">Courriel</string>
+    <string name="rawkoon_setup_title">Configuration</string>
+    <string name="rawkoon_setup_account">Lecture de ton compte…</string>
+    <string name="rawkoon_setup_server">Connexion à ton serveur multimédia…</string>
+    <string name="rawkoon_setup_jellyfin">Connexion à ton serveur multimédia…</string>
+    <string name="rawkoon_sign_out">Se déconnecter</string>
+    <string name="rawkoon_sign_out_summary">Oublier ce compte sur cet appareil</string>
+    <string name="rawkoon_signed_in_as">Connecté en tant que</string>
+    <string name="rawkoon_server">Serveur</string>
+    <string name="rawkoon_not_set">Non défini</string>
+    <string name="rawkoon_credits_title">À propos de RawkoonTV</string>
+    <string name="rawkoon_credits">Basé sur Wholphin de damontecres, sous licence GPL-3.0</string>
+    <string name="rawkoon_error_credentials">Courriel ou mot de passe incorrect</string>
+    <string name="rawkoon_error_rate_limited">Trop de tentatives, réessaie dans un instant</string>
+    <string name="rawkoon_error_quick_connect">Le serveur multimédia a oublié le code de connexion, réessaie</string>
+    <string name="rawkoon_error_jellyfin_unreachable">Serveur multimédia injoignable</string>
+    <string name="rawkoon_error_jellyfin_signin">Connexion au serveur multimédia impossible</string>
+    <string name="rawkoon_summary">Serveur et compte</string>
+    <string name="rawkoon_error_not_configured">Rawkoon n\'est pas configuré</string>
+    <string name="rawkoon_error_unauthorized">Ta session Rawkoon est terminée : reconnecte-toi</string>
+    <string name="rawkoon_error_not_linked">Ce compte Jellyfin n\'est pas lié à Rawkoon : demande à un administrateur</string>
+    <string name="rawkoon_error_no_integration">Rawkoon n\'a pas d\'intégration Jellyfin</string>
+    <string name="rawkoon_error_invalid_url">URL Rawkoon invalide</string>
+    <string name="rawkoon_error_unreachable">Rawkoon injoignable</string>
+    <string name="rawkoon_error_http">Erreur Rawkoon (%1$d)</string>
+    <string name="rawkoon_error_invalid">Réponse inattendue de Rawkoon</string>
+</resources>

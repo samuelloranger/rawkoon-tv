@@ -44,6 +44,10 @@ sealed interface SetupDestination : NavKey {
     @Serializable
     data object ServerList : SetupDestination
 
+    /** Rawkoon-first start: server, sign-in and setup, until Jellyfin is signed in */
+    @Serializable
+    data object RawkoonFlow : SetupDestination
+
     @Serializable
     data class UserList(
         val server: JellyfinServer,
