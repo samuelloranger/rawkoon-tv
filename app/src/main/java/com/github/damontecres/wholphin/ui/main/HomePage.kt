@@ -392,6 +392,10 @@ fun HomePageContent(
                                     )
                                 }
 
+                                is HomeRowLoadingState.Custom -> {
+                                    r.content(rowModifier)
+                                }
+
                                 is HomeRowLoadingState.Error -> {
                                     FocusableItemRow(
                                         title = r.title.getString(),

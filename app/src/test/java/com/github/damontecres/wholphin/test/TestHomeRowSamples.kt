@@ -2,6 +2,9 @@ package com.github.damontecres.wholphin.test
 
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.data.model.RawkoonHomeRow
+import com.github.damontecres.wholphin.data.model.RawkoonRequestsRow
+import com.github.damontecres.wholphin.data.model.RawkoonUpcomingRow
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.ui.AspectRatio
@@ -77,6 +80,8 @@ class TestHomeRowSamples {
                 HomeRowConfig.TvPrograms(),
                 HomeRowConfig.TvChannels(),
                 HomeRowConfig.Suggestions(parentId = UUID.randomUUID()),
+                RawkoonUpcomingRow(),
+                RawkoonRequestsRow(),
             )
     }
 
@@ -100,6 +105,8 @@ class TestHomeRowSamples {
                 is HomeRowConfig.Suggestions -> foundTypes.add(it::class)
                 is HomeRowConfig.TvChannels -> foundTypes.add(it::class)
                 is HomeRowConfig.Studios -> foundTypes.add(it::class)
+                // Both Rawkoon rows are one sealed branch of the hierarchy
+                is RawkoonHomeRow -> foundTypes.add(RawkoonHomeRow::class)
             }
         }
         Assert.assertEquals(HomeRowConfig::class.sealedSubclasses.size, foundTypes.size)
@@ -132,6 +139,7 @@ class TestHomeRowSamples {
                 imageUrlService = mockk(),
                 suggestionService = mockk(),
                 displayPreferencesService = mockk(),
+                rawkoonHomeRows = mockk(),
             )
 
         val str = """{

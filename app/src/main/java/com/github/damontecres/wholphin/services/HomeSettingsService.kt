@@ -9,12 +9,14 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomePageSettings
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.data.model.RawkoonHomeRow
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.data.model.ServerUserConfig
 import com.github.damontecres.wholphin.data.model.createGenreDestination
 import com.github.damontecres.wholphin.data.model.createStudioDestination
 import com.github.damontecres.wholphin.preferences.DefaultUserConfiguration
 import com.github.damontecres.wholphin.preferences.HomePagePreferences
+import com.github.damontecres.wholphin.rawkoon.home.RawkoonHomeRows
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.HomeItemFields
@@ -99,6 +101,7 @@ class HomeSettingsService
         private val imageUrlService: ImageUrlService,
         private val suggestionService: SuggestionService,
         private val displayPreferencesService: DisplayPreferencesService,
+        private val rawkoonHomeRows: RawkoonHomeRows,
     ) {
         @OptIn(ExperimentalSerializationApi::class)
         val jsonParser =
@@ -241,9 +244,12 @@ class HomeSettingsService
             val resolvedSettings =
                 if (settings != null) {
                     Timber.v("Found settings")
+                    // A home page saved before the Rawkoon rows existed gets them once
+                    val withRawkoon =
+                        rawkoonHomeRows.withRows(userId, settings)?.also { saveToLocal(userId, it) } ?: settings
                     // Resolve
                     val resolvedRows =
-                        settings.rows.mapIndexed { index, config ->
+                        withRawkoon.rows.mapIndexed { index, config ->
                             resolve(index, config)
                         }
                     HomePageResolvedSettings(userId, resolvedRows)
@@ -315,7 +321,11 @@ class HomeSettingsService
                         config = HomeRowConfig.ContinueWatchingCombined(),
                     ),
                 )
-            val rowConfig = continueWatchingRow + includedIds
+            val rawkoonRows =
+                rawkoonHomeRows.defaultRows().mapIndexed { index, config ->
+                    rawkoonHomeRows.resolve(includedIds.size + 2 + index, config as RawkoonHomeRow)
+                }
+            val rowConfig = continueWatchingRow + rawkoonRows + includedIds
             return HomePageResolvedSettings(userId, rowConfig)
         }
 
@@ -552,6 +562,10 @@ class HomeSettingsService
                     )
                 }
 
+                is RawkoonHomeRow -> {
+                    rawkoonHomeRows.resolve(id, config)
+                }
+
                 is HomeRowConfig.Suggestions -> {
                     val title = getItemName(R.string.suggestions_for, config.parentId)
                     HomeRowConfigDisplay(
@@ -599,6 +613,10 @@ class HomeSettingsService
             usePaging: Boolean = false,
         ): HomeRowLoadingState =
             when (row) {
+                is RawkoonHomeRow -> {
+                    rawkoonHomeRows.fetch(row)
+                }
+
                 is HomeRowConfig.ContinueWatching -> {
                     val resume =
                         latestNextUpService.getResume(

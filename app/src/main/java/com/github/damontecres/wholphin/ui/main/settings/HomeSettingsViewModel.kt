@@ -21,6 +21,7 @@ import com.github.damontecres.wholphin.data.model.HomeRowConfig.Suggestions
 import com.github.damontecres.wholphin.data.model.HomeRowConfig.TvChannels
 import com.github.damontecres.wholphin.data.model.HomeRowConfig.TvPrograms
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.data.model.RawkoonHomeRow
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -745,6 +746,10 @@ class HomeSettingsViewModel
 
                                 is HomeRowConfig.TvChannels -> {
                                     it.config.updateViewOptions(preset.liveTv)
+                                }
+
+                                is RawkoonHomeRow -> {
+                                    it.config
                                 }
                             }
                         it.copy(config = newConfig)

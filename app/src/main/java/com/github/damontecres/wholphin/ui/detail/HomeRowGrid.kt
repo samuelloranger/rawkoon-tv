@@ -251,6 +251,7 @@ fun HomeRowGrid(
 
             is HomeRowLoadingState.Loading,
             is HomeRowLoadingState.Pending,
+            is HomeRowLoadingState.Custom,
             -> {
                 LoadingPage(Modifier.fillMaxSize())
             }

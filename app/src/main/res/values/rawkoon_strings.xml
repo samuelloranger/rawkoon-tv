@@ -40,4 +40,15 @@
     <string name="rawkoon_error_http">Rawkoon error (%1$d)</string>
     <string name="rawkoon_error_invalid">Unexpected response from Rawkoon</string>
     <string name="rawkoon_update_no_space">Not enough storage on this TV to install the update (needs about %1$d MB, %2$d MB free). Free up space in Settings › Storage.</string>
+    <string name="rawkoon_coming_soon">Coming soon</string>
+    <string name="rawkoon_my_requests">My requests</string>
+    <string name="rawkoon_today">Today</string>
+    <string name="rawkoon_tomorrow">Tomorrow</string>
+    <string name="rawkoon_in_library">In library</string>
+    <string name="rawkoon_chip_pending">Pending</string>
+    <string name="rawkoon_chip_approved">Approved</string>
+    <string name="rawkoon_chip_downloading">Downloading</string>
+    <string name="rawkoon_chip_downloading_percent">Downloading %1$d%%</string>
+    <string name="rawkoon_chip_ready">Ready</string>
+    <string name="rawkoon_chip_denied">Denied</string>
 </resources>

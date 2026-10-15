@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.util
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
@@ -69,6 +71,14 @@ sealed interface HomeRowLoadingState {
         val rowType: HomeRowConfig? = null,
         val showViewMore: Boolean = true,
     ) : HomeRowLoadingState
+
+    /** A row that draws itself, for rows whose items are not Jellyfin items */
+    data class Custom(
+        override val title: StringProvider,
+        val content: @Composable (Modifier) -> Unit,
+    ) : HomeRowLoadingState {
+        override val completed: Boolean get() = true
+    }
 
     data class Error(
         override val title: StringProvider,

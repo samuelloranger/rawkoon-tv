@@ -10,4 +10,8 @@ message RawkoonSettings {
   string user_name = 3;
   // Interface size in percent; 0 until chosen, which means the default
   int32 interface_scale_percent = 4;
+  // The signed-in Rawkoon user's id, to pick out their own requests
+  string user_id = 5;
+  // Jellyfin users whose saved home page already got the Rawkoon rows, so rows they removed stay removed
+  repeated string home_rows_users = 6;
 }

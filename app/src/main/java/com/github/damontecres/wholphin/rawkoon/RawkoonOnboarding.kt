@@ -37,7 +37,7 @@ class RawkoonOnboarding
             val bootstrap = client.bootstrap()
             val jellyfinInfo = bootstrap.jellyfin ?: throw RawkoonException.NoJellyfinIntegration()
             if (!jellyfinInfo.linked) throw RawkoonException.NotLinked()
-            settings.update { it.copy(userName = bootstrap.user.name) }
+            settings.update { it.copy(userName = bootstrap.user.name, userId = bootstrap.user.id) }
             return bootstrap
         }
 

@@ -39,4 +39,15 @@
     <string name="rawkoon_error_http">Erreur Rawkoon (%1$d)</string>
     <string name="rawkoon_error_invalid">Réponse inattendue de Rawkoon</string>
     <string name="rawkoon_update_no_space">Espace de stockage insuffisant sur ce téléviseur pour installer la mise à jour (environ %1$d Mo nécessaires, %2$d Mo libres). Libérez de l\'espace dans Paramètres › Stockage.</string>
+    <string name="rawkoon_coming_soon">Prochainement</string>
+    <string name="rawkoon_my_requests">Mes demandes</string>
+    <string name="rawkoon_today">Aujourd\'hui</string>
+    <string name="rawkoon_tomorrow">Demain</string>
+    <string name="rawkoon_in_library">Dans la bibliothèque</string>
+    <string name="rawkoon_chip_pending">En attente</string>
+    <string name="rawkoon_chip_approved">Approuvée</string>
+    <string name="rawkoon_chip_downloading">Téléchargement</string>
+    <string name="rawkoon_chip_downloading_percent">Téléchargement %1$d %%</string>
+    <string name="rawkoon_chip_ready">Prête</string>
+    <string name="rawkoon_chip_denied">Refusée</string>
 </resources>
