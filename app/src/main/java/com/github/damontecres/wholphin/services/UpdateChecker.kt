@@ -17,6 +17,7 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.rawkoon.RawkoonUpdateStorage
 import com.github.damontecres.wholphin.services.UpdateChecker.Companion.ASSET_NAME
 import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
@@ -200,6 +201,7 @@ class UpdateChecker
             callback: DownloadCallback,
         ) {
             withContext(WholphinDispatchers.IO) {
+                RawkoonUpdateStorage.prepare(context, okHttpClient, release)
                 cleanup()
                 val request =
                     Request

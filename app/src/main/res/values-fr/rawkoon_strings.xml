@@ -37,4 +37,5 @@
     <string name="rawkoon_error_unreachable">Rawkoon injoignable</string>
     <string name="rawkoon_error_http">Erreur Rawkoon (%1$d)</string>
     <string name="rawkoon_error_invalid">Réponse inattendue de Rawkoon</string>
+    <string name="rawkoon_update_no_space">Espace de stockage insuffisant sur ce téléviseur pour installer la mise à jour (environ %1$d Mo nécessaires, %2$d Mo libres). Libérez de l\'espace dans Paramètres › Stockage.</string>
 </resources>

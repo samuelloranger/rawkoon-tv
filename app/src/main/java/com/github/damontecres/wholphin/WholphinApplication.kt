@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composer
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.github.damontecres.wholphin.rawkoon.RawkoonUpdateStorage
 import dagger.hilt.android.HiltAndroidApp
 import org.acra.ACRA
 import org.acra.ReportField
@@ -105,6 +106,7 @@ class WholphinApplication :
             reportSendSuccessToast = "Sent crash report!"
         }
         ACRA.errorReporter.putCustomData("SDK_INT", Build.VERSION.SDK_INT.toString())
+        RawkoonUpdateStorage.cleanUp(this)
     }
 
     @Inject
