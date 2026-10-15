@@ -498,7 +498,7 @@ fun buildDialogForSeason(
     val items =
         buildList {
             add(
-                DialogItem(resources.getString(R.string.go_to), Icons.Default.PlayArrow) {
+                DialogItem(resources.getString(R.string.rawkoon_open), Icons.Default.PlayArrow) {
                     onClickItem.invoke(s)
                 },
             )

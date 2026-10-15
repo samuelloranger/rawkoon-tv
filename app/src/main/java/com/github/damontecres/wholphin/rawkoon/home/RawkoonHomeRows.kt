@@ -224,21 +224,29 @@ class RawkoonHomeRows
             jellyfinItemId = null,
         )
 
+        /** A title in the library opens its Jellyfin page (a show's, for an episode); else, or when Jellyfin has no match, the discover page */
         private fun openUpcoming(card: UpcomingCard) {
-            navigationManager.navigateTo(
-                Destination.DiscoveredItem(
-                    discoverItem(
-                        card.tmdbId,
-                        card.isMovie,
-                        card.title,
-                        card.overview,
-                        card.posterUrl,
-                        card.backdropUrl,
-                        card.date.year,
-                        if (card.inLibrary) SeerrAvailability.PROCESSING else SeerrAvailability.UNKNOWN,
-                    ),
-                ),
-            )
+            scope.launchIO {
+                val jellyfinId = if (card.inLibrary) jellyfinLookup.find(card.tmdbId, card.title, card.date.year, !card.isMovie) else null
+                if (jellyfinId != null) {
+                    navigationManager.navigateTo(Destination.MediaItem(jellyfinId, if (card.isMovie) BaseItemKind.MOVIE else BaseItemKind.SERIES))
+                } else {
+                    navigationManager.navigateTo(
+                        Destination.DiscoveredItem(
+                            discoverItem(
+                                card.tmdbId,
+                                card.isMovie,
+                                card.title,
+                                card.overview,
+                                card.posterUrl,
+                                card.backdropUrl,
+                                card.date.year,
+                                if (card.inLibrary) SeerrAvailability.PROCESSING else SeerrAvailability.UNKNOWN,
+                            ),
+                        ),
+                    )
+                }
+            }
         }
 
         /** The Jellyfin item when the title is ready and Jellyfin has it, else the discover page */

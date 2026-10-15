@@ -55,4 +55,5 @@
         <item quantity="one">%d episode</item>
         <item quantity="other">%d episodes</item>
     </plurals>
+    <string name="rawkoon_open">Open</string>
 </resources>

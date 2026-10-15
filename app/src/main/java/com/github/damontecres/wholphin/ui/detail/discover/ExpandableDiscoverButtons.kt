@@ -58,7 +58,7 @@ fun ExpandableDiscoverButtons(
 
                 SeerrAvailability.PARTIALLY_AVAILABLE,
                 SeerrAvailability.AVAILABLE,
-                -> R.string.go_to
+                -> R.string.rawkoon_open
 
                 // TODO
                 SeerrAvailability.DELETED -> R.string.delete
