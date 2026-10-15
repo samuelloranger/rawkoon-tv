@@ -147,8 +147,7 @@ configure<ApplicationExtension> {
             dimension = "version"
             isDefault = true
             manifestPlaceholders += mapOf(featureLeanback to false)
-            // RawkoonTV: the updater points at upstream Wholphin releases, so it stays off
-            setFeatureFlag(featureUpdate, false)
+            setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
         }
         create("appstore") {
