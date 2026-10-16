@@ -45,7 +45,9 @@ class DeviceSignIn
                         when (val poll = auth.pollDeviceToken(baseUrl, code.deviceCode)) {
                             DevicePoll.Pending -> {}
 
-                            DevicePoll.SlowDown -> intervalMs += SLOW_DOWN_MS
+                            DevicePoll.SlowDown -> {
+                                intervalMs += SLOW_DOWN_MS
+                            }
 
                             DevicePoll.Expired -> {
                                 code = auth.requestDeviceCode(baseUrl)

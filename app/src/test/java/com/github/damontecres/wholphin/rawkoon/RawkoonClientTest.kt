@@ -43,7 +43,10 @@ class RawkoonClientTest {
         runTest(testDispatcher) {
             val fake =
                 FakeRawkoon(
-                    mapOf("api/requests/status" to route(200 to """{"library":null,"request":{"id":5,"status":"pending","deny_reason":null}}""")),
+                    mapOf(
+                        "api/requests/status" to
+                            route(200 to """{"library":null,"request":{"id":5,"status":"pending","deny_reason":null}}"""),
+                    ),
                 )
             val status = client(fake).status(603, RawkoonMediaType.SHOW)
             assertEquals("pending", status.request?.status)
@@ -124,7 +127,13 @@ class RawkoonClientTest {
             config = RawkoonConfig(" https://rawkoon.example.test\u200B\n", "t")
             val fake = FakeRawkoon(mapOf("api/tv/bootstrap" to route(200 to "{}")))
             client(fake).bootstrap()
-            assertEquals("https://rawkoon.example.test/api/tv/bootstrap", fake.requests.single().url.toString())
+            assertEquals(
+                "https://rawkoon.example.test/api/tv/bootstrap",
+                fake.requests
+                    .single()
+                    .url
+                    .toString(),
+            )
         }
 
     @Test
@@ -138,7 +147,12 @@ class RawkoonClientTest {
             assertEquals("Alex", b.user.name)
             assertEquals(BootstrapJellyfin("https://jellyfin.example.test", true), b.jellyfin)
             assertEquals("k", b.tmdb?.key)
-            val bare = client(FakeRawkoon(mapOf("api/tv/bootstrap" to route(200 to """{"user":{"id":"u","name":"A"},"jellyfin":null,"tmdb":null}""")))).bootstrap()
+            val bare =
+                client(
+                    FakeRawkoon(
+                        mapOf("api/tv/bootstrap" to route(200 to """{"user":{"id":"u","name":"A"},"jellyfin":null,"tmdb":null}""")),
+                    ),
+                ).bootstrap()
             assertEquals(null, bare.jellyfin)
             assertEquals(null, bare.tmdb)
         }

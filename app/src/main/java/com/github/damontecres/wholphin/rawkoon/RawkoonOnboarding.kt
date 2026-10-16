@@ -59,7 +59,12 @@ class RawkoonOnboarding
         }
 
         private suspend fun signIn(server: JellyfinServer): CurrentUser =
-            quickConnect.login(server, existingUser = null, pollIntervalMs = POLL_INTERVAL_MS, onInitiated = { client.approveQuickConnect(it.code) })
+            quickConnect.login(
+                server,
+                existingUser = null,
+                pollIntervalMs = POLL_INTERVAL_MS,
+                onInitiated = { client.approveQuickConnect(it.code) },
+            )
 
         /**
          * Same discovery and save as adding a server by hand

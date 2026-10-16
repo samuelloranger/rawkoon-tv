@@ -64,7 +64,10 @@ class RawkoonHttp
                         RawResponse(
                             response.code,
                             response.body.string(),
-                            response.headers.toMultimap().mapKeys { it.key.lowercase() }.mapValues { it.value.first() },
+                            response.headers
+                                .toMultimap()
+                                .mapKeys { it.key.lowercase() }
+                                .mapValues { it.value.first() },
                         )
                     }
                 } catch (e: IOException) {

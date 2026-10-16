@@ -1,12 +1,12 @@
 package com.github.damontecres.wholphin.rawkoon
 
+import androidx.compose.ui.graphics.toArgb
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.InterfacePreferences
 import com.github.damontecres.wholphin.ui.theme.getThemeColors
 import kotlinx.coroutines.runBlocking
-import androidx.compose.ui.graphics.toArgb
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -47,7 +47,12 @@ class ThemeMigrationTest {
     @Test
     fun purple_chosen_after_the_migration_stays_purple() {
         val migrated = migrate(prefs(AppThemeColors.PURPLE))
-        val chosen = migrated.toBuilder().setInterfacePreferences(migrated.interfacePreferences.toBuilder().setAppThemeColors(AppThemeColors.PURPLE)).build()
+        val chosen =
+            migrated
+                .toBuilder()
+                .setInterfacePreferences(
+                    migrated.interfacePreferences.toBuilder().setAppThemeColors(AppThemeColors.PURPLE),
+                ).build()
         assertEquals(AppThemeColors.PURPLE, migrate(chosen).interfacePreferences.appThemeColors)
     }
 
@@ -62,7 +67,10 @@ class ThemeMigrationTest {
         // The picker's option count: every real theme has its own position
         assertEquals(
             (0..8).toList(),
-            AppThemeColors.entries.filter { it != AppThemeColors.UNRECOGNIZED }.map { RawkoonTheme.toIndex(it) }.sorted(),
+            AppThemeColors.entries
+                .filter { it != AppThemeColors.UNRECOGNIZED }
+                .map { RawkoonTheme.toIndex(it) }
+                .sorted(),
         )
     }
 

@@ -50,7 +50,11 @@ class RawkoonSettingsRepository
         /** Forget the session but keep the server URL */
         suspend fun clearSession() = update { it.copy(token = "", userName = "", userId = "") }
 
-        suspend fun homeRowsAddedFor(jellyfinUserId: String): Boolean = dataStore.data.first().homeRowsUsersList.contains(jellyfinUserId)
+        suspend fun homeRowsAddedFor(jellyfinUserId: String): Boolean =
+            dataStore.data
+                .first()
+                .homeRowsUsersList
+                .contains(jellyfinUserId)
 
         suspend fun markHomeRowsAdded(jellyfinUserId: String) {
             dataStore.updateData { it.toBuilder().addHomeRowsUsers(jellyfinUserId).build() }

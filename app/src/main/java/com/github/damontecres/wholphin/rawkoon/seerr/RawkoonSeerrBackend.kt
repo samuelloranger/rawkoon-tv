@@ -97,7 +97,12 @@ class RawkoonSeerrBackend
                 }
             }
             PERSON_CREDITS.matchEntire(path)?.let {
-                return ok(buildJsonObject { put("cast", JsonArray(emptyList())) ; put("crew", JsonArray(emptyList())) })
+                return ok(
+                    buildJsonObject {
+                        put("cast", JsonArray(emptyList()))
+                        put("crew", JsonArray(emptyList()))
+                    },
+                )
             }
             if (REQUEST_BY_ID.matches(path)) return reply(FORBIDDEN, "Rawkoon requests cannot be changed from here")
             return when ("$method $path") {
@@ -176,11 +181,25 @@ class RawkoonSeerrBackend
                 buildMap {
                     put("type", if (isMovie) "movie" else "tv")
                     put("sort_by", rawkoonSort(query["sortBy"], isMovie))
-                    query["genre"]?.split(",")?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { put("genre_id", it) }
-                    query["watchProviders"]?.split(",")?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { put("provider_id", it) }
+                    query["genre"]
+                        ?.split(",")
+                        ?.firstOrNull()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { put("genre_id", it) }
+                    query["watchProviders"]
+                        ?.split(",")
+                        ?.firstOrNull()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { put("provider_id", it) }
                 }
 
-            suspend fun fetch(rawkoonPage: Int) = json.decodeFromString<RkItemPage>(get("api/medias/discover", params + ("page" to rawkoonPage.toString())))
+            suspend fun fetch(rawkoonPage: Int) =
+                json.decodeFromString<RkItemPage>(
+                    get(
+                        "api/medias/discover",
+                        params + ("page" to rawkoonPage.toString()),
+                    ),
+                )
             val first = fetch(offset / DISCOVER_PAGE_SIZE + 1)
             var list = first.items.drop(offset % DISCOVER_PAGE_SIZE).take(SEERR_PAGE_SIZE)
             if (list.size < SEERR_PAGE_SIZE && first.page < first.totalPages) {
@@ -196,7 +215,13 @@ class RawkoonSeerrBackend
         }
 
         private suspend fun providers(isMovie: Boolean): SeerrReply {
-            val result = json.decodeFromString<RkProviders>(get("api/medias/streaming-providers", mapOf("type" to if (isMovie) "movie" else "tv")))
+            val result =
+                json.decodeFromString<RkProviders>(
+                    get(
+                        "api/medias/streaming-providers",
+                        mapOf("type" to if (isMovie) "movie" else "tv"),
+                    ),
+                )
             return ok(SeerrJson.watchProviders(result.providers))
         }
 
@@ -239,7 +264,9 @@ class RawkoonSeerrBackend
                 val jellyfinId =
                     if (availability == SeerrAvailability.AVAILABLE || availability == SeerrAvailability.PARTIALLY_AVAILABLE) {
                         val name = SeerrJson.titleOf(title?.title, modal.details)
-                        val year = title?.releaseYear ?: (modal.details?.releaseDate ?: modal.details?.firstAirDate)?.take(YEAR_LENGTH)?.toIntOrNull()
+                        val year =
+                            title?.releaseYear
+                                ?: (modal.details?.releaseDate ?: modal.details?.firstAirDate)?.take(YEAR_LENGTH)?.toIntOrNull()
                         jellyfinLookup.find(id, name, year, !isMovie)
                     } else {
                         null
@@ -305,7 +332,12 @@ class RawkoonSeerrBackend
                     val details = modal.details
                     val title = SeerrJson.titleOf(null, details) ?: return reply(BAD_REQUEST, "Unknown title")
                     val year = (details?.releaseDate ?: details?.firstAirDate)?.take(YEAR_LENGTH)?.toIntOrNull()
-                    val poster = details?.mediaStills?.posters?.maxByOrNull { it.voteAverage ?: 0.0 }?.url
+                    val poster =
+                        details
+                            ?.mediaStills
+                            ?.posters
+                            ?.maxByOrNull { it.voteAverage ?: 0.0 }
+                            ?.url
                     CreateRequest(if (isMovie) "movie" else "show", request.mediaId, title, poster, year)
                 }
             val response = rawkoon.call("POST", "api/requests", body = json.encodeToString(CreateRequest.serializer(), create))

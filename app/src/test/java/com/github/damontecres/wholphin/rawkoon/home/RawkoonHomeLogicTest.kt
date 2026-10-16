@@ -118,8 +118,10 @@ class RawkoonHomeLogicTest {
         count: Int? = null,
         type: String = "tv",
     ) = RawkoonHomeLogic
-        .upcoming(listOf(item("$type-1-2026-10-20", "2026-10-20", type = type, season = season, episode = episode, end = end, count = count)), today)
-        .single()
+        .upcoming(
+            listOf(item("$type-1-2026-10-20", "2026-10-20", type = type, season = season, episode = episode, end = end, count = count)),
+            today,
+        ).single()
         .pill
 
     @Test
@@ -138,11 +140,17 @@ class RawkoonHomeLogicTest {
     @Test
     fun older_servers_without_the_new_fields_still_decode() {
         val json = Json { ignoreUnknownKeys = true }
-        val old = json.decodeFromString<RkUpcoming>("""{"enabled":true,"items":[{"id":"tv-1-2026-10-20","title":"T","media_type":"tv","release_date":"2026-10-20"}]}""")
+        val old =
+            json.decodeFromString<RkUpcoming>(
+                """{"enabled":true,"items":[{"id":"tv-1-2026-10-20","title":"T","media_type":"tv","release_date":"2026-10-20"}]}""",
+            )
         val card = RawkoonHomeLogic.upcoming(old.items, today).single()
         assertEquals(1, card.episodeCount)
         assertNull(card.pill)
-        val new = json.decodeFromString<RkUpcoming>("""{"enabled":true,"items":[{"id":"tv-1","title":"T","media_type":"tv","release_date":"2026-10-20","season_number":1,"episode_number":3,"episode_number_end":4,"episode_count":2}]}""")
+        val new =
+            json.decodeFromString<RkUpcoming>(
+                """{"enabled":true,"items":[{"id":"tv-1","title":"T","media_type":"tv","release_date":"2026-10-20","season_number":1,"episode_number":3,"episode_number_end":4,"episode_count":2}]}""",
+            )
         assertEquals(EpisodePill.Numbers("S1 · E3–4"), RawkoonHomeLogic.upcoming(new.items, today).single().pill)
     }
 

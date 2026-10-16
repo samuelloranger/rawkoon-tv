@@ -92,19 +92,33 @@ class TestHomeRowSamples {
         SAMPLES.forEach {
             when (it) {
                 is HomeRowConfig.ContinueWatching -> foundTypes.add(it::class)
+
                 is HomeRowConfig.ContinueWatchingCombined -> foundTypes.add(it::class)
+
                 is HomeRowConfig.Genres -> foundTypes.add(it::class)
+
                 is HomeRowConfig.NextUp -> foundTypes.add(it::class)
+
                 is HomeRowConfig.RecentlyAdded -> foundTypes.add(it::class)
+
                 is HomeRowConfig.RecentlyReleased -> foundTypes.add(it::class)
+
                 is HomeRowConfig.ByParent -> foundTypes.add(it::class)
+
                 is HomeRowConfig.GetItems -> foundTypes.add(it::class)
+
                 is HomeRowConfig.Favorite -> foundTypes.add(it::class)
+
                 is HomeRowConfig.Recordings -> foundTypes.add(it::class)
+
                 is HomeRowConfig.TvPrograms -> foundTypes.add(it::class)
+
                 is HomeRowConfig.Suggestions -> foundTypes.add(it::class)
+
                 is HomeRowConfig.TvChannels -> foundTypes.add(it::class)
+
                 is HomeRowConfig.Studios -> foundTypes.add(it::class)
+
                 // Both Rawkoon rows are one sealed branch of the hierarchy
                 is RawkoonHomeRow -> foundTypes.add(RawkoonHomeRow::class)
             }

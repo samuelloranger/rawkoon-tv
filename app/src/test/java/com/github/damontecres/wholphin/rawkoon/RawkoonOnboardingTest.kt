@@ -25,9 +25,8 @@ class RawkoonOnboardingTest {
     private val quickConnect = mockk<QuickConnectLogin>()
     private val onboarding = RawkoonOnboarding(client, settings, jellyfin, serverRepository, quickConnect)
 
-    private fun bootstrap(
-        jellyfinInfo: BootstrapJellyfin? = BootstrapJellyfin("https://jellyfin.example.test", true),
-    ) = Bootstrap(RawkoonUser("u1", "Alex", false), jellyfinInfo, BootstrapTmdb("0123456789abcdef0123456789abcdef"))
+    private fun bootstrap(jellyfinInfo: BootstrapJellyfin? = BootstrapJellyfin("https://jellyfin.example.test", true)) =
+        Bootstrap(RawkoonUser("u1", "Alex", false), jellyfinInfo, BootstrapTmdb("0123456789abcdef0123456789abcdef"))
 
     @Test
     fun reading_the_account_keeps_the_user_name() =
@@ -64,7 +63,8 @@ class RawkoonOnboardingTest {
     fun an_existing_session_on_the_same_server_is_kept() =
         runTest {
             val server = JellyfinServer(UUID.randomUUID(), "S", "https://Jellyfin.example.test/", null)
-            val current = CurrentUser(server, JellyfinUser(id = UUID.randomUUID(), name = "Alex", serverId = server.id, accessToken = "tok"))
+            val current =
+                CurrentUser(server, JellyfinUser(id = UUID.randomUUID(), name = "Alex", serverId = server.id, accessToken = "tok"))
             every { serverRepository.current } returns MutableStateFlow(current)
             coEvery { client.bootstrap() } returns bootstrap()
             val steps = mutableListOf<OnboardingStep>()
