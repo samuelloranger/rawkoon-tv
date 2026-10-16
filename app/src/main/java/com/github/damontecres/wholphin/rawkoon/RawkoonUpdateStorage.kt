@@ -131,10 +131,18 @@ object RawkoonUpdateStorage {
         url: String,
     ): Long? =
         try {
-            client.newCall(Request.Builder().url(url).header("Range", "bytes=0-0").build()).execute().use { response ->
-                response.header("Content-Range")?.substringAfterLast('/')?.toLongOrNull()
-                    ?: response.body.contentLength().takeIf { it > 1 }
-            }
+            client
+                .newCall(
+                    Request
+                        .Builder()
+                        .url(url)
+                        .header("Range", "bytes=0-0")
+                        .build(),
+                ).execute()
+                .use { response ->
+                    response.header("Content-Range")?.substringAfterLast('/')?.toLongOrNull()
+                        ?: response.body.contentLength().takeIf { it > 1 }
+                }
         } catch (e: Exception) {
             Timber.w(e, "Could not read the update size")
             null

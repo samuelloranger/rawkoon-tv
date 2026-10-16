@@ -38,7 +38,13 @@ class RawkoonAuthClientTest {
             val fake = FakeRawkoon(mapOf("api/auth/device/code" to route(200 to body)))
             val code = client(fake).requestDeviceCode(" $base\u200B\n")
             assertEquals("""{"client_id":"rawkoon-tv"}""", fake.bodies.single())
-            assertEquals("$base/api/auth/device/code", fake.requests.single().url.toString())
+            assertEquals(
+                "$base/api/auth/device/code",
+                fake.requests
+                    .single()
+                    .url
+                    .toString(),
+            )
             assertEquals("ABCD-1234", code.displayCode)
             assertEquals(5, code.interval)
             assertEquals("https://rawkoon.example.test/device?user_code=ABCD1234", code.verificationUriComplete)

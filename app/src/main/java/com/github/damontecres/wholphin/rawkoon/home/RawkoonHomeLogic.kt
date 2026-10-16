@@ -202,8 +202,21 @@ object RawkoonHomeLogic {
             }
         return all
             .filter { it.requestedBy?.id == userId && (it.type == "movie" || it.type == "show") && it.tmdbId != null }
-            .mapNotNull { request -> group(request)?.let { Triple(it, if (it == 0) parse(request.createdAt) ?: Instant.EPOCH else time(request), request) } }
-            .sortedWith(compareBy<Triple<Int, Instant, RkRequest>> { it.first }.thenByDescending { it.second })
+            .mapNotNull { request ->
+                group(request)?.let {
+                    Triple(
+                        it,
+                        if (it ==
+                            0
+                        ) {
+                            parse(request.createdAt) ?: Instant.EPOCH
+                        } else {
+                            time(request)
+                        },
+                        request,
+                    )
+                }
+            }.sortedWith(compareBy<Triple<Int, Instant, RkRequest>> { it.first }.thenByDescending { it.second })
             .map { it.third }
             .take(MAX_ITEMS)
     }

@@ -61,7 +61,8 @@ class RawkoonSeerrBackendTest {
         id: Int,
         type: String = "movie",
         exists: Boolean = false,
-    ) = """{"id":"$type-$id","tmdb_id":$id,"media_type":"$type","title":"Title $id","release_year":2001,"poster_url":"https://image.tmdb.org/t/p/w342/p$id.jpg","overview":"o","vote_average":7.5,"already_exists":$exists,"library_id":${if (exists) "9" else "null"}}"""
+    ) =
+        """{"id":"$type-$id","tmdb_id":$id,"media_type":"$type","title":"Title $id","release_year":2001,"poster_url":"https://image.tmdb.org/t/p/w342/p$id.jpg","overview":"o","vote_average":7.5,"already_exists":$exists,"library_id":${if (exists) "9" else "null"}}"""
 
     private fun items(
         range: IntRange,
@@ -77,23 +78,44 @@ class RawkoonSeerrBackendTest {
             assertTrue(user.hasPermission(SeerrPermission.REQUEST))
             assertTrue(!user.hasPermission(SeerrPermission.MANAGE_REQUESTS))
             assertTrue(!user.hasPermission(SeerrPermission.REQUEST_ADVANCED))
-            assertEquals(false, h.api.settingsApi.settingsPublicGet().cacheImages)
+            assertEquals(
+                false,
+                h.api.settingsApi
+                    .settingsPublicGet()
+                    .cacheImages,
+            )
             assertTrue(h.fake.requests.isEmpty())
         }
 
     @Test
     fun the_first_discover_page_is_cut_from_the_first_rawkoon_page() =
         runBlocking {
-            val h = harness(mapOf("api/medias/discover" to route(200 to """{"items":[${items(1..48)}],"page":1,"total_pages":3,"total_results":120}""")))
+            val h =
+                harness(
+                    mapOf(
+                        "api/medias/discover" to
+                            route(
+                                200 to """{"items":[${items(1..48)}],"page":1,"total_pages":3,"total_results":120}""",
+                            ),
+                    ),
+                )
             val page = h.api.searchApi.discoverMoviesGet(page = 1)
             assertEquals((1..20).toList(), page.results?.map { it.id })
             assertEquals(120, page.totalResults)
             assertEquals(6, page.totalPages)
-            val url = h.fake.requests.single().url
+            val url =
+                h.fake.requests
+                    .single()
+                    .url
             assertEquals("movie", url.queryParameter("type"))
             assertEquals("popularity.desc", url.queryParameter("sort_by"))
             assertEquals("1", url.queryParameter("page"))
-            assertEquals("Bearer TOKEN", h.fake.requests.single().header("Authorization"))
+            assertEquals(
+                "Bearer TOKEN",
+                h.fake.requests
+                    .single()
+                    .header("Authorization"),
+            )
         }
 
     @Test
@@ -118,10 +140,21 @@ class RawkoonSeerrBackendTest {
     @Test
     fun genre_and_sort_filters_reach_rawkoon() =
         runBlocking {
-            val h = harness(mapOf("api/medias/discover" to route(200 to """{"items":[${items(1..5, "tv")}],"page":1,"total_pages":1,"total_results":5}""")))
+            val h =
+                harness(
+                    mapOf(
+                        "api/medias/discover" to
+                            route(
+                                200 to """{"items":[${items(1..5, "tv")}],"page":1,"total_pages":1,"total_results":5}""",
+                            ),
+                    ),
+                )
             val page = h.api.searchApi.discoverTvGet(page = 1, genre = "18,35", sortBy = "vote_average.desc", watchProviders = "8")
             assertEquals(5, page.results?.size)
-            val url = h.fake.requests.single().url
+            val url =
+                h.fake.requests
+                    .single()
+                    .url
             assertEquals("tv", url.queryParameter("type"))
             assertEquals("18", url.queryParameter("genre_id"))
             assertEquals("vote_average.desc", url.queryParameter("sort_by"))
@@ -144,18 +177,38 @@ class RawkoonSeerrBackendTest {
             val h =
                 harness(
                     mapOf(
-                        "api/medias/explore/trending" to route(200 to """{"items":[${item(1)},${item(2, "tv")}],"page":2,"total_pages":9}"""),
-                        "api/medias/explore/upcoming_movies" to route(200 to """{"items":[${item(3, exists = true)}],"page":1,"total_pages":1}"""),
+                        "api/medias/explore/trending" to
+                            route(200 to """{"items":[${item(1)},${item(2, "tv")}],"page":2,"total_pages":9}"""),
+                        "api/medias/explore/upcoming_movies" to
+                            route(200 to """{"items":[${item(3, exists = true)}],"page":1,"total_pages":1}"""),
                         "api/medias/explore/on_the_air" to route(200 to """{"items":[${item(4, "tv")}],"page":1,"total_pages":1}"""),
                     ),
                 )
             val trending = h.api.searchApi.discoverTrendingGet(page = 2)
             assertEquals(listOf("movie", "tv"), trending.results?.map { it.mediaType })
             assertEquals(9, trending.totalPages)
-            assertEquals("2", h.fake.requests.single().url.queryParameter("page"))
+            assertEquals(
+                "2",
+                h.fake.requests
+                    .single()
+                    .url
+                    .queryParameter("page"),
+            )
             val upcoming = h.api.searchApi.discoverMoviesUpcomingGet(page = 1)
-            assertEquals(SeerrAvailability.PROCESSING.status, upcoming.results?.single()?.mediaInfo?.status)
-            assertEquals(listOf(4), h.api.searchApi.discoverTvUpcomingGet(page = 1).results?.map { it.id })
+            assertEquals(
+                SeerrAvailability.PROCESSING.status,
+                upcoming.results
+                    ?.single()
+                    ?.mediaInfo
+                    ?.status,
+            )
+            assertEquals(
+                listOf(4),
+                h.api.searchApi
+                    .discoverTvUpcomingGet(page = 1)
+                    .results
+                    ?.map { it.id },
+            )
         }
 
     @Test
@@ -164,29 +217,71 @@ class RawkoonSeerrBackendTest {
             val h = harness(mapOf("api/medias/tmdb-search" to route(200 to """{"enabled":true,"items":[${item(1)},${item(2, "tv")}]}""")))
             val result = h.api.searchApi.searchGet(query = "matrix", page = 1)
             assertEquals(listOf(1, 2), result.results?.map { it.id })
-            assertEquals("matrix", h.fake.requests.single().url.queryParameter("q"))
-            assertEquals(0, h.api.searchApi.searchGet(query = "m", page = 1).results?.size)
-            assertEquals(0, h.api.searchApi.searchGet(query = "matrix", page = 2).results?.size)
+            assertEquals(
+                "matrix",
+                h.fake.requests
+                    .single()
+                    .url
+                    .queryParameter("q"),
+            )
+            assertEquals(
+                0,
+                h.api.searchApi
+                    .searchGet(query = "m", page = 1)
+                    .results
+                    ?.size,
+            )
+            assertEquals(
+                0,
+                h.api.searchApi
+                    .searchGet(query = "matrix", page = 2)
+                    .results
+                    ?.size,
+            )
             assertEquals(1, h.fake.requests.size)
         }
 
     @Test
     fun genres_become_a_slider_without_images() =
         runBlocking {
-            val h = harness(mapOf("api/medias/genres" to route(200 to """{"genres":[{"id":28,"name":"Action"},{"id":35,"name":"Comedy"}]}""")))
+            val h =
+                harness(
+                    mapOf("api/medias/genres" to route(200 to """{"genres":[{"id":28,"name":"Action"},{"id":35,"name":"Comedy"}]}""")),
+                )
             val genres = h.api.searchApi.discoverGenresliderMovieGet()
             assertEquals(listOf("Action", "Comedy"), genres.map { it.name })
             assertEquals(listOf(28, 35), genres.map { it.id })
-            assertEquals("movie", h.fake.requests.single().url.queryParameter("type"))
+            assertEquals(
+                "movie",
+                h.fake.requests
+                    .single()
+                    .url
+                    .queryParameter("type"),
+            )
         }
 
     @Test
     fun streaming_providers_become_watch_providers() =
         runBlocking {
-            val h = harness(mapOf("api/medias/streaming-providers" to route(200 to """{"providers":[{"id":8,"name":"Netflix","logo_url":"https://image.tmdb.org/t/p/w92/n.jpg"}],"region":"CA"}""")))
+            val h =
+                harness(
+                    mapOf(
+                        "api/medias/streaming-providers" to
+                            route(
+                                200 to
+                                    """{"providers":[{"id":8,"name":"Netflix","logo_url":"https://image.tmdb.org/t/p/w92/n.jpg"}],"region":"CA"}""",
+                            ),
+                    ),
+                )
             val providers = h.api.otherApi.watchprovidersTvGet("US")
             assertEquals(listOf("Netflix"), providers.map { it.name })
-            assertEquals("tv", h.fake.requests.single().url.queryParameter("type"))
+            assertEquals(
+                "tv",
+                h.fake.requests
+                    .single()
+                    .url
+                    .queryParameter("type"),
+            )
         }
 
     private val matrixModal =
@@ -204,7 +299,11 @@ class RawkoonSeerrBackendTest {
                 harness(
                     mapOf(
                         "api/medias/modal/movie/603" to route(200 to matrixModal),
-                        "api/requests/status" to route(200 to """{"library":{"id":1,"status":"downloaded","episode_count":null,"downloaded_episode_count":null},"request":null}"""),
+                        "api/requests/status" to
+                            route(
+                                200 to
+                                    """{"library":{"id":1,"status":"downloaded","episode_count":null,"downloaded_episode_count":null},"request":null}""",
+                            ),
                     ),
                 )
             val movie = h.api.moviesApi.movieMovieIdGet(603)
@@ -223,7 +322,8 @@ class RawkoonSeerrBackendTest {
                 harness(
                     mapOf(
                         "api/medias/modal/movie/603" to route(200 to matrixModal),
-                        "api/requests/status" to route(200 to """{"library":null,"request":{"id":5,"status":"pending","deny_reason":null}}"""),
+                        "api/requests/status" to
+                            route(200 to """{"library":null,"request":{"id":5,"status":"pending","deny_reason":null}}"""),
                     ),
                 )
             val movie = h.api.moviesApi.movieMovieIdGet(603)
@@ -241,7 +341,13 @@ class RawkoonSeerrBackendTest {
                         "api/requests/status" to route(500 to "{}"),
                     ),
                 )
-            assertEquals(SeerrAvailability.UNKNOWN.status, h.api.moviesApi.movieMovieIdGet(603).mediaInfo?.status)
+            assertEquals(
+                SeerrAvailability.UNKNOWN.status,
+                h.api.moviesApi
+                    .movieMovieIdGet(603)
+                    .mediaInfo
+                    ?.status,
+            )
         }
 
     @Test
@@ -252,7 +358,8 @@ class RawkoonSeerrBackendTest {
                     mapOf(
                         "api/medias/modal/tv/1399" to
                             route(
-                                200 to """{"details":{"overview":"o","genres":[],"title_translations":[{"language_code":"en","title":"Thrones"}],"seasons":[{"season_number":1,"name":"S1","episode_count":10}]},"library_episodes":{"in_library":false,"downloaded":[]}}""",
+                                200 to
+                                    """{"details":{"overview":"o","genres":[],"title_translations":[{"language_code":"en","title":"Thrones"}],"seasons":[{"season_number":1,"name":"S1","episode_count":10}]},"library_episodes":{"in_library":false,"downloaded":[]}}""",
                             ),
                         "api/requests/status" to route(200 to """{"library":null,"request":null}"""),
                     ),
@@ -260,16 +367,40 @@ class RawkoonSeerrBackendTest {
             val tv = h.api.tvApi.tvTvIdGet(1399)
             assertEquals("Thrones", tv.name)
             assertEquals(listOf(1), tv.seasons?.map { it.seasonNumber })
-            assertEquals("show", h.fake.requests.first { it.url.encodedPath.endsWith("status") }.url.queryParameter("type"))
+            assertEquals(
+                "show",
+                h.fake.requests
+                    .first { it.url.encodedPath.endsWith("status") }
+                    .url
+                    .queryParameter("type"),
+            )
         }
 
     @Test
     fun similar_and_recommended_titles_come_from_the_same_rawkoon_call() =
         runBlocking {
             val h = harness(mapOf("api/medias/similar/603" to route(200 to """{"items":[${items(1..3)}]}""")))
-            assertEquals(listOf(1, 2, 3), h.api.moviesApi.movieMovieIdSimilarGet(603, page = 1).results?.map { it.id })
-            assertEquals(3, h.api.moviesApi.movieMovieIdRecommendationsGet(603, page = 1).results?.size)
-            assertEquals("movie", h.fake.requests.first().url.queryParameter("type"))
+            assertEquals(
+                listOf(1, 2, 3),
+                h.api.moviesApi
+                    .movieMovieIdSimilarGet(603, page = 1)
+                    .results
+                    ?.map { it.id },
+            )
+            assertEquals(
+                3,
+                h.api.moviesApi
+                    .movieMovieIdRecommendationsGet(603, page = 1)
+                    .results
+                    ?.size,
+            )
+            assertEquals(
+                "movie",
+                h.fake.requests
+                    .first()
+                    .url
+                    .queryParameter("type"),
+            )
         }
 
     @Test
@@ -278,7 +409,8 @@ class RawkoonSeerrBackendTest {
             val h =
                 harness(
                     mapOf(
-                        "api/medias/explore/trending" to route(200 to """{"items":[${item(1)},${item(2, "tv")}],"page":1,"total_pages":1}"""),
+                        "api/medias/explore/trending" to
+                            route(200 to """{"items":[${item(1)},${item(2, "tv")}],"page":1,"total_pages":1}"""),
                     ),
                 )
             h.api.searchApi.discoverTrendingGet(page = 1)
@@ -320,7 +452,10 @@ class RawkoonSeerrBackendTest {
                 )
             assertEquals(77, created.id)
             val body = h.fake.bodies.last()
-            assertEquals("""{"type":"show","tmdb_id":2,"title":"Title 2","poster_url":"https://image.tmdb.org/t/p/w342/p2.jpg","year":2001}""", body)
+            assertEquals(
+                """{"type":"show","tmdb_id":2,"title":"Title 2","poster_url":"https://image.tmdb.org/t/p/w342/p2.jpg","year":2001}""",
+                body,
+            )
         }
 
     @Test
@@ -371,7 +506,11 @@ class RawkoonSeerrBackendTest {
                             ),
                     ),
                 )
-            val results = h.api.requestApi.requestGet().results.orEmpty()
+            val results =
+                h.api.requestApi
+                    .requestGet()
+                    .results
+                    .orEmpty()
             assertEquals(listOf(1, 2), results.map { it.id })
             assertEquals(listOf("movie", "tv"), results.map { it.type })
             assertEquals(listOf(603, 1399), results.map { it.media?.tmdbId })
@@ -421,8 +560,20 @@ class RawkoonSeerrBackendTest {
         runBlocking {
             val backend = mockk<RawkoonSeerrBackend>()
             val reachable = FakeRawkoon(mapOf("anything" to route(200 to """{"ok":true}""")))
-            val client = OkHttpClient.Builder().addInterceptor(RawkoonSeerrInterceptor(backend)).addInterceptor(reachable).build()
-            val passed = client.newCall(okhttp3.Request.Builder().url("https://other.example.test/anything").build()).execute()
+            val client =
+                OkHttpClient
+                    .Builder()
+                    .addInterceptor(RawkoonSeerrInterceptor(backend))
+                    .addInterceptor(reachable)
+                    .build()
+            val passed =
+                client
+                    .newCall(
+                        okhttp3.Request
+                            .Builder()
+                            .url("https://other.example.test/anything")
+                            .build(),
+                    ).execute()
             assertEquals(200, passed.code)
             assertNotNull(reachable.requests.singleOrNull())
             assertNull(reachable.requests.single().header("Authorization"))

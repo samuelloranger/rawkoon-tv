@@ -22,7 +22,8 @@ class SeerrJsonTest {
     private val seerr = Serializer.kotlinxSerializationJson
     private val rawkoon = Json { ignoreUnknownKeys = true }
 
-    private inline fun <reified T> decode(element: JsonElement): T = seerr.decodeFromString(seerr.encodeToString(JsonElement.serializer(), element))
+    private inline fun <reified T> decode(element: JsonElement): T =
+        seerr.decodeFromString(seerr.encodeToString(JsonElement.serializer(), element))
 
     private fun lib(
         status: String,
@@ -116,9 +117,27 @@ class SeerrJsonTest {
         assertEquals("/high.jpg", movie.posterPath)
         assertEquals(136.0, movie.runtime?.toDouble() ?: 0.0, 0.001)
         assertEquals(listOf("Action"), movie.genres?.mapNotNull { it.name })
-        assertEquals("Neo", movie.credits?.cast?.single()?.character)
-        assertEquals("/k.jpg", movie.credits?.cast?.single()?.profilePath)
-        assertEquals("Lana Wachowski", movie.credits?.crew?.single()?.name)
+        assertEquals(
+            "Neo",
+            movie.credits
+                ?.cast
+                ?.single()
+                ?.character,
+        )
+        assertEquals(
+            "/k.jpg",
+            movie.credits
+                ?.cast
+                ?.single()
+                ?.profilePath,
+        )
+        assertEquals(
+            "Lana Wachowski",
+            movie.credits
+                ?.crew
+                ?.single()
+                ?.name,
+        )
         val trailer = movie.relatedVideos?.single()
         assertEquals(RelatedVideo.Type.TRAILER, trailer?.type)
         assertEquals("https://www.youtube.com/watch?v=abc123", trailer?.url)
@@ -152,7 +171,14 @@ class SeerrJsonTest {
         val seasons = SeerrJson.seasonStatuses(modal.details, modal.libraryEpisodes, SeerrAvailability.PARTIALLY_AVAILABLE)
         val tv =
             decode<TvDetails>(
-                SeerrJson.tvDetails(1399, "Game", "https://image.tmdb.org/t/p/w342/p.jpg", modal, SeerrJson.mediaInfo(1399, SeerrAvailability.PARTIALLY_AVAILABLE, null, seasons), seasons),
+                SeerrJson.tvDetails(
+                    1399,
+                    "Game",
+                    "https://image.tmdb.org/t/p/w342/p.jpg",
+                    modal,
+                    SeerrJson.mediaInfo(1399, SeerrAvailability.PARTIALLY_AVAILABLE, null, seasons),
+                    seasons,
+                ),
             )
         assertEquals("Game", tv.name)
         assertEquals("/p.jpg", tv.posterPath)

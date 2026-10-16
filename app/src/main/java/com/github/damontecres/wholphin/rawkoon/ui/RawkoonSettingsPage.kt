@@ -18,8 +18,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.rawkoon.RawkoonConfig
 import com.github.damontecres.wholphin.rawkoon.InterfaceScale
+import com.github.damontecres.wholphin.rawkoon.RawkoonConfig
 import com.github.damontecres.wholphin.ui.preferences.ChoicePreference
 import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.tryRequestFocus

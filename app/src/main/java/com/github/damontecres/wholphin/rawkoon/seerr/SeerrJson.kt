@@ -205,7 +205,11 @@ object SeerrJson {
         details: RkDetails?,
     ): String? =
         known
-            ?: details?.titleTranslations?.firstOrNull { it.languageCode == "en" }?.title?.takeIf { it.isNotBlank() }
+            ?: details
+                ?.titleTranslations
+                ?.firstOrNull { it.languageCode == "en" }
+                ?.title
+                ?.takeIf { it.isNotBlank() }
             ?: details?.originalTitle
 
     private fun bestPoster(details: RkDetails?) =
@@ -306,7 +310,12 @@ object SeerrJson {
     }
 
     /** RT "93%" as 93, null when there is none */
-    fun percent(text: String?): Int? = text?.trim()?.removeSuffix("%")?.toDoubleOrNull()?.toInt()
+    fun percent(text: String?): Int? =
+        text
+            ?.trim()
+            ?.removeSuffix("%")
+            ?.toDoubleOrNull()
+            ?.toInt()
 
     fun movieRatings(
         rottenTomatoes: String?,
@@ -322,8 +331,7 @@ object SeerrJson {
         }
     }
 
-    fun tvRatings(rottenTomatoes: String?): JsonObject? =
-        percent(rottenTomatoes)?.let { buildJsonObject { put("criticsScore", it) } }
+    fun tvRatings(rottenTomatoes: String?): JsonObject? = percent(rottenTomatoes)?.let { buildJsonObject { put("criticsScore", it) } }
 
     /** Seerr request status: 1 pending, 2 approved, 3 declined, 5 completed */
     private fun requestStatus(status: String): Int =

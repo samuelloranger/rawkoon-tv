@@ -10,27 +10,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.tv.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
@@ -137,13 +137,26 @@ fun RequestsRowContent(
 @Composable
 private fun chipText(chip: RequestChip): String =
     when (chip) {
-        RequestChip.Pending -> stringResource(R.string.rawkoon_chip_pending)
-        RequestChip.Approved -> stringResource(R.string.rawkoon_chip_approved)
-        is RequestChip.Downloading ->
+        RequestChip.Pending -> {
+            stringResource(R.string.rawkoon_chip_pending)
+        }
+
+        RequestChip.Approved -> {
+            stringResource(R.string.rawkoon_chip_approved)
+        }
+
+        is RequestChip.Downloading -> {
             chip.percent?.let { stringResource(R.string.rawkoon_chip_downloading_percent, it) }
                 ?: stringResource(R.string.rawkoon_chip_downloading)
-        RequestChip.Ready -> stringResource(R.string.rawkoon_chip_ready)
-        RequestChip.Denied -> stringResource(R.string.rawkoon_chip_denied)
+        }
+
+        RequestChip.Ready -> {
+            stringResource(R.string.rawkoon_chip_ready)
+        }
+
+        RequestChip.Denied -> {
+            stringResource(R.string.rawkoon_chip_denied)
+        }
     }
 
 @Composable

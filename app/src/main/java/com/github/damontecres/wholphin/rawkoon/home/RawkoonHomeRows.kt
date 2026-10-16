@@ -125,7 +125,12 @@ class RawkoonHomeRows
                     title = title(config).getString(),
                     cards = cards,
                     onClick = ::openUpcoming,
-                    onFocus = { card, details -> preview(card.title, details, card.overview, card.backdropUrl ?: card.posterUrl, "upcoming_${card.tmdbId}") },
+                    onFocus = {
+                        card,
+                        details,
+                        ->
+                        preview(card.title, details, card.overview, card.backdropUrl ?: card.posterUrl, "upcoming_${card.tmdbId}")
+                    },
                     modifier = modifier,
                 )
             }
@@ -171,7 +176,12 @@ class RawkoonHomeRows
         }
 
         private suspend fun loadRequests(): List<RequestCardData> {
-            val userId = settings.current().userId.ifBlank { rawkoon.bootstrap().user.id.also { id -> settings.update { it.copy(userId = id) } } }
+            val userId =
+                settings.current().userId.ifBlank {
+                    rawkoon.bootstrap().user.id.also { id ->
+                        settings.update { it.copy(userId = id) }
+                    }
+                }
             val all = json.decodeFromString<RkRequests>(rawkoon.call("GET", "api/requests").bodyOrThrow()).requests
             val mine = RawkoonHomeLogic.requests(all, userId, now())
             val semaphore = Semaphore(LIVE_STATUS_PARALLELISM)
@@ -229,7 +239,9 @@ class RawkoonHomeRows
             scope.launchIO {
                 val jellyfinId = if (card.inLibrary) jellyfinLookup.find(card.tmdbId, card.title, card.date.year, !card.isMovie) else null
                 if (jellyfinId != null) {
-                    navigationManager.navigateTo(Destination.MediaItem(jellyfinId, if (card.isMovie) BaseItemKind.MOVIE else BaseItemKind.SERIES))
+                    navigationManager.navigateTo(
+                        Destination.MediaItem(jellyfinId, if (card.isMovie) BaseItemKind.MOVIE else BaseItemKind.SERIES),
+                    )
                 } else {
                     navigationManager.navigateTo(
                         Destination.DiscoveredItem(
@@ -261,7 +273,9 @@ class RawkoonHomeRows
                         null
                     }
                 if (jellyfinId != null) {
-                    navigationManager.navigateTo(Destination.MediaItem(jellyfinId, if (isMovie) BaseItemKind.MOVIE else BaseItemKind.SERIES))
+                    navigationManager.navigateTo(
+                        Destination.MediaItem(jellyfinId, if (isMovie) BaseItemKind.MOVIE else BaseItemKind.SERIES),
+                    )
                 } else {
                     navigationManager.navigateTo(
                         Destination.DiscoveredItem(
