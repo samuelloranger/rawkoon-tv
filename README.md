@@ -23,7 +23,12 @@ sign-in, discovery and requests. It tracks Wholphin closely and merges its relea
 - **Discover and request.** Browse trending, popular and upcoming titles from Rawkoon, open any
   movie or show, and request it in one click. The title page shows whether it is pending, approved,
   downloading or ready.
-- **Your requests** in one list, with their status.
+- **Home rows.** *Coming soon* lists the next episodes and movies due in your library, with their
+  episode numbers; *My requests* lists your requests with their status.
+- **Owned titles open in the library.** A title you already have shows **Open** and goes straight to
+  its Jellyfin page instead of the request page.
+- **Rawkoon look.** The Rawkoon theme and fonts are the default, and **Interface size** in the
+  Rawkoon settings scales the whole interface (90% by default).
 - **Everything Wholphin does** for playing your library: a customizable home page, ExoPlayer and
   MPV playback, subtitles, trickplay previews, live TV, music, and automatic refresh rate switching.
   See [Wholphin's feature list](https://github.com/damontecres/Wholphin#features).
@@ -31,7 +36,7 @@ sign-in, discovery and requests. It tracks Wholphin closely and merges its relea
 ## Requirements
 
 - An Android TV or Fire TV device with Android 6 or later.
-- A Rawkoon server with TV sign-in (released after v1.42.0), with its Jellyfin integration set up.
+- A Rawkoon server v1.43.0 or later, with its Jellyfin integration set up.
 - A Jellyfin server (`10.10` or later) with **Quick Connect** enabled
   (Dashboard › General › Quick Connect).
 - Your Rawkoon account linked to your Jellyfin user. A Rawkoon admin does this in
@@ -56,6 +61,9 @@ Release APKs are signed with the certificate SHA-256
 RawkoonTV checks this repository for new releases and offers to install them. The first update
 asks Android for permission to install apps; after that, an update is one click and keeps your
 settings and sign-in.
+
+Full documentation, including what each sign-in error means:
+[Rawkoon docs › TV app](https://samlo.cloud/rawkoon/tv-app).
 
 ## Building
 
