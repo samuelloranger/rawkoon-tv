@@ -24,7 +24,7 @@
     <string name="rawkoon_interface_size">Interface size</string>
     <string name="rawkoon_credits_title">About RawkoonTV</string>
     <string name="rawkoon_fonts">Fonts: Fraunces and Hanken Grotesk, SIL Open Font License 1.1 (see Settings, License information)</string>
-    <string name="rawkoon_credits">Based on Wholphin by damontecres, licensed under GPL-3.0</string>
+    <string name="rawkoon_credits">Based on Wholphin by damontecres, licensed under GPL-2.0</string>
     <string name="rawkoon_error_credentials">Wrong email or password</string>
     <string name="rawkoon_error_rate_limited">Too many attempts, try again in a moment</string>
     <string name="rawkoon_error_quick_connect">The media server forgot the sign-in code, try again</string>

@@ -23,7 +23,7 @@
     <string name="rawkoon_interface_size">Taille de l\'interface</string>
     <string name="rawkoon_credits_title">À propos de RawkoonTV</string>
     <string name="rawkoon_fonts">Polices : Fraunces et Hanken Grotesk, licence SIL Open Font 1.1 (voir Paramètres, Informations de licence)</string>
-    <string name="rawkoon_credits">Basé sur Wholphin de damontecres, sous licence GPL-3.0</string>
+    <string name="rawkoon_credits">Basé sur Wholphin de damontecres, sous licence GPL-2.0</string>
     <string name="rawkoon_error_credentials">Courriel ou mot de passe incorrect</string>
     <string name="rawkoon_error_rate_limited">Trop de tentatives, réessaie dans un instant</string>
     <string name="rawkoon_error_quick_connect">Le serveur multimédia a oublié le code de connexion, réessaie</string>
