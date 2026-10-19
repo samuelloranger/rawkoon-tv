@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.rawkoon.ui.nav
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -10,8 +11,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -19,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +37,7 @@ import androidx.tv.material3.ListItemShape
 import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.Text
+import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 
@@ -47,6 +55,7 @@ object RawkoonNav {
     /** Space kept around a rail item so the 4dp focus ring is not clipped by the rail */
     val ItemInset = 4.dp
 
+    val IconSize = 20.dp
     val AvatarSize = 30.dp
     val LogoSize = 28.dp
 
@@ -80,6 +89,12 @@ object RawkoonNav {
             ?.firstOrNull { it.isLetterOrDigit() }
             ?.uppercaseChar()
             ?.toString() ?: "?"
+
+    /** Whether the avatar shows the user's image rather than the initial */
+    fun showAvatarImage(
+        imageUrl: String?,
+        loadFailed: Boolean,
+    ): Boolean = !imageUrl.isNullOrBlank() && !loadFailed
 
     @Composable
     fun itemColors(selected: Boolean): NavigationDrawerItemColors {
@@ -148,25 +163,41 @@ fun RawkoonLogoMark(modifier: Modifier = Modifier) {
     }
 }
 
-/** The profile avatar of the rail: 30dp, 8dp radius, `#4F2419` with the user's initial in `#F0BF93` */
+/**
+ * The profile avatar of the rail: 30dp with an 8dp radius. It shows the user's image when there is one, and otherwise
+ * the user's initial in `#F0BF93` on `#4F2419`.
+ */
 @Composable
 fun RawkoonProfileAvatar(
     name: String?,
     modifier: Modifier = Modifier,
+    imageUrl: String? = null,
 ) {
+    var imageError by remember(imageUrl) { mutableStateOf(false) }
     Box(
         contentAlignment = Alignment.Center,
         modifier =
             modifier
                 .requiredSize(RawkoonNav.AvatarSize)
-                .background(RawkoonTokens.Primary950, RawkoonNav.ItemShape),
+                .clip(RawkoonNav.ItemShape)
+                .background(RawkoonTokens.Primary950),
     ) {
-        Text(
-            text = RawkoonNav.avatarInitial(name),
-            color = RawkoonTokens.Primary300,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
+        if (RawkoonNav.showAvatarImage(imageUrl, imageError)) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                onError = { imageError = true },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Text(
+                text = RawkoonNav.avatarInitial(name),
+                color = RawkoonTokens.Primary300,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 

@@ -3,6 +3,8 @@ package com.github.damontecres.wholphin.rawkoon.ui.nav
 import androidx.compose.ui.graphics.Color
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RawkoonNavTest {
@@ -37,5 +39,18 @@ class RawkoonNavTest {
         assertEquals("A", RawkoonNav.avatarInitial("  (alex)"))
         assertEquals("?", RawkoonNav.avatarInitial(null))
         assertEquals("?", RawkoonNav.avatarInitial("   "))
+    }
+
+    @Test
+    fun `avatar shows the image only when there is a usable one`() {
+        assertTrue(RawkoonNav.showAvatarImage("https://example.test/a.png", loadFailed = false))
+        assertFalse(RawkoonNav.showAvatarImage("https://example.test/a.png", loadFailed = true))
+        assertFalse(RawkoonNav.showAvatarImage(null, loadFailed = false))
+        assertFalse(RawkoonNav.showAvatarImage("  ", loadFailed = false))
+    }
+
+    @Test
+    fun `rail icons are 20dp`() {
+        assertEquals(20f, RawkoonNav.IconSize.value)
     }
 }

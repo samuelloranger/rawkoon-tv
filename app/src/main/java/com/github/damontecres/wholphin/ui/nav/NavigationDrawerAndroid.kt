@@ -31,7 +31,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -185,12 +186,16 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
     ListItem(
         selected = selected,
         onClick = onClick,
-        headlineContent = content,
+        headlineContent = {
+            // Rawkoon: a short item leaves less height than the label needs, so let the label center itself
+            Box(Modifier.wrapContentHeight(align = Alignment.CenterVertically, unbounded = true)) { content() }
+        },
         leadingContent = {
             Box(
                 Modifier
                     .padding(horizontal = DrawerIconPadding)
-                    .size(DrawerIconSize),
+                    // Rawkoon: the slot must keep its size inside a short item
+                    .requiredSize(DrawerIconSize),
             ) { leadingContent() }
         },
         trailingContent = trailingContent,

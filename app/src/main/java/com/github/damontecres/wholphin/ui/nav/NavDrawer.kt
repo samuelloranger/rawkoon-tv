@@ -505,12 +505,6 @@ fun NavDrawer(
                                             it,
                                         )
                                     },
-                                    containerColor =
-                                        if (isOpen) {
-                                            MaterialTheme.colorScheme.surface.copy(alpha = .5f)
-                                        } else {
-                                            Color.Unspecified
-                                        },
                                     interactionSource = interactionSource,
                                     modifier =
                                         Modifier
@@ -581,7 +575,7 @@ fun NavigationDrawerScope.ProfileIcon(
         selected = false,
         onClick = onClick,
         leadingContent = {
-            RawkoonProfileAvatar(name = user.name)
+            RawkoonProfileAvatar(name = user.name, imageUrl = imageUrl)
         },
         supportingContent = {
             Text(
@@ -626,7 +620,7 @@ fun NavigationDrawerScope.IconNavItem(
                 icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(DrawerIconSize),
+                modifier = Modifier.size(RawkoonNav.IconSize),
             )
         },
         supportingContent =
@@ -663,8 +657,6 @@ fun NavigationDrawerScope.NavItem(
     drawerOpen: Boolean,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    // Kept for callers; the Rawkoon rail derives the container from [selected]
-    containerColor: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
@@ -715,7 +707,7 @@ fun NavigationDrawerScope.NavItem(
                     Text(
                         text = stringResource(icon),
                         textAlign = TextAlign.Center,
-                        fontSize = 16.sp,
+                        fontSize = RawkoonNav.IconSize.value.sp,
                         fontFamily = FontAwesome,
                         color = color,
                         modifier = Modifier,
@@ -725,7 +717,7 @@ fun NavigationDrawerScope.NavItem(
                         painter = painterResource(icon),
                         contentDescription = null,
                         tint = color,
-                        modifier = Modifier.size(DrawerIconSize),
+                        modifier = Modifier.size(RawkoonNav.IconSize),
                     )
                 }
             }
