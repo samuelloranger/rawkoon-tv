@@ -102,7 +102,7 @@ fun RawkoonDialogPanel(
 }
 
 /**
- * One row of a [RawkoonDialog]: an 8dp-radius row with a check column, the [text] and a mono [meta] at the end. The
+ * One row of a [RawkoonDialog]: an 8dp-radius row with a check column, the [text] and, when present, a mono [meta] on a second line so the headline is never truncated by it. The
  * selected row is apricot with an orange check, the focused row is raised with the ring.
  */
 @Composable
@@ -142,23 +142,23 @@ fun RawkoonDialogItem(
                 Spacer(Modifier.width(16.dp))
             }
             Spacer(Modifier.width(10.dp))
-            Text(
-                text = text,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelLarge,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            if (meta != null) {
-                Spacer(Modifier.weight(1f))
-                RawkoonMonoText(
-                    text = meta,
-                    fontSize = 11.5.sp,
-                    color = RawkoonTokens.Neutral500,
-                    modifier = Modifier.padding(start = 10.dp),
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
                 )
+                if (meta != null) {
+                    RawkoonMonoText(
+                        text = meta,
+                        fontSize = 11.5.sp,
+                        color = RawkoonTokens.Neutral500,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
         }
     }
