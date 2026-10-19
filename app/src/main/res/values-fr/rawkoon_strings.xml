@@ -64,4 +64,8 @@
     <string name="rawkoon_status_in_production">En production</string>
     <string name="rawkoon_status_returning">En cours</string>
     <string name="rawkoon_status_planned">Prévu</string>
+    <string name="rawkoon_type_movie">Film</string>
+    <string name="rawkoon_type_show">Série</string>
+    <string name="rawkoon_type_episode">Épisode</string>
+    <string name="rawkoon_min_left">%1$d min restantes</string>
 </resources>
