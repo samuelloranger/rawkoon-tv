@@ -38,6 +38,17 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import kotlin.time.Duration
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.IntOffset
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonMotion
 
 /**
  * Rawkoon replacement for [com.github.damontecres.wholphin.ui.main.HomePageHeader] (the item overload), with the same
@@ -109,9 +120,73 @@ fun RawkoonHomeHeader(
     status: RawkoonStatus? = null,
     genres: List<String> = emptyList(),
 ) {
+    val target =
+        HeaderContent(
+            title = title,
+            subtitle = subtitle,
+            overview = overview,
+            quickDetails = quickDetails,
+            timeRemaining = timeRemaining,
+            endsAt = endsAt,
+            showLogo = showLogo,
+            logoImageUrl = logoImageUrl,
+            typeLabel = typeLabel,
+            status = status,
+            genres = genres,
+        )
+    // Cross-fade between items: the old header leaves fast, the new one fades in with a short rise. Updates for the
+    // same item (such as the end time ticking) keep the content key, so they don't animate.
+    AnimatedContent(
+        targetState = target,
+        contentKey = { it.title to it.subtitle },
+        contentAlignment = Alignment.TopStart,
+        transitionSpec = { headerEnter() togetherWith headerExit() using SizeTransform(clip = false) },
+        label = "rawkoon_home_header",
+        modifier = modifier,
+    ) { h ->
+        HeaderBody(h)
+    }
+}
+
+/** Everything the header shows, so [AnimatedContent] can keep the outgoing item on screen while it fades */
+private data class HeaderContent(
+    val title: String?,
+    val subtitle: String?,
+    val overview: String?,
+    val quickDetails: QuickDetailsData?,
+    val timeRemaining: Duration?,
+    val endsAt: DateTime?,
+    val showLogo: Boolean,
+    val logoImageUrl: String?,
+    val typeLabel: String?,
+    val status: RawkoonStatus?,
+    val genres: List<String>,
+)
+
+private fun headerEnter(): EnterTransition {
+    val spec = tween<Float>(RawkoonMotion.HEADER_IN_MILLIS, RawkoonMotion.HEADER_IN_DELAY_MILLIS, RawkoonMotion.EnterEasing)
+    val slide =
+        tween<IntOffset>(RawkoonMotion.HEADER_IN_MILLIS, RawkoonMotion.HEADER_IN_DELAY_MILLIS, RawkoonMotion.EnterEasing)
+    return fadeIn(spec) + slideInVertically(slide) { it / 30 }
+}
+
+private fun headerExit(): ExitTransition = fadeOut(tween(RawkoonMotion.HEADER_OUT_MILLIS, easing = RawkoonMotion.ExitEasing))
+
+@Composable
+private fun HeaderBody(h: HeaderContent) {
+    val title = h.title
+    val subtitle = h.subtitle
+    val overview = h.overview
+    val quickDetails = h.quickDetails
+    val timeRemaining = h.timeRemaining
+    val endsAt = h.endsAt
+    val showLogo = h.showLogo
+    val logoImageUrl = h.logoImageUrl
+    val typeLabel = h.typeLabel
+    val status = h.status
+    val genres = h.genres
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier,
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
