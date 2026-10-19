@@ -137,7 +137,11 @@ fun RawkoonPersonCard(
             Box(Modifier.fillMaxSize().clip(CircleShape), contentAlignment = Alignment.Center) {
                 if (person.imageUrl.isNullOrBlank()) {
                     Text(
-                        text = person.name?.trim()?.firstOrNull()?.uppercase() ?: "",
+                        text =
+                            person.name
+                                ?.trim()
+                                ?.firstOrNull()
+                                ?.uppercase() ?: "",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = RawkoonTokens.Neutral500,

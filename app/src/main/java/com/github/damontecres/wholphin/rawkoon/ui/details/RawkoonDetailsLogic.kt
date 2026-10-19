@@ -7,10 +7,6 @@ import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * Pure helpers behind the Rawkoon details screens: formatting and the decisions that are worth a unit test.
- */
-
 /** A playback position as `1:12:04`, or `12:04` below one hour */
 fun formatResumeTime(position: Duration): String {
     val total = position.inWholeSeconds.coerceAtLeast(0)
