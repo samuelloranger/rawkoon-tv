@@ -23,12 +23,10 @@ object RawkoonHeaderLogic {
         }
 
     /** The community rating with one decimal ("7.6"), or null when there is none */
-    fun ratingText(rating: Float?): String? =
-        rating?.takeIf { it > 0f }?.let { String.format(Locale.US, "%.1f", it) }
+    fun ratingText(rating: Float?): String? = rating?.takeIf { it > 0f }?.let { String.format(Locale.US, "%.1f", it) }
 
     /** The first [MAX_GENRES] non-blank genres */
-    fun genres(genres: List<String>?): List<String> =
-        genres.orEmpty().filter { it.isNotBlank() }.take(MAX_GENRES)
+    fun genres(genres: List<String>?): List<String> = genres.orEmpty().filter { it.isNotBlank() }.take(MAX_GENRES)
 
     /**
      * The status pill of an item: a series that is still airing is Returning, a watched item is Watched, and

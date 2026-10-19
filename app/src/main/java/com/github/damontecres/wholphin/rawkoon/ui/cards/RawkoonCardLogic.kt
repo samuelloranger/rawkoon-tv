@@ -41,9 +41,13 @@ object RawkoonCardLogic {
     fun discoverBadge(availability: SeerrAvailability?): DiscoverBadge? =
         when (availability) {
             SeerrAvailability.PENDING -> DiscoverBadge(RawkoonStatus.Pending)
+
             SeerrAvailability.PROCESSING -> DiscoverBadge(RawkoonStatus.Approved)
+
             SeerrAvailability.PARTIALLY_AVAILABLE -> DiscoverBadge(RawkoonStatus.Downloaded, partial = true)
+
             SeerrAvailability.AVAILABLE -> DiscoverBadge(RawkoonStatus.Downloaded)
+
             SeerrAvailability.UNKNOWN,
             SeerrAvailability.BLOCKLISTED,
             SeerrAvailability.DELETED,

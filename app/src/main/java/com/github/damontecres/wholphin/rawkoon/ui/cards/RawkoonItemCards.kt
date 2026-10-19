@@ -218,7 +218,12 @@ fun RawkoonGridCard(
                 progress = RawkoonCardLogic.progress(percent),
                 status = RawkoonCardLogic.status(played, percent),
                 favorite = dto?.userData?.isFavorite ?: false,
-                cornerText = dto?.userData?.unplayedItemCount?.takeIf { it > 0 }?.toString(),
+                cornerText =
+                    dto
+                        ?.userData
+                        ?.unplayedItemCount
+                        ?.takeIf { it > 0 }
+                        ?.toString(),
                 interactionSource = interactionSource,
                 modifier = Modifier.fillMaxWidth().aspectRatio(ratio),
             )
@@ -475,7 +480,9 @@ private fun rememberCardImageUrl(
 @Composable
 private fun RawkoonItemCardsPreview() {
     Column(
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+        verticalArrangement =
+            androidx.compose.foundation.layout.Arrangement
+                .spacedBy(16.dp),
         modifier = Modifier.background(RawkoonTokens.Background).padding(24.dp),
     ) {
         RawkoonBannerCard(
