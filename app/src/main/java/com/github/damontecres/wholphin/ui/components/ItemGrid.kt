@@ -19,12 +19,12 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonGridCard
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.deleteItem
-import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.equalsNotNull
@@ -236,7 +236,7 @@ fun ItemGrid(
                     initialPosition = destination.initialPosition,
                     spacing = destination.viewOptions.spacing.dp,
                     cardContent = @Composable { (item, index, onClick, onLongClick, widthPx, mod) ->
-                        GridCard(
+                        RawkoonGridCard(
                             item = item,
                             onClick = onClick,
                             onLongClick = onLongClick,
