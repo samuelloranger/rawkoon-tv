@@ -5,9 +5,11 @@ import org.junit.Test
 
 class RawkoonLogoMotionTest {
     @Test
-    fun `each opening turns the ring by 120 degrees`() {
-        assertEquals(120f, RawkoonLogoMotion.nextRotation(0f), 0f)
-        assertEquals(240f, RawkoonLogoMotion.nextRotation(120f), 0f)
+    fun `each opening turns the ring a quarter and ends on the axes`() {
+        assertEquals(90f, RawkoonLogoMotion.nextRotation(0f), 0f)
+        assertEquals(180f, RawkoonLogoMotion.nextRotation(90f), 0f)
+        // An opening cut short at 37 degrees still ends at 90
+        assertEquals(90f, RawkoonLogoMotion.nextRotation(37f), 0f)
     }
 
     @Test

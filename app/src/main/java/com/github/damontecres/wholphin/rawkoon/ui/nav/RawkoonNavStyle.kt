@@ -59,6 +59,7 @@ import com.github.damontecres.wholphin.rawkoon.RawkoonText
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import kotlinx.coroutines.launch
+import kotlin.math.floor
 
 /**
  * The Rawkoon look of the navigation rail: a 64dp `#1C1715` rail with a 1dp right border, 36dp tall rail items with an
@@ -165,7 +166,8 @@ fun Modifier.rawkoonRailSurface(): Modifier =
 /** Timing and geometry of the logo row: values of the open/close animation, kept pure so they can be unit tested */
 object RawkoonLogoMotion {
     val Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-    const val ROTATION_DEGREES = 120f
+    /** The four holes repeat every 90°, so a quarter turn always ends with them back on the axes */
+    const val ROTATION_DEGREES = 90f
     const val ROTATION_MS = 600
     const val REVEAL_MS = 320
     const val REVEAL_DELAY_MS = 80
@@ -176,8 +178,11 @@ object RawkoonLogoMotion {
     val RowHeight = 56.dp
     val WordmarkGap = 10.dp
 
-    /** The ring angle after one more opening: each opening turns the ring by [ROTATION_DEGREES] */
-    fun nextRotation(current: Float): Float = current + ROTATION_DEGREES
+    /**
+     * The ring angle after one more opening: the next multiple of [ROTATION_DEGREES] past [current], so an opening
+     * that was cut short still ends with the holes on the axes
+     */
+    fun nextRotation(current: Float): Float = (floor(current / ROTATION_DEGREES) + 1f) * ROTATION_DEGREES
 
     /** Right edge of the wordmark clip for a reveal [fraction] in 0..1 */
     fun clipRight(
