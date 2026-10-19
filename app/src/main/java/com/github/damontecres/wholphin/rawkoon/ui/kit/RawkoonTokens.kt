@@ -102,6 +102,9 @@ object RawkoonMotion {
     const val HEADER_IN_MILLIS = 260
     const val HEADER_IN_DELAY_MILLIS = 40
 
+    /** How long focus has to rest on another item before a header that follows focus switches to it */
+    const val HEADER_SETTLE_MILLIS = 120
+
     val EnterEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
     val ExitEasing = FastOutLinearInEasing
 

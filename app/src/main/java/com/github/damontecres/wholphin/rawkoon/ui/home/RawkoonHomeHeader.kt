@@ -3,7 +3,6 @@ package com.github.damontecres.wholphin.rawkoon.ui.home
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +55,7 @@ import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import kotlin.time.Duration
@@ -143,13 +144,22 @@ fun RawkoonHomeHeader(
             status = status,
             genres = genres,
         )
+    // While focus moves quickly (a held D-pad, fast presses), wait for it to rest before switching items, so each press
+    // doesn't rebuild and re-animate the header. Updates for the same item, or a header that was empty, apply at once.
+    var shown by remember { mutableStateOf(target) }
+    LaunchedEffect(target) {
+        val otherItem = target.title != shown.title || target.subtitle != shown.subtitle
+        if (otherItem && shown.title != null) delay(RawkoonMotion.HEADER_SETTLE_MILLIS.toLong())
+        shown = target
+    }
     // Cross-fade between items: the old header leaves fast, the new one fades in with a short rise. Updates for the
-    // same item (such as the end time ticking) keep the content key, so they don't animate.
+    // same item (such as the end time ticking) keep the content key, so they don't animate. Every caller gives the
+    // header a fixed height, so there is no size to animate.
     AnimatedContent(
-        targetState = target,
+        targetState = shown,
         contentKey = { it.title to it.subtitle },
         contentAlignment = Alignment.TopStart,
-        transitionSpec = { headerEnter() togetherWith headerExit() using SizeTransform(clip = false) },
+        transitionSpec = { headerEnter() togetherWith headerExit() using null },
         label = "rawkoon_home_header",
         modifier = modifier,
     ) { h ->
