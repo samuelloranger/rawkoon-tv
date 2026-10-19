@@ -43,6 +43,7 @@ import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.NavDrawerPinnedItem
 import com.github.damontecres.wholphin.data.model.NavPinType
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
@@ -113,7 +114,7 @@ fun NavDrawerPreference(
 ) {
     val items by viewModel.state.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
-    ClickPreference(
+    RawkoonClickPreference(
         title = title,
         summary = summary,
         onClick = { showDialog = true },

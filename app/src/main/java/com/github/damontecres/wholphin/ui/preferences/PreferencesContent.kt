@@ -62,6 +62,9 @@ import com.github.damontecres.wholphin.preferences.experimentalPreferences
 import com.github.damontecres.wholphin.preferences.lazyListWrapScrolling
 import com.github.damontecres.wholphin.preferences.screensaverPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonPreferenceGroupTitle
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonSwitchPreference
 import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.services.SeerrConnectionStatus
 import com.github.damontecres.wholphin.services.UpdateChecker
@@ -238,7 +241,7 @@ fun PreferencesContent(
                                 updateFocusRequester.tryRequestFocus()
                             }
                         }
-                        ClickPreference(
+                        RawkoonClickPreference(
                             title = stringResource(R.string.install_update),
                             onClick = {
                                 if (movementSounds) playOnClickSound(context)
@@ -264,16 +267,7 @@ fun PreferencesContent(
                 }
                 prefList.forEachIndexed { groupIndex, group ->
                     item {
-                        Text(
-                            text = stringResource(group.title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Start,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = 4.dp),
-                        )
+                        RawkoonPreferenceGroupTitle(stringResource(group.title))
                     }
                     val groupPreferences =
                         group.preferences +
@@ -311,7 +305,7 @@ fun PreferencesContent(
                             }
                             when (pref) {
                                 AppPreference.InstalledVersion -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(R.string.installed_version),
                                         onClick = {
                                             showVersionDialog = true
@@ -326,7 +320,7 @@ fun PreferencesContent(
                                 }
 
                                 AppPreference.Update -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title =
                                             if (release != null && updateAvailable) {
                                                 stringResource(R.string.install_update)
@@ -375,7 +369,7 @@ fun PreferencesContent(
                                                 "Disk: ${diskMB}mb, Memory: ${memoryUsedMB}mb/${memoryMaxMB}mb"
                                             }
                                         }
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             SingletonImageLoader.get(context).let {
@@ -401,7 +395,7 @@ fun PreferencesContent(
                                 }
 
                                 AppPreference.SendAppLogs -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             viewModel.sendAppLogs()
@@ -414,7 +408,7 @@ fun PreferencesContent(
                                 }
 
                                 SubtitleSettings.Reset -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             viewModel.resetSubtitleSettings()
@@ -471,7 +465,7 @@ fun PreferencesContent(
                                 }
 
                                 AppPreference.SeerrIntegration -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             seerrDialogMode =
@@ -517,7 +511,7 @@ fun PreferencesContent(
                                 }
 
                                 AppPreference.QuickConnect -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             if (currentUser != null) {
@@ -533,7 +527,7 @@ fun PreferencesContent(
                                 }
 
                                 ScreensaverPreference.Start -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             viewModel.screensaverService.start()
@@ -592,7 +586,7 @@ fun PreferencesContent(
                                             currentUser?.uiLanguage?.let { Locale.forLanguageTag(it) }
                                                 ?: Locale.getDefault()
                                         }
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             showLocaleChoiceDialog = true
@@ -608,7 +602,7 @@ fun PreferencesContent(
                                     var showConfirm by remember { mutableStateOf(false) }
                                     pref as AppSwitchPreference<AppPreferences>
                                     val value = pref.getter.invoke(preferences)
-                                    SwitchPreference(
+                                    RawkoonSwitchPreference(
                                         title = stringResource(pref.title),
                                         value = value,
                                         onClick = {

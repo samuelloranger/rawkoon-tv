@@ -19,10 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
-import androidx.tv.material3.contentColorFor
 import com.github.damontecres.wholphin.preferences.AppSliderPreference
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
+import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonFocusRing
 import com.github.damontecres.wholphin.ui.components.SliderBar
 
 @Composable
@@ -40,11 +40,11 @@ fun SliderPreference(
     val focused = interactionSource.collectIsFocusedAsState().value
     val background =
         if (focused) {
-            MaterialTheme.colorScheme.inverseSurface
+            RawkoonTokens.Neutral800
         } else {
             Color.Unspecified
         }
-    val contentColor = contentColorFor(background)
+    val contentColor = if (focused) RawkoonTokens.Neutral50 else RawkoonTokens.Neutral100
 
     Column(
         verticalArrangement = Arrangement.SpaceEvenly,
@@ -52,7 +52,8 @@ fun SliderPreference(
             modifier
                 .defaultMinSize(minHeight = 72.dp)
                 .fillMaxWidth()
-                .background(background, shape = RoundedCornerShape(8.dp))
+                .rawkoonFocusRing(RoundedCornerShape(RawkoonTokens.RadiusLarge), focused)
+                .background(background, shape = RoundedCornerShape(RawkoonTokens.RadiusLarge))
                 .padding(PaddingValues(horizontal = 16.dp, vertical = 12.dp)),
     ) {
         PreferenceTitle(title, color = contentColor, modifier = Modifier.padding(bottom = 8.dp))

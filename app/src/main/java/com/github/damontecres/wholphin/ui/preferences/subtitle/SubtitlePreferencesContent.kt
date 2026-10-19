@@ -42,8 +42,8 @@ import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.SubtitlePreferences
 import com.github.damontecres.wholphin.preferences.lazyListWrapScrolling
 import com.github.damontecres.wholphin.preferences.resetSubtitles
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.ui.ifElse
-import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
 import com.github.damontecres.wholphin.ui.preferences.PreferenceValidation
@@ -160,7 +160,7 @@ fun SubtitlePreferencesContent(
 
                             when (pref) {
                                 SubtitleSettings.Reset -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = {
                                             scope.launch(ExceptionHandler()) {

@@ -32,6 +32,8 @@ import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppSliderPreference
 import com.github.damontecres.wholphin.preferences.AppStringPreference
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonSwitchPreference
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
@@ -69,7 +71,7 @@ fun <T> ComposablePreference(
 
     when (preference) {
         AppPreference.MpvConfFile -> {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = title,
                 onClick = {
                     val confFile = File(context.filesDir, "mpv.conf")
@@ -100,7 +102,7 @@ fun <T> ComposablePreference(
         }
 
         is AppDestinationPreference -> {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = title,
                 onClick = {
                     onNavigate.invoke(preference.destination)
@@ -112,7 +114,7 @@ fun <T> ComposablePreference(
         }
 
         is AppClickablePreference -> {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = title,
                 onClick = { onClickPreference.invoke(preference) },
                 onLongClick = onLongClick,
@@ -123,7 +125,7 @@ fun <T> ComposablePreference(
         }
 
         is AppSwitchPreference -> {
-            SwitchPreference(
+            RawkoonSwitchPreference(
                 title = title,
                 value = value as Boolean,
                 onClick = { onValueChange.invoke(!value as T) },
@@ -134,7 +136,7 @@ fun <T> ComposablePreference(
         }
 
         is AppStringPreference -> {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = title,
                 onClick = {
                     showStringDialog =
