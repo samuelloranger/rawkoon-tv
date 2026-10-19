@@ -166,6 +166,7 @@ fun Modifier.rawkoonRailSurface(): Modifier =
 /** Timing and geometry of the logo row: values of the open/close animation, kept pure so they can be unit tested */
 object RawkoonLogoMotion {
     val Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+
     /** The four holes repeat every 90°, so a quarter turn always ends with them back on the axes */
     const val ROTATION_DEGREES = 90f
     const val ROTATION_MS = 600
