@@ -145,16 +145,17 @@ fun RawkoonHomeHeader(
             genres = genres,
         )
     // While focus moves quickly (a held D-pad, fast presses), wait for it to rest before switching items, so each press
-    // doesn't rebuild and re-animate the header. Updates for the same item, or a header that was empty, apply at once.
+    // doesn't rebuild and re-animate the header. See RawkoonHeaderLogic.waitsToSwitch for what applies at once.
     var shown by remember { mutableStateOf(target) }
     LaunchedEffect(target) {
-        val otherItem = target.title != shown.title || target.subtitle != shown.subtitle
-        if (otherItem && shown.title != null) delay(RawkoonMotion.HEADER_SETTLE_MILLIS.toLong())
+        if (RawkoonHeaderLogic.waitsToSwitch(shown.title, shown.subtitle, target.title, target.subtitle)) {
+            delay(RawkoonMotion.HEADER_SETTLE_MILLIS.toLong())
+        }
         shown = target
     }
     // Cross-fade between items: the old header leaves fast, the new one fades in with a short rise. Updates for the
-    // same item (such as the end time ticking) keep the content key, so they don't animate. Every caller gives the
-    // header a fixed height, so there is no size to animate.
+    // same item (such as the end time ticking) keep the content key, so they don't animate. The screens that use the
+    // header give it a fixed height, so there is no size to animate.
     AnimatedContent(
         targetState = shown,
         contentKey = { it.title to it.subtitle },

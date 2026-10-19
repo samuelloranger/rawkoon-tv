@@ -4,7 +4,9 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonStatus
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RawkoonHeaderLogicTest {
@@ -33,5 +35,18 @@ class RawkoonHeaderLogicTest {
         assertEquals(RawkoonStatus.Watched, RawkoonHeaderLogic.status(BaseItemKind.MOVIE, null, played = true))
         assertNull(RawkoonHeaderLogic.status(BaseItemKind.SERIES, "Ended", played = false))
         assertNull(RawkoonHeaderLogic.status(BaseItemKind.MOVIE, null, played = false))
+    }
+
+    @Test
+    fun `the header waits before switching to another item`() {
+        assertTrue(RawkoonHeaderLogic.waitsToSwitch("Show A", "Episode 1", "Show B", null))
+        assertTrue(RawkoonHeaderLogic.waitsToSwitch("Show A", "Episode 1", "Show A", "Episode 2"))
+    }
+
+    @Test
+    fun `the header applies same-item updates and empty headers at once`() {
+        assertFalse(RawkoonHeaderLogic.waitsToSwitch("Show A", "Episode 1", "Show A", "Episode 1"))
+        assertFalse(RawkoonHeaderLogic.waitsToSwitch(null, null, "Show A", null))
+        assertFalse(RawkoonHeaderLogic.waitsToSwitch("Show A", null, null, null))
     }
 }
