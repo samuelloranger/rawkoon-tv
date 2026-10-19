@@ -453,8 +453,8 @@ private fun DownloadProgress(
 }
 
 /**
- * The release notes in a bordered panel. The panel takes focus as a whole, shows the focus ring, and scrolls with
- * up and down, like Wholphin's page did.
+ * The release notes in a bordered panel. The panel never takes focus: focus stays on the buttons, and the page scrolls
+ * [listState] with up and down.
  */
 @Composable
 private fun ReleaseNotesPanel(

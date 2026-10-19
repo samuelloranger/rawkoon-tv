@@ -39,6 +39,8 @@ fun Modifier.rawkoonFocusRing(
                 },
             label = "rawkoon_focus_ring",
         )
+    // An element that is not focused and not fading out adds no draw node, which keeps large grids cheap
+    if (!focused && alpha.value == 0f) return this
     return drawWithContent {
         drawContent()
         val a = alpha.value
