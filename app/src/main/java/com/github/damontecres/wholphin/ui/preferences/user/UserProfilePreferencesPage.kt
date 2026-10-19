@@ -48,10 +48,10 @@ import com.github.damontecres.wholphin.preferences.AppChoicePreference
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.SubtitleModePreference
 import com.github.damontecres.wholphin.preferences.UserProfileSettings
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.preferences.ChoicePreference
-import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
 import com.github.damontecres.wholphin.ui.preferences.PreferenceValidation
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -171,7 +171,7 @@ fun UserProfilePreferencesContent(
                             }
                             when (pref) {
                                 UserProfileSettings.PreferredAudioLang -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = { showPreferredLanguageDialog = true },
                                         summary = audioLanguagePref.selected.displayString.getString(),
@@ -181,7 +181,7 @@ fun UserProfilePreferencesContent(
                                 }
 
                                 UserProfileSettings.PreferredSubtitleLang -> {
-                                    ClickPreference(
+                                    RawkoonClickPreference(
                                         title = stringResource(pref.title),
                                         onClick = { showPreferredLanguageDialog = false },
                                         summary = subtitleLanguagePref.selected.displayString.getString(),

@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
@@ -49,7 +50,7 @@ fun <T> MultiChoicePreference(
 
     var dialogParams by remember { mutableStateOf<DialogParams?>(null) }
 
-    ClickPreference(
+    RawkoonClickPreference(
         title = title,
         summary = summary,
         onClick = {

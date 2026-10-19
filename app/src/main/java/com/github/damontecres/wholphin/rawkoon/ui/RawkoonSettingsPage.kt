@@ -20,8 +20,8 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.rawkoon.InterfaceScale
 import com.github.damontecres.wholphin.rawkoon.RawkoonConfig
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ChoicePreference
-import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
 /**
@@ -51,7 +51,7 @@ fun RawkoonSettingsPage(
             )
         }
         item {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = stringResource(R.string.rawkoon_server),
                 summary = config.url.ifBlank { notSet },
                 onClick = {},
@@ -59,7 +59,7 @@ fun RawkoonSettingsPage(
             )
         }
         item {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = stringResource(R.string.rawkoon_signed_in_as),
                 summary = config.userName.ifBlank { notSet },
                 onClick = {},
@@ -77,21 +77,21 @@ fun RawkoonSettingsPage(
             )
         }
         item {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = stringResource(R.string.rawkoon_credits_title),
                 summary = stringResource(R.string.rawkoon_credits),
                 onClick = {},
             )
         }
         item {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = stringResource(R.string.license_info),
                 summary = stringResource(R.string.rawkoon_fonts),
                 onClick = {},
             )
         }
         item {
-            ClickPreference(
+            RawkoonClickPreference(
                 title = stringResource(R.string.rawkoon_sign_out),
                 summary = stringResource(R.string.rawkoon_sign_out_summary),
                 onClick = viewModel::signOut,

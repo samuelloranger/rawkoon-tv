@@ -34,6 +34,7 @@ import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppSliderPreference
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
 import com.github.damontecres.wholphin.preferences.PrefContentScale
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
@@ -44,7 +45,6 @@ import com.github.damontecres.wholphin.ui.data.BoxSetSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.data.getStringRes
 import com.github.damontecres.wholphin.ui.ifElse
-import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
 import com.github.damontecres.wholphin.ui.preferences.PreferenceTitle
@@ -140,7 +140,7 @@ private fun LazyListScope.addAdditionalConfig(
     when (config) {
         is HomeRowConfig.ContinueWatchingCombined -> {
             item {
-                ClickPreference(
+                RawkoonClickPreference(
                     title = stringResource(R.string.split_into_separate_rows),
                     onClick = { onConfigAction.invoke(HomeRowConfigAction.Split) },
                 )
@@ -151,7 +151,7 @@ private fun LazyListScope.addAdditionalConfig(
         is HomeRowConfig.NextUp,
         -> {
             item {
-                ClickPreference(
+                RawkoonClickPreference(
                     title = stringResource(R.string.combine_continue_next),
                     onClick = { onConfigAction.invoke(HomeRowConfigAction.Combine) },
                 )

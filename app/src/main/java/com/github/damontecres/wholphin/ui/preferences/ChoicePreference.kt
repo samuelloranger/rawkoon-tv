@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.rawkoon.ui.preferences.RawkoonClickPreference
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
@@ -27,7 +28,7 @@ fun <T> ChoicePreference(
     subtitleDisplay: (index: Int, item: T) -> @Composable (() -> Unit)? = { _, _ -> null },
 ) {
     var dialogParams by remember { mutableStateOf<DialogParams?>(null) }
-    ClickPreference(
+    RawkoonClickPreference(
         title = title,
         summary = summary,
         onClick = {

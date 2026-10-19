@@ -31,7 +31,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +45,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -51,11 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.DrawerState
 import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.ListItem
+import androidx.tv.material3.ListItemBorder
 import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.ListItemShape
 import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.rememberDrawerState
+import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonFocusRing
 
 /**
  * This is a re-implementation of [androidx.tv.material3.ModalNavigationDrawer].
@@ -152,6 +157,13 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
     tonalElevation: Dp = NavigationDrawerItemDefaults.NavigationDrawerItemElevation,
     colors: NavigationDrawerItemColors = NavigationDrawerItemDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
+    shape: ListItemShape = ListItemDefaults.shape(),
+    border: ListItemBorder = ListItemDefaults.border(),
+    // Rawkoon: draws the Rawkoon focus ring around the item when set
+    focusRingShape: Shape? = null,
+    // Rawkoon: fixed item height and the space kept on each side of the item
+    containerHeight: Dp? = null,
+    horizontalInset: Dp = 0.dp,
     content: @Composable () -> Unit,
 ) {
     val animatedWidth by
@@ -166,7 +178,7 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
         )
     val navDrawerItemHeight =
         if (supportingContent == null) {
-            NavigationDrawerItemDefaults.ContainerHeightOneLine
+            containerHeight ?: NavigationDrawerItemDefaults.ContainerHeightOneLine
         } else {
             NavigationDrawerItemDefaults.ContainerHeightTwoLine
         }
@@ -174,12 +186,16 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
     ListItem(
         selected = selected,
         onClick = onClick,
-        headlineContent = content,
+        headlineContent = {
+            // Rawkoon: a short item leaves less height than the label needs, so let the label center itself
+            Box(Modifier.wrapContentHeight(align = Alignment.CenterVertically, unbounded = true)) { content() }
+        },
         leadingContent = {
             Box(
                 Modifier
                     .padding(horizontal = DrawerIconPadding)
-                    .size(DrawerIconSize),
+                    // Rawkoon: the slot must keep its size inside a short item
+                    .requiredSize(DrawerIconSize),
             ) { leadingContent() }
         },
         trailingContent = trailingContent,
@@ -187,7 +203,8 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
         modifier =
             modifier
                 .layout { measurable, constraints ->
-                    val width = animatedWidth.roundToPx()
+                    val inset = horizontalInset.roundToPx()
+                    val width = animatedWidth.roundToPx() - 2 * inset
                     val height = navDrawerItemHeight.roundToPx()
                     val placeable =
                         measurable.measure(
@@ -198,13 +215,21 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
                                 maxHeight = height,
                             ),
                         )
-                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                },
+                    layout(placeable.width + 2 * inset, placeable.height) { placeable.place(inset, 0) }
+                }.then(
+                    if (focusRingShape != null && interactionSource != null) {
+                        Modifier.rawkoonFocusRing(focusRingShape, interactionSource)
+                    } else {
+                        Modifier
+                    },
+                ),
         enabled = enabled,
         onLongClick = onLongClick,
         tonalElevation = tonalElevation,
         colors = colors.toToggleableListItemColors(hasFocus),
         scale = ListItemDefaults.scale(1f, 1f),
+        shape = shape,
+        border = border,
         interactionSource = interactionSource,
     )
 }
