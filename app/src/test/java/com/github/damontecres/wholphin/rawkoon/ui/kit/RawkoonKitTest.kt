@@ -78,4 +78,14 @@ class RawkoonKitTest {
         assertEquals(0f, RawkoonMotion.EnterEasing.transform(0f), 1e-6f)
         assertEquals(1f, RawkoonMotion.EnterEasing.transform(1f), 1e-4f)
     }
+
+    @Test
+    fun progress_fraction_is_clamped_and_nan_is_zero() {
+        assertEquals(0f, progressFraction(Float.NaN), 0f)
+        assertEquals(0f, progressFraction(-0.5f), 0f)
+        assertEquals(1f, progressFraction(1.7f), 0f)
+        assertEquals(0.4f, progressFraction(0.4f), 0f)
+        assertEquals(1f, progressFraction(Float.POSITIVE_INFINITY), 0f)
+        assertEquals(0f, progressFraction(Float.NEGATIVE_INFINITY), 0f)
+    }
 }

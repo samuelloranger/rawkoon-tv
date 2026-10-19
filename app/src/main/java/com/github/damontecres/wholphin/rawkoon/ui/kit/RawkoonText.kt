@@ -28,19 +28,20 @@ import com.github.damontecres.wholphin.rawkoon.RawkoonMono
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import java.util.Locale
 
-/** The small-caps label: uppercase, 10.5sp bold, wide tracking, neutral 400 */
+/** The small-caps label: uppercase, [fontSize] (10.5sp default) bold, wide tracking, neutral 400 */
 @Composable
 fun Kicker(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = RawkoonTokens.Neutral400,
+    fontSize: TextUnit = 10.5.sp,
 ) {
     Text(
         text = text.uppercase(Locale.getDefault()),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         style = MaterialTheme.typography.labelSmall,
-        fontSize = 10.5.sp,
+        fontSize = fontSize,
         fontWeight = FontWeight.Bold,
         letterSpacing = 0.15.em,
         color = color,
