@@ -7,7 +7,9 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
@@ -39,8 +41,11 @@ fun Modifier.rawkoonFocusRing(
                 },
             label = "rawkoon_focus_ring",
         )
-    // An element that is not focused and not fading out adds no draw node, which keeps large grids cheap
-    if (!focused && alpha.value == 0f) return this
+    // An element that is not focused and not fading out adds no draw node, which keeps large grids cheap. The check
+    // goes through derivedStateOf so composition only reruns when the ring appears or disappears, not on every frame
+    // of the fade.
+    val visible by remember { derivedStateOf { alpha.value > 0f } }
+    if (!focused && !visible) return this
     return drawWithContent {
         drawContent()
         val a = alpha.value
