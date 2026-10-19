@@ -64,4 +64,10 @@
     <string name="rawkoon_status_in_production">In production</string>
     <string name="rawkoon_status_returning">Returning</string>
     <string name="rawkoon_status_planned">Planned</string>
+    <string name="rawkoon_status_partial">Partial</string>
+    <string name="rawkoon_header_type_movie">Movie</string>
+    <string name="rawkoon_header_type_show">Show</string>
+    <string name="rawkoon_header_type_season">Season</string>
+    <string name="rawkoon_header_type_episode">Episode</string>
+    <string name="rawkoon_header_tmdb">TMDB</string>
 </resources>

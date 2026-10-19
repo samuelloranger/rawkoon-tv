@@ -36,6 +36,7 @@ import com.github.damontecres.wholphin.data.model.DiscoverRating
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.home.RawkoonHomeHeader
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrService
@@ -45,7 +46,6 @@ import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.discover.getDiscoverRating
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.listToDotString
-import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -435,7 +435,7 @@ fun SeerrDiscoverPage(
                     }
                 }
             }
-        HomePageHeader(
+        RawkoonHomeHeader(
             title = focusedItem?.title?.getString(),
             subtitle = focusedItem?.subtitle,
             overview = focusedItem?.overview,
