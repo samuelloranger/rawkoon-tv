@@ -71,7 +71,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
-import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonLogoMark
+import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonLogoRow
 import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonNav
 import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonProfileAvatar
 import com.github.damontecres.wholphin.rawkoon.ui.nav.rawkoonRailSurface
@@ -342,7 +342,7 @@ fun NavDrawer(
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
                     modifier = Modifier.fillMaxHeight().rawkoonRailSurface(),
                 ) {
-                    RawkoonLogoMark(Modifier.padding(top = 12.dp, bottom = 4.dp))
+                    RawkoonLogoRow(open = isOpen)
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
                     val userImageUrl = remember(user) { viewModel.getUserImage(user) }

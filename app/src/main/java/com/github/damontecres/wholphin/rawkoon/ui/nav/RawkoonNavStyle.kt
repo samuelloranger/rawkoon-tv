@@ -1,6 +1,25 @@
 package com.github.damontecres.wholphin.rawkoon.ui.nav
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.em
+import com.github.damontecres.wholphin.rawkoon.RawkoonText
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -143,23 +162,160 @@ fun Modifier.rawkoonRailSurface(): Modifier =
             )
         }
 
-/** The Rawkoon logo mark: a circle outline with a play triangle in apricot */
+/** Timing and geometry of the logo row: values of the open/close animation, kept pure so they can be unit tested */
+object RawkoonLogoMotion {
+    val Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+    const val RotationDegrees = 120f
+    const val RotationMs = 600
+    const val RevealMs = 320
+    const val RevealDelayMs = 80
+    const val FadeOutMs = 120
+
+    /** Horizontal start of the mark: its center sits on the center of the 20dp item icons (32dp from the rail edge) */
+    val MarkStart = 18.dp
+    val RowHeight = 56.dp
+    val WordmarkGap = 10.dp
+
+    /** The ring angle after one more opening: each opening turns the ring by [RotationDegrees] */
+    fun nextRotation(current: Float): Float = current + RotationDegrees
+
+    /** Right edge of the wordmark clip for a reveal [fraction] in 0..1 */
+    fun clipRight(
+        width: Float,
+        fraction: Float,
+    ): Float = width * fraction.coerceIn(0f, 1f)
+}
+
+// Logo geometry in the 512 unit viewBox of the web icon, cropped to the ring (radius 150 + half the 44 stroke)
+private const val LOGO_ORIGIN = 84f
+private const val LOGO_EXTENT = 344f
+private const val RING_CENTER = 256f
+private const val RING_RADIUS = 150f
+private const val RING_STROKE = 44f
+private const val HOLE_RADIUS = 13f
+private val LogoGradientStops =
+    arrayOf(
+        0f to Color(0xFFF6C88E),
+        0.5f to Color(0xFFE8A06A),
+        1f to Color(0xFFC45A2F),
+    )
+
+/**
+ * The Rawkoon logo mark (the web icon without its rounded background): a gradient reel ring with four punched holes
+ * and a gradient play triangle. [ringRotation] turns the holes only, as the ring is round and the triangle stays still.
+ */
 @Composable
-fun RawkoonLogoMark(modifier: Modifier = Modifier) {
+fun RawkoonLogoMark(
+    modifier: Modifier = Modifier,
+    ringRotation: Float = 0f,
+) {
     Canvas(modifier.size(RawkoonNav.LogoSize)) {
-        val color = RawkoonTokens.Primary400
-        val stroke = 2.dp.toPx()
-        drawCircle(color = color, radius = (size.minDimension - stroke) / 2, style = Stroke(stroke))
-        val w = size.width
-        val h = size.height
-        val triangle =
-            Path().apply {
-                moveTo(w * 0.40f, h * 0.32f)
-                lineTo(w * 0.70f, h * 0.50f)
-                lineTo(w * 0.40f, h * 0.68f)
-                close()
+        val ringBrush =
+            Brush.linearGradient(
+                colorStops = LogoGradientStops,
+                start = Offset(106f + 0.12f * 300f, 106f + 0.08f * 300f),
+                end = Offset(106f + 0.88f * 300f, 106f + 0.96f * 300f),
+            )
+        val playBrush =
+            Brush.linearGradient(
+                colorStops = LogoGradientStops,
+                start = Offset(214f + 0.12f * 128f, 188f + 0.08f * 136f),
+                end = Offset(214f + 0.88f * 128f, 188f + 0.96f * 136f),
+            )
+        val center = Offset(RING_CENTER, RING_CENTER)
+        withTransform({
+            scale(size.minDimension / LOGO_EXTENT, size.minDimension / LOGO_EXTENT, pivot = Offset.Zero)
+            translate(-LOGO_ORIGIN, -LOGO_ORIGIN)
+        }) {
+            drawCircle(brush = ringBrush, radius = RING_RADIUS, center = center, style = Stroke(RING_STROKE))
+            rotate(ringRotation, pivot = center) {
+                listOf(
+                    Offset(RING_CENTER, RING_CENTER - RING_RADIUS),
+                    Offset(RING_CENTER + RING_RADIUS, RING_CENTER),
+                    Offset(RING_CENTER, RING_CENTER + RING_RADIUS),
+                    Offset(RING_CENTER - RING_RADIUS, RING_CENTER),
+                ).forEach { drawCircle(RawkoonTokens.Neutral900, HOLE_RADIUS, it) }
             }
-        drawPath(triangle, color, style = Fill)
+            val triangle =
+                Path().apply {
+                    moveTo(214f, 188f)
+                    lineTo(342f, 256f)
+                    lineTo(214f, 324f)
+                    close()
+                }
+            drawPath(triangle, playBrush, style = Fill)
+            drawPath(triangle, playBrush, style = Stroke(20f, join = StrokeJoin.Round))
+        }
+    }
+}
+
+/**
+ * The logo row at the top of the rail: the mark alone while closed, the mark and the "Rawkoon" wordmark once open. The
+ * mark keeps one position in both states. Opening turns the ring and reveals the wordmark left to right; closing only
+ * fades the wordmark out.
+ */
+@Composable
+fun RawkoonLogoRow(
+    open: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val rotation = remember { Animatable(0f) }
+    val reveal = remember { Animatable(0f) }
+    val alpha = remember { Animatable(0f) }
+    LaunchedEffect(open) {
+        if (open) {
+            launch {
+                rotation.animateTo(
+                    RawkoonLogoMotion.nextRotation(rotation.value),
+                    tween(RawkoonLogoMotion.RotationMs, easing = RawkoonLogoMotion.Easing),
+                )
+            }
+            reveal.snapTo(0f)
+            alpha.snapTo(0f)
+            launch {
+                reveal.animateTo(
+                    1f,
+                    tween(RawkoonLogoMotion.RevealMs, RawkoonLogoMotion.RevealDelayMs, RawkoonLogoMotion.Easing),
+                )
+            }
+            alpha.animateTo(
+                1f,
+                tween(RawkoonLogoMotion.RevealMs, RawkoonLogoMotion.RevealDelayMs, RawkoonLogoMotion.Easing),
+            )
+        } else {
+            alpha.animateTo(0f, tween(RawkoonLogoMotion.FadeOutMs, easing = FastOutLinearInEasing))
+            reveal.snapTo(0f)
+        }
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(RawkoonLogoMotion.RowHeight)
+                .padding(start = RawkoonLogoMotion.MarkStart),
+    ) {
+        RawkoonLogoMark(ringRotation = rotation.value)
+        Spacer(Modifier.width(RawkoonLogoMotion.WordmarkGap))
+        Text(
+            text = "Rawkoon",
+            color = Color.White,
+            fontFamily = RawkoonText,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            letterSpacing = (-0.01).em,
+            maxLines = 1,
+            softWrap = false,
+            modifier =
+                Modifier
+                    .wrapContentWidth(Alignment.Start, unbounded = true)
+                    .graphicsLayer { this.alpha = alpha.value }
+                    .drawWithContent {
+                        clipRect(right = RawkoonLogoMotion.clipRight(size.width, reveal.value)) {
+                            this@drawWithContent.drawContent()
+                        }
+                    },
+        )
     }
 }
 
@@ -210,9 +366,9 @@ private fun RawkoonRailPreview() {
             .width(64.dp)
             .height(160.dp)
             .padding(top = 12.dp),
-        contentAlignment = Alignment.TopCenter,
+        contentAlignment = Alignment.TopStart,
     ) {
-        RawkoonLogoMark()
-        RawkoonProfileAvatar("Sam", Modifier.padding(top = 48.dp))
+        RawkoonLogoRow(open = false)
+        RawkoonProfileAvatar("Sam", Modifier.padding(top = 64.dp))
     }
 }

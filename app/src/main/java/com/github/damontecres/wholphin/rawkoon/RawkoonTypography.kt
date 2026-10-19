@@ -24,6 +24,9 @@ private val HankenGrotesk =
 /** Fraunces, the display family of titles and section headers */
 val RawkoonDisplay: FontFamily get() = Fraunces
 
+/** Hanken Grotesk, the text family */
+val RawkoonText: FontFamily get() = HankenGrotesk
+
 /** Fira Code, for times, timestamps and episode numbers */
 val RawkoonMono =
     FontFamily(
