@@ -63,7 +63,6 @@ import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
@@ -72,6 +71,10 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonLogoMark
+import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonNav
+import com.github.damontecres.wholphin.rawkoon.ui.nav.RawkoonProfileAvatar
+import com.github.damontecres.wholphin.rawkoon.ui.nav.rawkoonRailSurface
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavDrawerService
@@ -83,7 +86,6 @@ import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
-import com.github.damontecres.wholphin.ui.setup.UserIconCardImage
 import com.github.damontecres.wholphin.ui.spacedByWithFooter
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.toServerString
@@ -334,12 +336,13 @@ fun NavDrawer(
             val spacedBy = 4.dp
             val searchFocusRequester = remember { FocusRequester() }
 
-            ProvideTextStyle(MaterialTheme.typography.labelMedium) {
+            ProvideTextStyle(RawkoonNav.labelStyle(MaterialTheme.typography.labelMedium)) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
-                    modifier = Modifier.fillMaxHeight(),
+                    modifier = Modifier.fillMaxHeight().rawkoonRailSurface(),
                 ) {
+                    RawkoonLogoMark(Modifier.padding(top = 12.dp, bottom = 4.dp))
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
                     val userImageUrl = remember(user) { viewModel.getUserImage(user) }
@@ -383,7 +386,7 @@ fun NavDrawer(
                     }
                     LazyColumn(
                         state = navDrawerListState,
-                        contentPadding = PaddingValues(0.dp),
+                        contentPadding = PaddingValues(vertical = RawkoonNav.ItemInset),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
                         modifier =
@@ -578,13 +581,7 @@ fun NavigationDrawerScope.ProfileIcon(
         selected = false,
         onClick = onClick,
         leadingContent = {
-            UserIconCardImage(
-                id = user.id,
-                name = user.name,
-                imageUrl = imageUrl,
-                alpha = if (drawerOpen) 1f else .5f,
-                modifier = Modifier.size(DrawerIconSize),
-            )
+            RawkoonProfileAvatar(name = user.name)
         },
         supportingContent = {
             Text(
@@ -593,6 +590,11 @@ fun NavigationDrawerScope.ProfileIcon(
             )
         },
         interactionSource = interactionSource,
+        colors = RawkoonNav.itemColors(selected = false),
+        shape = RawkoonNav.itemShape(),
+        border = RawkoonNav.itemBorder(),
+        focusRingShape = RawkoonNav.ItemShape,
+        horizontalInset = RawkoonNav.ItemInset,
     ) {
         Text(
             modifier = Modifier,
@@ -619,7 +621,7 @@ fun NavigationDrawerScope.IconNavItem(
         selected = false,
         onClick = onClick,
         leadingContent = {
-            val color = navItemColor(selected, focused, drawerOpen)
+            val color = RawkoonNav.iconColor(selected, focused)
             Icon(
                 icon,
                 contentDescription = null,
@@ -637,6 +639,12 @@ fun NavigationDrawerScope.IconNavItem(
                 }
             },
         interactionSource = interactionSource,
+        colors = RawkoonNav.itemColors(selected),
+        shape = RawkoonNav.itemShape(),
+        border = RawkoonNav.itemBorder(),
+        focusRingShape = RawkoonNav.ItemShape,
+        containerHeight = if (subtext == null) RawkoonNav.ItemHeight else null,
+        horizontalInset = RawkoonNav.ItemInset,
     ) {
         Text(
             modifier = Modifier,
@@ -655,6 +663,7 @@ fun NavigationDrawerScope.NavItem(
     drawerOpen: Boolean,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    // Kept for callers; the Rawkoon rail derives the container from [selected]
     containerColor: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
@@ -693,12 +702,14 @@ fun NavigationDrawerScope.NavItem(
         modifier = modifier,
         selected = false,
         onClick = onClick,
-        colors =
-            NavigationDrawerItemDefaults.colors(
-                containerColor = containerColor,
-            ),
+        colors = RawkoonNav.itemColors(selected),
+        shape = RawkoonNav.itemShape(),
+        border = RawkoonNav.itemBorder(),
+        focusRingShape = RawkoonNav.ItemShape,
+        containerHeight = RawkoonNav.ItemHeight,
+        horizontalInset = RawkoonNav.ItemInset,
         leadingContent = {
-            val color = navItemColor(selected, focused, drawerOpen)
+            val color = RawkoonNav.iconColor(selected, focused)
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (useFont) {
                     Text(
