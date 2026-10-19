@@ -122,7 +122,8 @@ fun RawkoonPauseScreen(
     }
 }
 
-private fun Player.isPausedNow(): Boolean = !playWhenReady && (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING)
+private fun Player.isPausedNow(): Boolean =
+    !playWhenReady && (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING)
 
 /** The detail hero: poster, kicker, title, type chip with series and episode, time left and the overview */
 @Composable

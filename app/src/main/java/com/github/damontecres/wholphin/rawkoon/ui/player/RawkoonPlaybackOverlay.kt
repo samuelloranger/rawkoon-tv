@@ -393,7 +393,13 @@ private fun RawkoonTopStrip(
     val resources = LocalContext.current.resources
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val seriesName = item?.data?.seriesName?.takeIf { it.isNotBlank() }
-    val runtime = item?.data?.runTimeTicks?.ticks?.roundMinutes?.let { resources.formatDuration(it) }
+    val runtime =
+        item
+            ?.data
+            ?.runTimeTicks
+            ?.ticks
+            ?.roundMinutes
+            ?.let { resources.formatDuration(it) }
     val seasonEpisode =
         if (isEpisode) formatSeasonEpisode(item?.data?.parentIndexNumber, item?.data?.indexNumber) else null
     Row(

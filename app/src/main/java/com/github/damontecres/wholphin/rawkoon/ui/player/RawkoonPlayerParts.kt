@@ -538,7 +538,10 @@ internal fun RawkoonQueuePane(
                             fillHeight = with(density) { ThumbCardHeight.roundToPx() },
                         )
                     }
-                val runtime = item.data.runTimeTicks?.ticks?.inWholeMilliseconds
+                val runtime =
+                    item.data.runTimeTicks
+                        ?.ticks
+                        ?.inWholeMilliseconds
                 RawkoonThumbCard(
                     imageUrl = imageUrl,
                     title = item.name ?: item.title.orEmpty(),
