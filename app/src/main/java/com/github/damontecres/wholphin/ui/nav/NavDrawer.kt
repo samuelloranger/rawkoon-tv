@@ -342,7 +342,7 @@ fun NavDrawer(
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
                     modifier = Modifier.fillMaxHeight().rawkoonRailSurface(),
                 ) {
-                    RawkoonLogoRow(open = isOpen)
+                    RawkoonLogoRow(open = isOpen, modifier = Modifier.align(Alignment.Start))
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
                     val userImageUrl = remember(user) { viewModel.getUserImage(user) }

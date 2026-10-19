@@ -177,6 +177,9 @@ object RawkoonLogoMotion {
     /** Horizontal start of the mark: its center sits on the center of the 20dp item icons (32dp from the rail edge) */
     val MarkStart = 18.dp
     val RowHeight = 56.dp
+
+    /** Width of the logo row while the rail is closed: the rail itself, so the hidden wordmark adds no width */
+    val ClosedWidth = 64.dp
     val WordmarkGap = 10.dp
 
     /**
@@ -297,7 +300,8 @@ fun RawkoonLogoRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
-                .fillMaxWidth()
+                // Never fill: the rail column has no fixed width, so filling would stretch it across the screen
+                .then(if (open) Modifier else Modifier.width(RawkoonLogoMotion.ClosedWidth))
                 .height(RawkoonLogoMotion.RowHeight)
                 .padding(start = RawkoonLogoMotion.MarkStart),
     ) {
