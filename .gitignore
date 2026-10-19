@@ -1,0 +1,14 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+
+# Signing material never lives in the repo.
+*.jks
+*.keystore
+*.env
+
+# Local agent worktrees.
+.claude/

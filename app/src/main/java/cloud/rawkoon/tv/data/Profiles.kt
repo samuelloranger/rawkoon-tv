@@ -1,0 +1,125 @@
+package cloud.rawkoon.tv.data
+
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.security.MessageDigest
+import java.util.UUID
+
+/**
+ * One person on this TV: a Jellyfin session and, when they signed in through Rawkoon, the
+ * Rawkoon session that handed it over. Profiles come from sign-ins (or the one-time import from
+ * the first RawkoonTV), never from a list in the code.
+ */
+data class Profile(
+    val id: String,
+    val name: String,
+    val jellyfinUrl: String,
+    val jellyfinUserId: String,
+    val jellyfinToken: String,
+    val avatarTag: String? = null,
+    val rawkoonUrl: String? = null,
+    val rawkoonToken: String? = null,
+    val rawkoonUserId: String? = null,
+    val pinHash: String? = null,
+    val lastUsed: Long = 0L,
+) {
+    val hasPin: Boolean get() = pinHash != null
+
+    fun checkPin(pin: String) = pinHash != null && pinHash == hashPin(id, pin)
+
+    fun withPin(pin: String?) = copy(pinHash = pin?.takeIf { it.isNotEmpty() }?.let { hashPin(id, it) })
+
+    /** Same Jellyfin account on the same server: signing in again updates it instead of adding a twin. */
+    fun sameAccount(other: Profile) =
+        jellyfinUserId.equals(other.jellyfinUserId, ignoreCase = true) && sameUrl(jellyfinUrl, other.jellyfinUrl)
+
+    fun toJson(): JSONObject = JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("jellyfinUrl", jellyfinUrl)
+        .put("jellyfinUserId", jellyfinUserId)
+        .put("jellyfinToken", jellyfinToken)
+        .putOpt("avatarTag", avatarTag)
+        .putOpt("rawkoonUrl", rawkoonUrl)
+        .putOpt("rawkoonToken", rawkoonToken)
+        .putOpt("rawkoonUserId", rawkoonUserId)
+        .putOpt("pinHash", pinHash)
+        .put("lastUsed", lastUsed)
+
+    companion object {
+        fun newId(): String = UUID.randomUUID().toString()
+
+        fun fromJson(json: JSONObject) = Profile(
+            id = json.getString("id"),
+            name = json.getString("name"),
+            jellyfinUrl = json.getString("jellyfinUrl"),
+            jellyfinUserId = json.getString("jellyfinUserId"),
+            jellyfinToken = json.getString("jellyfinToken"),
+            avatarTag = json.optStringOrNull("avatarTag"),
+            rawkoonUrl = json.optStringOrNull("rawkoonUrl"),
+            rawkoonToken = json.optStringOrNull("rawkoonToken"),
+            rawkoonUserId = json.optStringOrNull("rawkoonUserId"),
+            pinHash = json.optStringOrNull("pinHash"),
+            lastUsed = json.optLong("lastUsed"),
+        )
+
+        /** Salted with the profile id, so two profiles with the same PIN don't share a hash. */
+        fun hashPin(profileId: String, pin: String): String =
+            MessageDigest.getInstance("SHA-256").digest("rawkoon-pin:$profileId:$pin".toByteArray())
+                .joinToString("") { "%02x".format(it) }
+
+        fun sameUrl(a: String, b: String) = a.trim().trimEnd('/').equals(b.trim().trimEnd('/'), ignoreCase = true)
+    }
+}
+
+fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotEmpty() }
+
+/** The saved profiles, in the order they were added. Main-thread reads and writes; the file is tiny. */
+class ProfileStore(context: Context) {
+    private val file = File(context.filesDir, "profiles.json")
+    private var cache: List<Profile>? = null
+
+    fun all(): List<Profile> = cache ?: read().also { cache = it }
+
+    fun get(id: String): Profile? = all().firstOrNull { it.id == id }
+
+    /** The one used most recently; it gets the focus on "Who's watching?". */
+    fun lastUsed(): Profile? = all().maxByOrNull { it.lastUsed }?.takeIf { it.lastUsed > 0 }
+
+    /** Adds [profile], or updates the profile for the same account, keeping its id, place and PIN. */
+    fun save(profile: Profile): Profile {
+        val list = all()
+        val existing = list.firstOrNull { it.id == profile.id || it.sameAccount(profile) }
+        val saved = if (existing == null) profile else profile.copy(id = existing.id, pinHash = profile.pinHash ?: existing.pinHash)
+        write(if (existing == null) list + saved else list.map { if (it.id == existing.id) saved else it })
+        return saved
+    }
+
+    fun markUsed(id: String) = write(all().map { if (it.id == id) it.copy(lastUsed = System.currentTimeMillis()) else it })
+
+    fun remove(id: String) = write(all().filterNot { it.id == id })
+
+    private fun read(): List<Profile> = try {
+        decode(file.readText())
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    private fun write(list: List<Profile>) {
+        cache = list
+        val tmp = File(file.path + ".tmp")
+        tmp.writeText(encode(list))
+        tmp.renameTo(file)
+    }
+
+    companion object {
+        fun encode(list: List<Profile>): String = JSONArray().apply { list.forEach { put(it.toJson()) } }.toString()
+
+        fun decode(text: String): List<Profile> {
+            val array = JSONArray(text)
+            return (0 until array.length()).mapNotNull { runCatching { Profile.fromJson(array.getJSONObject(it)) }.getOrNull() }
+        }
+    }
+}

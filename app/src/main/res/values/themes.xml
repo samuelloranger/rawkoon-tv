@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Rawkoon" parent="@android:style/Theme.Material.NoActionBar">
+        <!-- The page colour is the window background, so the first frame paints at once. -->
+        <item name="android:windowBackground">@color/page</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:colorAccent">#FFE8A06A</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+    </style>
+
+    <color name="page">#FF1C1715</color>
+</resources>

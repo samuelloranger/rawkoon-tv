@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="who_watching">Qui regarde ?</string>
+    <string name="add_profile">Ajouter</string>
+    <string name="manage_profiles">Gérer les profils</string>
+    <string name="done">Terminé</string>
+    <string name="remove_profile">Retirer ce profil</string>
+    <string name="set_pin">Définir un NIP</string>
+    <string name="remove_pin">Retirer le NIP</string>
+    <string name="cancel">Annuler</string>
+
+    <string name="add_profile_title">Ajouter un profil</string>
+    <string name="sign_in_hint">Sur ton téléphone, scanne le code ou ouvre l\'adresse et entre le code</string>
+    <string name="sign_in_steps">1 · Compte Rawkoon  ›  2 · Jellyfin, automatique</string>
+    <string name="email_sign_in">Courriel et mot de passe</string>
+    <string name="email_hint">Connecte-toi avec ton compte Rawkoon</string>
+    <string name="email_label">Courriel</string>
+    <string name="password_label">Mot de passe</string>
+    <string name="sign_in">Se connecter</string>
+    <string name="back_to_profiles">Retour aux profils</string>
+    <string name="server_title">Se connecter à Rawkoon</string>
+    <string name="server_hint">Entre l\'adresse de ton serveur Rawkoon</string>
+    <string name="continue_">Continuer</string>
+    <string name="change_server">Changer de serveur</string>
+    <string name="progress_account">Lecture de ton compte…</string>
+    <string name="progress_jellyfin">Connexion à Jellyfin…</string>
+    <string name="try_again">Réessayer</string>
+
+    <string name="error_unreachable">Impossible de joindre le serveur. Vérifie l\'adresse et le réseau.</string>
+    <string name="error_invalid_url">Cette adresse n\'est pas valide.</string>
+    <string name="error_credentials">Courriel ou mot de passe incorrect.</string>
+    <string name="error_rate">Trop d\'essais. Attends un peu, puis réessaie.</string>
+    <string name="error_not_linked">Demande à un admin de lier ton compte Jellyfin dans Rawkoon.</string>
+    <string name="error_no_jellyfin">Ce serveur Rawkoon n\'a pas de Jellyfin configuré.</string>
+    <string name="error_denied">La connexion a été refusée sur l\'autre appareil.</string>
+    <string name="error_generic">Quelque chose a échoué (%1$s).</string>
+    <string name="error_session">La session Jellyfin de ce profil a pris fin. Retire le profil et ajoute-le de nouveau.</string>
+
+    <string name="pin_title">Entre le NIP de %1$s</string>
+    <string name="pin_new">Choisis un NIP</string>
+    <string name="pin_confirm">Entre-le à nouveau</string>
+    <string name="pin_wrong">NIP incorrect</string>
+    <string name="pin_mismatch">Les NIP ne correspondent pas. Recommence.</string>
+    <string name="pin_too_short">Un NIP a au moins 4 chiffres</string>
+
+    <string name="switch_profile">Changer de profil</string>
+    <string name="nav_search">Recherche</string>
+    <string name="nav_home">Accueil</string>
+    <string name="nav_favorites">Favoris</string>
+    <string name="nav_discover">Découvrir</string>
+    <string name="nav_movies">Films</string>
+    <string name="nav_shows">Séries</string>
+    <string name="nav_collections">Collections</string>
+    <string name="nav_settings">Paramètres</string>
+    <string name="coming_soon">Bientôt</string>
+
+    <string name="row_resume">Continuer à regarder</string>
+    <string name="row_next_up">Prochains épisodes</string>
+    <string name="row_latest">Récemment ajoutés dans %1$s</string>
+    <string name="home_empty">Rien à afficher pour l\'instant.</string>
+    <string name="home_error">Impossible de charger l\'accueil.</string>
+
+    <string name="language">Langue</string>
+    <string name="language_system">Langue de la télé</string>
+    <string name="version">Version %1$s</string>
+</resources>
