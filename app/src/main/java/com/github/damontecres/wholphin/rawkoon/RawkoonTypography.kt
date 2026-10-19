@@ -21,6 +21,16 @@ private val HankenGrotesk =
         Font(R.font.rawkoon_hanken_bold, FontWeight.Bold),
     )
 
+/** Fraunces, the display family of titles and section headers */
+val RawkoonDisplay: FontFamily get() = Fraunces
+
+/** Fira Code, for times, timestamps and episode numbers */
+val RawkoonMono =
+    FontFamily(
+        Font(R.font.rawkoon_fira_code_regular, FontWeight.Normal),
+        Font(R.font.rawkoon_fira_code_medium, FontWeight.Medium),
+    )
+
 /**
  * The Rawkoon theme's type: Fraunces SemiBold for display, headline and titleLarge (page and row titles), Hanken Grotesk for
  * the rest, UI labels included.
