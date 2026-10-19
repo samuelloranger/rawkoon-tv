@@ -28,7 +28,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +64,9 @@ private val SkipShape = RoundedCornerShape(RawkoonTokens.RadiusLarge)
  *
  * Replaces Wholphin's `SkipSegmentButton`. Same parameters, plus [controlsVisible] and [windowMillis].
  */
+private val SkipBarHeight = 3.dp
+private val SkipBarColor = RawkoonTokens.Neutral950.copy(alpha = 0.35f)
+
 @Composable
 fun RawkoonSkipSegmentButton(
     type: MediaSegmentType,
@@ -93,7 +99,21 @@ fun RawkoonSkipSegmentButton(
         interactionSource = source,
         modifier = modifier.offset { IntOffset(0, -lift.roundToPx()) },
     ) {
-        Box(Modifier.defaultMinSize(minHeight = RawkoonTokens.ButtonHeight)) {
+        // The countdown bar is drawn, not laid out: a child that fills the width would make the button as wide as
+        // the screen and then shrink with the countdown
+        Box(
+            Modifier
+                .defaultMinSize(minHeight = RawkoonTokens.ButtonHeight)
+                .drawWithContent {
+                    drawContent()
+                    val barHeight = SkipBarHeight.toPx()
+                    drawRect(
+                        color = SkipBarColor,
+                        topLeft = Offset(0f, size.height - barHeight),
+                        size = Size(size.width * remaining.value, barHeight),
+                    )
+                },
+        ) {
             Text(
                 text = stringResource(type.skipStringRes),
                 maxLines = 1,
@@ -101,13 +121,6 @@ fun RawkoonSkipSegmentButton(
                 fontSize = 14.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.Center).padding(horizontal = 18.dp, vertical = 12.dp),
-            )
-            Box(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth(remaining.value)
-                    .height(3.dp)
-                    .background(RawkoonTokens.Neutral950.copy(alpha = 0.35f)),
             )
         }
     }
