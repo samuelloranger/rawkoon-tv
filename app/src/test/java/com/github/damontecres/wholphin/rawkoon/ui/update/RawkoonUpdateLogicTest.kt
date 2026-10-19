@@ -55,4 +55,22 @@ class RawkoonUpdateLogicTest {
         assertNull(formatPublishedDate("not a date"))
         assertEquals("Oct 18, 2026", formatPublishedDate("2026-10-18T14:00:00Z", Locale.US))
     }
+
+    @Test
+    fun dev_builds_compare_against_releases() {
+        assertEquals(UpdateKind.UP_TO_DATE, updateKind(Version.fromString("v2.5.0-3-gabc1234"), release("v2.5.0")))
+        assertEquals(UpdateKind.AVAILABLE, updateKind(Version.fromString("v2.5.0"), release("v2.5.1")))
+        assertEquals(UpdateKind.AVAILABLE, updateKind(Version.fromString("v2.5.0-3-gabc1234"), release("v2.6.0")))
+    }
+
+    @Test
+    fun release_notes_without_a_body_are_empty() {
+        assertEquals("", releaseNotesBody(release("v2.6.0", body = null)))
+    }
+
+    @Test
+    fun edge_inputs_are_safe() {
+        assertNull(formatPublishedDate("  "))
+        assertEquals(0f, downloadFraction(-10L, 100L)!!, 0.0001f)
+    }
 }

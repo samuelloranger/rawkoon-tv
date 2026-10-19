@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.rawkoon.ui.update
 
 import android.Manifest
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -110,6 +111,8 @@ fun RawkoonInstallUpdatePage(
             permissions = isGranted
         }
     val onBack = { viewModel.navigationManager.goBack() }
+    // Back during a download cancels it and stays on the page, like the old download dialog did
+    BackHandler(enabled = state.downloading) { viewModel.cancelDownload() }
 
     Box(
         modifier =
@@ -245,7 +248,7 @@ fun RawkoonInstallUpdateContent(
                     )
                 }
             }
-            if (release.downloadUrl == null) {
+            if (release.downloadUrl == null && kind == UpdateKind.AVAILABLE) {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.rawkoon_update_no_asset),
