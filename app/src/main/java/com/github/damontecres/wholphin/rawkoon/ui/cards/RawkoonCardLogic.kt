@@ -28,6 +28,12 @@ object RawkoonCardLogic {
         percent: Double?,
     ): RawkoonStatus? = if (played && progress(percent) == null) RawkoonStatus.Watched else null
 
+    /** The unplayed-count badge text, or null when nothing is unplayed */
+    fun unplayedText(count: Int?): String? = count?.takeIf { it > 0 }?.toString()
+
+    /** The multiple-versions chip shows only for items with more than one media source */
+    fun showVersions(versions: Int): Boolean = versions > 1
+
     /** The year pill text, or null when the year is missing or not a real year */
     fun yearText(year: Int?): String? = year?.takeIf { it > 0 }?.toString()
 

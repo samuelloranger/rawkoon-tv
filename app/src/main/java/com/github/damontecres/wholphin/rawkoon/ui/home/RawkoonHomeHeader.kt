@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.rawkoon.RawkoonDisplay
@@ -43,7 +42,7 @@ import kotlin.time.Duration
 /**
  * Rawkoon replacement for [com.github.damontecres.wholphin.ui.main.HomePageHeader] (the item overload), with the same
  * parameters. The header follows the focused item and reads like the Rawkoon detail hero: type chip, the quick details,
- * status pill and rating on one row, the title, genre chips and a short overview.
+ * status pill on one row, the title, genre chips and a short overview.
  */
 @Composable
 fun RawkoonHomeHeader(
@@ -86,14 +85,13 @@ fun RawkoonHomeHeader(
         modifier = modifier,
         typeLabel = typeLabel,
         status = RawkoonHeaderLogic.status(item?.type, item?.data?.status, item?.played ?: false),
-        rating = RawkoonHeaderLogic.ratingText(item?.data?.communityRating),
         genres = RawkoonHeaderLogic.genres(item?.data?.genres),
     )
 }
 
 /**
  * Rawkoon replacement for [com.github.damontecres.wholphin.ui.main.HomePageHeader] (the detail overload), with the
- * same parameters plus the optional hero extras [typeLabel], [status], [rating] and [genres].
+ * same parameters plus the optional hero extras [typeLabel], [status] and [genres].
  */
 @Composable
 fun RawkoonHomeHeader(
@@ -109,7 +107,6 @@ fun RawkoonHomeHeader(
     modifier: Modifier = Modifier,
     typeLabel: String? = null,
     status: RawkoonStatus? = null,
-    rating: String? = null,
     genres: List<String> = emptyList(),
 ) {
     Column(
@@ -129,7 +126,6 @@ fun RawkoonHomeHeader(
                 textStyle = MaterialTheme.typography.bodyMedium,
             )
             if (status != null) StatusPill(status)
-            if (rating != null) RatingText(rating)
         }
         if (showLogo && logoImageUrl != null) {
             TitleOrLogo(
@@ -176,29 +172,6 @@ fun RawkoonHomeHeader(
     }
 }
 
-/** The TMDB-style rating: the number in amber semibold with a small TMDB label at 45% white */
-@Composable
-private fun RatingText(rating: String) {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(
-            text = "★ $rating",
-            maxLines = 1,
-            style = MaterialTheme.typography.labelLarge,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = RawkoonTokens.Rating,
-        )
-        Text(
-            text = stringResource(R.string.rawkoon_header_tmdb),
-            maxLines = 1,
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp,
-            color = RawkoonTokens.white(0.45f),
-            modifier = Modifier.padding(start = 3.dp),
-        )
-    }
-}
-
 @PreviewTvSpec
 @Composable
 private fun RawkoonHomeHeaderPreview() {
@@ -215,7 +188,6 @@ private fun RawkoonHomeHeaderPreview() {
         modifier = Modifier.padding(24.dp),
         typeLabel = "Movie",
         status = RawkoonStatus.Downloaded,
-        rating = "7.6",
         genres = listOf("Drama", "Mystery"),
     )
 }

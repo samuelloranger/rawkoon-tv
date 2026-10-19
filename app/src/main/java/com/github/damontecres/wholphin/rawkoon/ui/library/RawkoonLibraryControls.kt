@@ -41,6 +41,7 @@ import com.github.damontecres.wholphin.rawkoon.RawkoonDisplay
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonChip
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonFocusRing
+import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 
 private val SearchShape = RoundedCornerShape(RawkoonTokens.RadiusLarge)
@@ -80,7 +81,7 @@ fun RawkoonGridTitle(
 
 /**
  * Rawkoon replacement for [com.github.damontecres.wholphin.ui.components.ExpandableFaButton], with the same
- * parameters: a [RawkoonChip] that always shows its label instead of a button that expands when focused.
+ * parameters: a [RawkoonChip] with the glyph before its label that always shows the label instead of a button that expands when focused.
  */
 @Composable
 fun RawkoonFaButton(
@@ -91,13 +92,20 @@ fun RawkoonFaButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     enabled: Boolean = true,
 ) {
-    // The icon string is a Font Awesome glyph; the chip carries the label alone
     RawkoonChip(
         label = stringResource(title),
         onClick = onClick,
         enabled = enabled,
         interactionSource = interactionSource,
         modifier = modifier,
+        leading = {
+            // The icon string is a Font Awesome glyph, drawn before the label in the chip's own content color
+            Text(
+                text = stringResource(iconStringRes),
+                fontFamily = FontAwesome,
+                fontSize = 14.sp,
+            )
+        },
     )
 }
 

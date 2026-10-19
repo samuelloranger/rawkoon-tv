@@ -4,9 +4,8 @@ import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonStatus
 import org.jellyfin.sdk.model.api.BaseItemKind
-import java.util.Locale
 
-/** The pure parts of the Rawkoon home header: the type chip, genres, rating and status it shows for an item */
+/** The pure parts of the Rawkoon home header: the type chip, genres and status it shows for an item */
 object RawkoonHeaderLogic {
     /** Most genre chips the header shows */
     const val MAX_GENRES = 3
@@ -21,9 +20,6 @@ object RawkoonHeaderLogic {
             BaseItemKind.EPISODE -> R.string.rawkoon_header_type_episode
             else -> null
         }
-
-    /** The community rating with one decimal ("7.6"), or null when there is none */
-    fun ratingText(rating: Float?): String? = rating?.takeIf { it > 0f }?.let { String.format(Locale.US, "%.1f", it) }
 
     /** The first [MAX_GENRES] non-blank genres */
     fun genres(genres: List<String>?): List<String> = genres.orEmpty().filter { it.isNotBlank() }.take(MAX_GENRES)

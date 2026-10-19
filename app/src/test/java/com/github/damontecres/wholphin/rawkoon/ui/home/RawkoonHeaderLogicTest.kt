@@ -19,14 +19,6 @@ class RawkoonHeaderLogicTest {
     }
 
     @Test
-    fun `rating shows one decimal and is hidden when missing`() {
-        assertEquals("7.6", RawkoonHeaderLogic.ratingText(7.55f))
-        assertEquals("8.0", RawkoonHeaderLogic.ratingText(8f))
-        assertNull(RawkoonHeaderLogic.ratingText(0f))
-        assertNull(RawkoonHeaderLogic.ratingText(null))
-    }
-
-    @Test
     fun `genres are capped and blanks dropped`() {
         assertEquals(
             listOf("Drama", "Mystery", "Crime"),

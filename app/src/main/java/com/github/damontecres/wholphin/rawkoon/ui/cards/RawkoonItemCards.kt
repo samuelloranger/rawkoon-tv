@@ -3,8 +3,10 @@ package com.github.damontecres.wholphin.rawkoon.ui.cards
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +43,8 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.SeerrItemType
+import com.github.damontecres.wholphin.rawkoon.RawkoonMono
+import com.github.damontecres.wholphin.rawkoon.ui.kit.GenreChip
 import com.github.damontecres.wholphin.rawkoon.ui.kit.ProgressTrack
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonPosterCard
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonStatus
@@ -134,6 +138,9 @@ fun RawkoonBannerCardWithTitle(
             year = RawkoonCardLogic.yearText(item?.data?.productionYear),
             played = played,
             playPercent = playPercent,
+            favorite = favorite,
+            cornerText = cornerText,
+            versions = item?.data?.mediaSourceCount ?: 0,
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
@@ -201,6 +208,9 @@ fun RawkoonGridCard(
             year = RawkoonCardLogic.yearText(dto?.productionYear),
             played = played,
             playPercent = percent ?: 0.0,
+            favorite = dto?.userData?.isFavorite ?: false,
+            cornerText = RawkoonCardLogic.unplayedText(dto?.userData?.unplayedItemCount),
+            versions = dto?.mediaSourceCount ?: 0,
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
@@ -218,12 +228,7 @@ fun RawkoonGridCard(
                 progress = RawkoonCardLogic.progress(percent),
                 status = RawkoonCardLogic.status(played, percent),
                 favorite = dto?.userData?.isFavorite ?: false,
-                cornerText =
-                    dto
-                        ?.userData
-                        ?.unplayedItemCount
-                        ?.takeIf { it > 0 }
-                        ?.toString(),
+                cornerText = RawkoonCardLogic.unplayedText(dto?.userData?.unplayedItemCount),
                 interactionSource = interactionSource,
                 modifier = Modifier.fillMaxWidth().aspectRatio(ratio),
             )
@@ -275,7 +280,10 @@ fun RawkoonDiscoverItemCard(
     }
 }
 
-/** A poster card with the in-progress track over its bottom edge */
+/**
+ * A poster card with the in-progress track over its bottom edge, the favorite heart and multiple-versions chip at the
+ * top left and the unplayed count at the top right
+ */
 @Composable
 private fun RawkoonPosterWithProgress(
     title: String,
@@ -283,6 +291,9 @@ private fun RawkoonPosterWithProgress(
     year: String?,
     played: Boolean,
     playPercent: Double,
+    favorite: Boolean,
+    cornerText: String?,
+    versions: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     interactionSource: MutableInteractionSource,
@@ -311,7 +322,52 @@ private fun RawkoonPosterWithProgress(
                         .height(3.dp),
             )
         }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+        ) {
+            if (favorite) FavoriteHeart()
+            if (RawkoonCardLogic.showVersions(versions)) {
+                GenreChip(pluralStringResource(R.plurals.rawkoon_card_versions, versions, versions))
+            }
+        }
+        if (cornerText != null) {
+            UnplayedBadge(cornerText, Modifier.align(Alignment.TopEnd).padding(8.dp))
+        }
     }
+}
+
+/** The favorite heart drawn over a card */
+@Composable
+private fun FavoriteHeart(modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.fa_heart),
+        color = RawkoonTokens.Rose400,
+        fontSize = 14.sp,
+        fontFamily = FontAwesome,
+        modifier = modifier,
+    )
+}
+
+/** The unplayed-count pill: rounded-full, apricot at 20%, in the mono face */
+@Composable
+private fun UnplayedBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        maxLines = 1,
+        fontFamily = RawkoonMono,
+        fontSize = 10.5.sp,
+        fontWeight = FontWeight.Bold,
+        color = RawkoonTokens.Primary300,
+        modifier =
+            modifier
+                .background(RawkoonTokens.Primary500.copy(alpha = 0.2f), CircleShape)
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }
 
 /** The title (14sp semibold) and subtitle (12sp) under a landscape or square card */
@@ -394,34 +450,13 @@ private fun RawkoonImageCard(
                     modifier = Modifier.padding(16.dp).align(Alignment.Center),
                 )
             }
-            if (status != null || cornerText != null) {
-                Box(Modifier.align(Alignment.TopEnd).padding(6.dp)) {
-                    if (status != null) {
-                        StatusPill(status)
-                    } else if (cornerText != null) {
-                        Text(
-                            text = cornerText,
-                            maxLines = 1,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier =
-                                Modifier
-                                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                    .padding(horizontal = 7.dp, vertical = 2.dp),
-                        )
-                    }
-                }
+            if (status != null) {
+                StatusPill(status, Modifier.align(Alignment.TopEnd).padding(6.dp))
+            } else if (cornerText != null) {
+                UnplayedBadge(cornerText, Modifier.align(Alignment.TopEnd).padding(6.dp))
             }
             if (favorite) {
-                Text(
-                    text = stringResource(R.string.fa_heart),
-                    color = RawkoonTokens.Rose400,
-                    fontSize = 14.sp,
-                    fontFamily = FontAwesome,
-                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-                )
+                FavoriteHeart(Modifier.align(Alignment.TopStart).padding(8.dp))
             }
             if (progress != null) {
                 ProgressTrack(
@@ -480,9 +515,7 @@ private fun rememberCardImageUrl(
 @Composable
 private fun RawkoonItemCardsPreview() {
     Column(
-        verticalArrangement =
-            androidx.compose.foundation.layout.Arrangement
-                .spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.background(RawkoonTokens.Background).padding(24.dp),
     ) {
         RawkoonBannerCard(

@@ -17,6 +17,21 @@ class RawkoonCardLogicTest {
     }
 
     @Test
+    fun `the unplayed badge shows only for a positive count`() {
+        assertEquals("3", RawkoonCardLogic.unplayedText(3))
+        assertNull(RawkoonCardLogic.unplayedText(0))
+        assertNull(RawkoonCardLogic.unplayedText(-1))
+        assertNull(RawkoonCardLogic.unplayedText(null))
+    }
+
+    @Test
+    fun `the versions chip shows only for more than one source`() {
+        assertFalse(RawkoonCardLogic.showVersions(0))
+        assertFalse(RawkoonCardLogic.showVersions(1))
+        assertTrue(RawkoonCardLogic.showVersions(2))
+    }
+
+    @Test
     fun `progress is a fraction only while in progress`() {
         assertEquals(0.25f, RawkoonCardLogic.progress(25.0)!!, 0.0001f)
         assertNull(RawkoonCardLogic.progress(null))

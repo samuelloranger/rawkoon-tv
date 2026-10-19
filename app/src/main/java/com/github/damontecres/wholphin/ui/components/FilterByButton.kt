@@ -376,6 +376,10 @@ fun FilterByButton(
     }
 }
 
+/**
+ * The filter chip. [iconColor] is kept so callers keep compiling; the Rawkoon chip has no icon to tint.
+ */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ExpandableFilterButton(
     filterCount: Int,
