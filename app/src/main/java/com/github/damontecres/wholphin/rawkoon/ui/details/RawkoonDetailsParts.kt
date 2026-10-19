@@ -266,8 +266,8 @@ internal fun rememberStreamChips(
     return remember(chosenStreams, numberOfVersions, resources) {
         val source = chosenStreams?.source
         val videoStream = chosenStreams?.videoStream
-        val audioStream = chosenStreams?.audioStream
-        val subtitleStream = chosenStreams?.subtitleStream
+        val audioStream = chosenStreams?.audioStream?.stream
+        val subtitleStream = chosenStreams?.subtitleStream?.stream
 
         val video =
             videoStream?.let {
