@@ -38,4 +38,19 @@ object RawkoonHeaderLogic {
             played -> RawkoonStatus.Watched
             else -> null
         }
+
+    /**
+     * Whether a header that follows focus should wait for focus to rest before going from the item it shows to
+     * [targetTitle]/[targetSubtitle]. Another item waits. An update for the same item applies at once, and so does
+     * filling an empty header or emptying a filled one.
+     */
+    fun waitsToSwitch(
+        shownTitle: String?,
+        shownSubtitle: String?,
+        targetTitle: String?,
+        targetSubtitle: String?,
+    ): Boolean {
+        val otherItem = targetTitle != shownTitle || targetSubtitle != shownSubtitle
+        return otherItem && shownTitle != null && targetTitle != null
+    }
 }

@@ -15,12 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -168,7 +165,6 @@ fun Backdrop(
                         .align(Alignment.TopEnd)
                         .fillMaxHeight(.7f)
                         .fillMaxWidth()
-                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                         .drawWithContent {
                             val start = if (isRtl) size.width else 0f
                             val towardsEnd = if (isRtl) -1f else 1f
@@ -190,7 +186,6 @@ fun Backdrop(
                                                     TOP_SCRIM_END_FRACTION to Color.Transparent,
                                                 ),
                                         ),
-                                    blendMode = BlendMode.Multiply,
                                 )
                             }
                             // Rawkoon: the page background rises over the bottom and covers the left edge
