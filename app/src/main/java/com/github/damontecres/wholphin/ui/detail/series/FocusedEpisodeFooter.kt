@@ -12,7 +12,7 @@ import androidx.compose.ui.focus.FocusState
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
-import com.github.damontecres.wholphin.ui.components.ExpandablePlayButtons
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonPlayButtons
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.extensions.ticks
@@ -41,7 +41,7 @@ fun FocusedEpisodeFooter(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier,
     ) {
-        ExpandablePlayButtons(
+        RawkoonPlayButtons(
             title = ep.title ?: "",
             resumePosition = resumePosition,
             watched = dto.userData?.played ?: false,
