@@ -17,4 +17,5 @@
     <string name="rawkoon_update_none_body">L\'adresse de mise à jour n\'a renvoyé aucune version. Vérifie-la dans les réglages.</string>
     <string name="rawkoon_update_no_asset">Cette version n\'a pas encore de téléchargement pour cet appareil.</string>
     <string name="rawkoon_update_error_unknown">Quelque chose n\'a pas marché. Réessaie dans un moment.</string>
+    <string name="rawkoon_update_scroll_hint">▲▼ pour défiler</string>
 </resources>

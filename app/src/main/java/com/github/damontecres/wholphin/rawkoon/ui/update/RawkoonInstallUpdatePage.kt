@@ -8,9 +8,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,7 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -74,7 +73,6 @@ import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.rawkoon.ui.kit.SectionHeader
 import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonEnter
 import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonExit
-import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonFocusRing
 import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.ui.OneTimeLaunchedEffect
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
@@ -185,9 +183,27 @@ fun RawkoonInstallUpdateContent(
     modifier: Modifier = Modifier,
 ) {
     val kind = updateKind(installed, release)
+    val notesState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     Row(
         horizontalArrangement = Arrangement.spacedBy(40.dp),
-        modifier = modifier.fillMaxSize(),
+        modifier =
+            modifier
+                .fillMaxSize()
+                // The notes never take focus: focus stays on the buttons, and up and down scroll the notes
+                .onPreviewKeyEvent {
+                    if (it.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    val delta =
+                        when (it.key) {
+                            Key.DirectionDown -> NOTES_SCROLL_STEP
+                            Key.DirectionUp -> -NOTES_SCROLL_STEP
+                            else -> return@onPreviewKeyEvent false
+                        }
+                    if (delta < 0 && !notesState.canScrollBackward) return@onPreviewKeyEvent false
+                    if (delta > 0 && !notesState.canScrollForward) return@onPreviewKeyEvent false
+                    scope.launch(ExceptionHandler()) { notesState.animateScrollBy(delta) }
+                    true
+                },
     ) {
         Column(
             verticalArrangement = Arrangement.Center,
@@ -271,6 +287,7 @@ fun RawkoonInstallUpdateContent(
         // The panel hugs short notes and scrolls long ones, centered against the left column
         ReleaseNotesPanel(
             release = release,
+            listState = notesState,
             modifier =
                 Modifier
                     .weight(0.56f)
@@ -442,36 +459,20 @@ private fun DownloadProgress(
 @Composable
 private fun ReleaseNotesPanel(
     release: Release,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(RawkoonTokens.RadiusLarge)
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val interactionSource = remember { MutableInteractionSource() }
-    val scrollStep = 140f
+    val scrollable = listState.canScrollForward || listState.canScrollBackward
     Column(
         modifier =
             modifier
-                .rawkoonFocusRing(shape, interactionSource)
                 .background(RawkoonTokens.Neutral800, shape)
-                .border(1.dp, RawkoonTokens.Neutral700, shape)
-                .focusable(interactionSource = interactionSource)
-                .onKeyEvent {
-                    if (it.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    val delta =
-                        when (it.key) {
-                            Key.DirectionDown -> scrollStep
-                            Key.DirectionUp -> -scrollStep
-                            else -> return@onKeyEvent false
-                        }
-                    if (delta < 0 && !listState.canScrollBackward) return@onKeyEvent false
-                    if (delta > 0 && !listState.canScrollForward) return@onKeyEvent false
-                    scope.launch(ExceptionHandler()) { listState.animateScrollBy(delta) }
-                    true
-                },
+                .border(1.dp, RawkoonTokens.Neutral700, shape),
     ) {
         SectionHeader(
             title = stringResource(R.string.rawkoon_update_whats_new),
+            trailing = if (scrollable) stringResource(R.string.rawkoon_update_scroll_hint) else null,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
         )
         Box(
@@ -583,6 +584,9 @@ private fun UpdateMessage(
         }
     }
 }
+
+/** How far one press of up or down scrolls the release notes */
+private const val NOTES_SCROLL_STEP = 140f
 
 /** Material's "download" glyph, which is not in the core icon set */
 private val DownloadIcon =
