@@ -52,6 +52,13 @@ class RawkoonDetailsLogicTest {
     }
 
     @Test
+    fun criticRatingIsAWholePercent() {
+        assertEquals("87%", formatCriticRating(87.6f))
+        assertEquals("0%", formatCriticRating(0f))
+        assertEquals(null, formatCriticRating(null))
+    }
+
+    @Test
     fun seriesCountsSkipUnknownParts() {
         assertEquals("3S · 28E", seriesCountsLabel(3, 28))
         assertEquals("3S", seriesCountsLabel(3, null))

@@ -121,6 +121,9 @@ fun RawkoonMovieDetailsHeader(
                 if (DisplayToggle.COMMUNITY_RATING in toggles) {
                     dto.communityRating?.let { DetailsRating(it) }
                 }
+                if (DisplayToggle.CRITIC_RATING in toggles) {
+                    dto.criticRating?.let { DetailsCriticRating(it) }
+                }
             }
             DetailsChips(genres + chips)
             dto.overview?.takeIf { it.isNotNullOrBlank() }?.let { overview ->
@@ -207,6 +210,9 @@ fun RawkoonSeriesDetailsHeader(
                 if (DisplayToggle.COMMUNITY_RATING in toggles) {
                     dto.communityRating?.let { DetailsRating(it) }
                 }
+                if (DisplayToggle.CRITIC_RATING in toggles) {
+                    dto.criticRating?.let { DetailsCriticRating(it) }
+                }
             }
             if (studios.isNotEmpty()) {
                 DetailsMetaText(studios.joinToString(" · "))
@@ -249,6 +255,7 @@ fun RawkoonFocusedEpisodeHeader(
     modifier: Modifier = Modifier,
 ) {
     val resources = LocalResources.current
+    val toggles = LocalInterfaceCustomization.current.enabledDisplayToggles
     val dto = ep?.data
     val runtime = dto?.runTimeTicks?.ticks
     val chips = rememberStreamChips(chosenStreams, dto?.mediaSourceCount ?: 0)
@@ -288,7 +295,15 @@ fun RawkoonFocusedEpisodeHeader(
                     DetailsMetaText(resources.formatDuration(it))
                 }
                 endsAt?.let { DetailsMetaText(it) }
-                dto.communityRating?.let { DetailsRating(it) }
+                if (DisplayToggle.OFFICIAL_RATING in toggles) {
+                    dto.officialRating?.takeIf { it.isNotNullOrBlank() }?.let { DetailsMetaText(it) }
+                }
+                if (DisplayToggle.COMMUNITY_RATING in toggles) {
+                    dto.communityRating?.let { DetailsRating(it) }
+                }
+                if (DisplayToggle.CRITIC_RATING in toggles) {
+                    dto.criticRating?.let { DetailsCriticRating(it) }
+                }
             }
             val position = ep.playbackPosition
             val fraction = watchedFraction(runtime, position)

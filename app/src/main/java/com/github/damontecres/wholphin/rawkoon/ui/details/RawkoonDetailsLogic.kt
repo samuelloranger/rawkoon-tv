@@ -49,6 +49,9 @@ fun formatRating(
     locale: Locale = Locale.getDefault(),
 ): String = String.format(locale, "%.1f", rating)
 
+/** The critic rating as a whole percent, like `87%`; null when there is none */
+fun formatCriticRating(rating: Float?): String? = rating?.let { "${it.toInt()}%" }
+
 /** `3S · 28E` for a show, leaving out whichever count is unknown or zero. Null when neither is known. */
 fun seriesCountsLabel(
     seasons: Int?,

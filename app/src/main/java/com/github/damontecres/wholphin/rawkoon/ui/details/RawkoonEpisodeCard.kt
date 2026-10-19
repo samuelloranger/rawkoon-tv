@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -55,9 +56,6 @@ import com.github.damontecres.wholphin.ui.roundMinutes
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.extensions.ticks
 import kotlin.time.Duration
-
-/** Room around a card for the focus ring, which is drawn outside the card and would be clipped by a tight row */
-private val RingRoom = 4.dp
 
 /**
  * An episode card: 12dp radius, a 1dp border, a 3dp left status edge (watched, in progress or unwatched), the
@@ -115,8 +113,8 @@ fun RawkoonEpisodeCard(
             ?.takeIf { it > Duration.ZERO }
             ?.let { resources.formatDuration(it) }
 
-    // The ring goes around the card, so the box leaves room for it above and below
-    Box(modifier = Modifier.size(cardHeight * aspectRatio, cardHeight + RingRoom * 2).padding(vertical = RingRoom)) {
+    // The focus ring is drawn outside these bounds, so the layout stays exactly cardHeight tall
+    Box(modifier = Modifier.size(cardHeight * aspectRatio, cardHeight)) {
         Surface(
             onClick = { currentOnClick() },
             onLongClick = { currentOnLongClick() },
@@ -201,6 +199,14 @@ fun RawkoonEpisodeCard(
                                 .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                                 .padding(3.dp)
                                 .size(14.dp),
+                    )
+                }
+                if (favorite) {
+                    Icon(
+                        imageVector = Icons.Filled.Favorite,
+                        contentDescription = null,
+                        tint = RawkoonTokens.Rose400,
+                        modifier = Modifier.align(Alignment.TopStart).padding(start = 9.dp, top = 6.dp).size(16.dp),
                     )
                 }
                 if (playPercent > 0 && playPercent < 100) {

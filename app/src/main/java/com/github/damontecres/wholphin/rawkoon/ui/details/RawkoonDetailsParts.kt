@@ -169,6 +169,31 @@ internal fun DetailsRating(
     }
 }
 
+/** The critic (Rotten Tomatoes style) percent in emerald or rose, with a small "RT" label */
+@Composable
+internal fun DetailsCriticRating(
+    rating: Float,
+    modifier: Modifier = Modifier,
+) {
+    val text = formatCriticRating(rating) ?: return
+    Row(verticalAlignment = Alignment.Bottom, modifier = modifier) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (rating >= 60f) RawkoonTokens.Emerald400 else RawkoonTokens.Rose400,
+        )
+        Text(
+            text = "RT",
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            color = RawkoonTokens.white(0.45f),
+            modifier = Modifier.padding(start = 3.dp),
+        )
+    }
+}
+
 /** A muted line of meta text in the details header */
 @Composable
 internal fun DetailsMetaText(
@@ -210,7 +235,7 @@ internal fun DetailsProgress(
     ) {
         Box(
             Modifier
-                .width(220.dp)
+                .width(240.dp)
                 .height(4.dp)
                 .background(RawkoonTokens.Neutral800, CircleShape),
         ) {

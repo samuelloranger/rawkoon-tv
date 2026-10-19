@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawkoon_type_movie">Movie</string>
+    <string name="rawkoon_type_show">Show</string>
+    <string name="rawkoon_type_episode">Episode</string>
+    <string name="rawkoon_min_left">%1$d min left</string>
+</resources>

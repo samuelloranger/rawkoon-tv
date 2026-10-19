@@ -88,7 +88,7 @@ fun RawkoonPlayButtons(
         playActions(
             resumePosition = resumePosition,
             mediaSourceCount = chooseVersionParams?.mediaSources?.size ?: 0,
-            hasTrailerButton = trailers != null,
+            hasTrailerButton = !trailers.isNullOrEmpty(),
             canDelete = canDelete,
         )
     // The buttons sit in a focus wrapper, so report the wrapper's focus as the button's own
@@ -169,12 +169,10 @@ fun RawkoonPlayButtons(
                         text =
                             stringResource(
                                 when {
-                                    list.isEmpty() -> R.string.no_trailers
                                     list.size == 1 -> R.string.play_trailer
                                     else -> R.string.trailers_title
                                 },
                             ),
-                        enabled = list.isNotEmpty(),
                         onClick = {
                             if (list.size == 1) {
                                 trailerOnClick.invoke(list.first())
