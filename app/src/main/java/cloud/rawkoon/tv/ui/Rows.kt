@@ -72,9 +72,10 @@ class Rows(context: Context) : ScrollView(context) {
         isVerticalScrollBarEnabled = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusable = false
-        clipChildren = false
-        // Room under the last row so it can still glide up to the anchor.
-        column.setPadding(0, 0, 0, context.dp(200))
+        // The top padding leaves room for the focused card to grow, the bottom lets the last row
+        // still glide up to the anchor. The screen clips this view, so rows gliding above it never
+        // pass over the header.
+        column.setPadding(0, context.dp(6), 0, context.dp(200))
         addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
@@ -82,7 +83,7 @@ class Rows(context: Context) : ScrollView(context) {
 
     fun reveal(section: Section) {
         val maxShift = (column.height - height).coerceAtLeast(0)
-        val target = -section.top.coerceIn(0, maxShift).toFloat()
+        val target = -(section.top - column.paddingTop).coerceIn(0, maxShift).toFloat()
         if (column.translationY == target) return
         column.animate().translationY(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
     }

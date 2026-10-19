@@ -66,14 +66,13 @@ class HomeScreen(activity: MainActivity, private val profile: Profile) : Screen(
     private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
 
     init {
-        view.clipChildren = false
         view.addView(backdrop, fill())
         view.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = context.dp(Tokens.CONTENT_START)
             topMargin = context.dp(26)
         })
         view.addView(rows, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
-            topMargin = context.dp(Tokens.ROWS_TOP)
+            topMargin = context.dp(Tokens.ROWS_TOP - 6)
         })
         view.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         view.addView(dim, fill())

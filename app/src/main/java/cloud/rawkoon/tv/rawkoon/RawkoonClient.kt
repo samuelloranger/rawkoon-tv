@@ -59,7 +59,9 @@ class RawkoonClient(baseUrl: String) {
     private val base = baseUrl.filterNot { it.isISOControl() || it in INVISIBLE }.trim().trimEnd('/')
 
     suspend fun requestDeviceCode(): DeviceCode {
-        val json = send("POST", "api/auth/device/code", JSONObject().put("client_id", CLIENT_ID)).okJson()
+        val response = send("POST", "api/auth/device/code", JSONObject().put("client_id", CLIENT_ID))
+        if (response.code == 429) throw RawkoonException.RateLimited()
+        val json = response.okJson()
         return try {
             DeviceCode(
                 deviceCode = json.getString("device_code"),
@@ -77,6 +79,8 @@ class RawkoonClient(baseUrl: String) {
         val body = JSONObject().put("grant_type", DEVICE_GRANT).put("device_code", deviceCode).put("client_id", CLIENT_ID)
         val response = send("POST", "api/auth/device/token", body)
         if (response.code in 200..299) return DevicePoll.Granted(response.json().optString("access_token").ifEmpty { throw RawkoonException.InvalidResponse() })
+        // Rate limited: same as being told to slow down
+        if (response.code == 429) return DevicePoll.SlowDown
         if (response.code != 400) throw RawkoonException.Http(response.code)
         return when (runCatching { JSONObject(response.body).optString("error") }.getOrDefault("")) {
             "authorization_pending" -> DevicePoll.Pending
