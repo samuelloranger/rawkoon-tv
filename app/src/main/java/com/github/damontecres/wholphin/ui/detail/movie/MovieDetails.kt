@@ -34,19 +34,20 @@ import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonMovieDetailsHeader
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonPersonRow
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonPlayButtons
 import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
 import com.github.damontecres.wholphin.ui.cards.ChapterRow
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
-import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
-import com.github.damontecres.wholphin.ui.components.ExpandablePlayButtons
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.Optional
@@ -333,7 +334,7 @@ fun MovieDetailsContent(
                             .fillMaxWidth()
                             .bringIntoViewRequester(bringIntoViewRequester),
                 ) {
-                    MovieDetailsHeader(
+                    RawkoonMovieDetailsHeader(
                         preferences = preferences,
                         movie = movie,
                         chosenStreams = state.chosenStreams,
@@ -344,7 +345,7 @@ fun MovieDetailsContent(
                                 .fillMaxWidth()
                                 .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
                     )
-                    ExpandablePlayButtons(
+                    RawkoonPlayButtons(
                         title = movie.title ?: "",
                         resumePosition = resumePosition,
                         watched = dto.userData?.played ?: false,
@@ -389,7 +390,7 @@ fun MovieDetailsContent(
             }
             state.people.letNotEmpty { people ->
                 item {
-                    PersonRow(
+                    RawkoonPersonRow(
                         people = people,
                         onClick = {
                             position = PEOPLE_ROW

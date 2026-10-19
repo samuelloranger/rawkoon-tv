@@ -59,18 +59,20 @@ fun UnderlineTabs(
     }
 }
 
+/** One tab of [UnderlineTabs], also used by tab rows that bring their own focus handling */
 @Composable
-private fun RawkoonTabItem(
+internal fun RawkoonTabItem(
     tab: RawkoonTab,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val shape = RoundedCornerShape(RawkoonTokens.RadiusMedium)
     Box(
         modifier =
-            Modifier
+            modifier
                 .rawkoonFocusRing(shape, focused)
                 .clip(shape)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),

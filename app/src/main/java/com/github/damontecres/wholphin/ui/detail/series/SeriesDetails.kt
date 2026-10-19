@@ -47,12 +47,13 @@ import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.data.model.studioNames
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonPersonRow
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonSeriesDetailsHeader
 import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
-import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
 import com.github.damontecres.wholphin.ui.components.ConfirmDialog
 import com.github.damontecres.wholphin.ui.components.ContextMenu
@@ -372,7 +373,7 @@ fun SeriesDetailsContent(
                 modifier = Modifier,
             ) {
                 item {
-                    SeriesDetailsHeader(
+                    RawkoonSeriesDetailsHeader(
                         series = series,
                         showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                         overviewOnClick = overviewOnClick,
@@ -537,7 +538,7 @@ fun SeriesDetailsContent(
                 }
                 if (people.isNotEmpty()) {
                     item {
-                        PersonRow(
+                        RawkoonPersonRow(
                             people = people,
                             onClick = {
                                 position = PEOPLE_ROW

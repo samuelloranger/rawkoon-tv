@@ -49,15 +49,16 @@ import com.github.damontecres.wholphin.data.ExtrasItem
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonEpisodeCard
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonFocusedEpisodeHeader
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonPersonRow
+import com.github.damontecres.wholphin.rawkoon.ui.details.RawkoonTabRow
 import com.github.damontecres.wholphin.ui.AspectRatios
-import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
-import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TabDetails
-import com.github.damontecres.wholphin.ui.components.TabRow
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.formatSeasonNumber
 import com.github.damontecres.wholphin.ui.ifElse
@@ -170,7 +171,7 @@ fun SeriesOverviewContent(
                             PaddingValues(start = 0.dp, end = 16.dp)
                         }
                     }
-                TabRow(
+                RawkoonTabRow(
                     selectedTabIndex = selectedTabIndex,
                     tabs = tabs,
                     onClick =
@@ -193,7 +194,7 @@ fun SeriesOverviewContent(
                     showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                     modifier = Modifier.padding(start = HeaderUtils.startPadding),
                 )
-                FocusedEpisodeHeader(
+                RawkoonFocusedEpisodeHeader(
                     preferences = preferences,
                     ep = focusedEpisode,
                     chosenStreams = chosenStreams,
@@ -245,7 +246,7 @@ fun SeriesOverviewContent(
                                 if (interactionSource.collectIsFocusedAsState().value) {
                                     onFocusEpisode.invoke(episodeIndex)
                                 }
-                                BannerCard(
+                                RawkoonEpisodeCard(
                                     name = episode?.name,
                                     item = episode,
                                     aspectRatio =
@@ -357,7 +358,7 @@ fun SeriesOverviewContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (castAndCrew.isNotEmpty()) {
-                        PersonRow(
+                        RawkoonPersonRow(
                             title = R.string.cast_and_crew,
                             people = castAndCrew,
                             onClick = personOnClick,
@@ -368,7 +369,7 @@ fun SeriesOverviewContent(
                         )
                     }
                     if (guestStars.isNotEmpty()) {
-                        PersonRow(
+                        RawkoonPersonRow(
                             title = R.string.guest_stars,
                             people = guestStars,
                             onClick = personOnClick,
