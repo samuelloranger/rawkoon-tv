@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawkoon_update_title">RawkoonTV %1$s</string>
+    <string name="rawkoon_update_up_to_date">You\'re up to date</string>
+    <string name="rawkoon_update_published">Published %1$s</string>
+    <string name="rawkoon_update_later">Later</string>
+    <string name="rawkoon_update_back">Back</string>
+    <string name="rawkoon_update_reinstall">Reinstall</string>
+    <string name="rawkoon_update_retry">Try again</string>
+    <string name="rawkoon_update_whats_new">What\'s new</string>
+    <string name="rawkoon_update_checking">Checking for updates…</string>
+    <string name="rawkoon_update_starting">Starting the download…</string>
+    <string name="rawkoon_update_hint">When the download ends, Android asks you to confirm the install. The app restarts on the new version.</string>
+    <string name="rawkoon_update_error_kicker">Update</string>
+    <string name="rawkoon_update_error_title">Couldn\'t get the update</string>
+    <string name="rawkoon_update_none_title">No release found</string>
+    <string name="rawkoon_update_none_body">The update address returned no release. Check it in Settings.</string>
+    <string name="rawkoon_update_no_asset">This release has no download for this device yet.</string>
+    <string name="rawkoon_update_error_unknown">Something went wrong. Try again in a moment.</string>
+</resources>
