@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawkoon_update_title">RawkoonTV %1$s</string>
+    <string name="rawkoon_update_up_to_date">Tu as la dernière version</string>
+    <string name="rawkoon_update_published">Publiée le %1$s</string>
+    <string name="rawkoon_update_later">Plus tard</string>
+    <string name="rawkoon_update_back">Retour</string>
+    <string name="rawkoon_update_reinstall">Réinstaller</string>
+    <string name="rawkoon_update_retry">Réessayer</string>
+    <string name="rawkoon_update_whats_new">Nouveautés</string>
+    <string name="rawkoon_update_checking">Recherche de mises à jour…</string>
+    <string name="rawkoon_update_starting">Début du téléchargement…</string>
+    <string name="rawkoon_update_hint">À la fin du téléchargement, Android demande de confirmer l\'installation. L\'app redémarre sur la nouvelle version.</string>
+    <string name="rawkoon_update_error_kicker">Mise à jour</string>
+    <string name="rawkoon_update_error_title">Impossible d\'obtenir la mise à jour</string>
+    <string name="rawkoon_update_none_title">Aucune version trouvée</string>
+    <string name="rawkoon_update_none_body">L\'adresse de mise à jour n\'a renvoyé aucune version. Vérifie-la dans les réglages.</string>
+</resources>

@@ -11,6 +11,7 @@ import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.rawkoon.ui.RawkoonSettingsPage
+import com.github.damontecres.wholphin.rawkoon.ui.update.RawkoonInstallUpdatePage
 import com.github.damontecres.wholphin.ui.components.ItemGrid
 import com.github.damontecres.wholphin.ui.components.LicenseInfo
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
@@ -50,7 +51,6 @@ import com.github.damontecres.wholphin.ui.preferences.PreferencesPage
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleStylePage
 import com.github.damontecres.wholphin.ui.preferences.user.UserProfilePreferencesPage
 import com.github.damontecres.wholphin.ui.search.SearchPage
-import com.github.damontecres.wholphin.ui.setup.InstallUpdatePage
 import com.github.damontecres.wholphin.ui.slideshow.SlideshowPage
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
@@ -356,7 +356,7 @@ fun DestinationContent(
         }
 
         Destination.UpdateApp -> {
-            InstallUpdatePage(preferences, modifier)
+            RawkoonInstallUpdatePage(preferences, modifier)
         }
 
         Destination.License -> {
