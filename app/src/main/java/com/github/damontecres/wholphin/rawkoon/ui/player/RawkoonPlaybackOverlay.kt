@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -49,8 +50,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -58,6 +62,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -69,16 +74,17 @@ import com.github.damontecres.wholphin.data.model.TrackIndex
 import com.github.damontecres.wholphin.rawkoon.RawkoonDisplay
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonButton
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonButtonVariant
-import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonChip
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonIconButton
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonMonoText
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonMotion
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonPlayButton
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonSurface
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.rawkoon.ui.kit.TypeChip
 import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonEnter
 import com.github.damontecres.wholphin.rawkoon.ui.kit.rawkoonExit
 import com.github.damontecres.wholphin.ui.AppColors
+import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.components.HiddenFocusBox
 import com.github.damontecres.wholphin.ui.formatDuration
@@ -97,13 +103,11 @@ import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.LocalClock
-import com.github.damontecres.wholphin.util.languageName
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.MediaSegmentDto
-import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.TrickplayInfo
 import org.jellyfin.sdk.model.extensions.ticks
 import java.time.LocalTime
@@ -509,31 +513,8 @@ private fun RawkoonControlPane(
     LaunchedEffect(Unit) { initialFocusRequester.tryRequestFocus() }
     val onControllerInteraction = { controllerViewState.pulseControls() }
     val columns = remember(previousEnabled, nextEnabled) { controlOrder(previousEnabled, nextEnabled) }
-    val audioValue =
-        remember(currentPlayback) {
-            currentPlayback?.let { playback ->
-                playback.mediaSourceInfo.mediaStreams
-                    ?.firstOrNull { it.type == MediaStreamType.AUDIO && it.index == playback.audioIndex }
-                    ?.let { trackChipValue(it.language?.let(::languageName), it.title, it.displayTitle, it.channelLayout) }
-            }
-        }
-    val subtitleOff = stringResource(R.string.rawkoon_player_off)
-    val onlyForced = stringResource(R.string.only_forced_subtitles)
-    val subtitleValue =
-        remember(currentPlayback, subtitleOff, onlyForced) {
-            currentPlayback?.let { playback ->
-                if (playback.subtitleIndex == TrackIndex.ONLY_FORCED) {
-                    onlyForced
-                } else if (playback.subtitleIndexEnabled) {
-                    playback.mediaSourceInfo.mediaStreams
-                        ?.firstOrNull { it.type == MediaStreamType.SUBTITLE && it.index == playback.subtitleIndex }
-                        ?.let { trackChipValue(it.language?.let(::languageName), it.title, it.displayTitle) }
-                        ?: subtitleOff
-                } else {
-                    subtitleOff
-                }
-            } ?: subtitleOff
-        }
+    val subtitlesOn =
+        currentPlayback?.let { it.subtitleIndex == TrackIndex.ONLY_FORCED || it.subtitleIndexEnabled } ?: false
 
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = RawkoonOverlayInset).padding(top = 40.dp)) {
         RawkoonSeekSection(
@@ -582,8 +563,7 @@ private fun RawkoonControlPane(
                                 control = control,
                                 player = player,
                                 showPlay = showPlay,
-                                audioValue = audioValue,
-                                subtitleValue = subtitleValue,
+                                subtitlesOn = subtitlesOn,
                                 seekBack = seekBack,
                                 seekForward = seekForward,
                                 skipBackOnResume = skipBackOnResume,
@@ -620,8 +600,7 @@ private fun RawkoonControl(
     control: RawkoonPlayerControl,
     player: Player,
     showPlay: Boolean,
-    audioValue: String?,
-    subtitleValue: String,
+    subtitlesOn: Boolean,
     seekBack: Duration,
     seekForward: Duration,
     skipBackOnResume: Duration?,
@@ -632,27 +611,41 @@ private fun RawkoonControl(
 ) {
     when (control) {
         RawkoonPlayerControl.Audio -> {
-            RawkoonChip(
-                label = stringResource(R.string.audio),
-                value = audioValue,
+            RawkoonGhostIconButton(
+                contentDescription = stringResource(R.string.audio),
+                tint = RawkoonTokens.Neutral100,
                 onClick = {
                     onControllerInteraction()
                     onClickPlaybackDialogType(PlaybackDialogType.AUDIO)
                 },
                 modifier = modifier,
-            )
+            ) { color ->
+                Text(
+                    text = stringResource(R.string.fa_volume_high),
+                    fontFamily = FontAwesome,
+                    fontSize = 18.sp,
+                    color = color,
+                )
+            }
         }
 
         RawkoonPlayerControl.Subtitles -> {
-            RawkoonChip(
-                label = stringResource(R.string.subtitles),
-                value = subtitleValue,
+            RawkoonGhostIconButton(
+                contentDescription = stringResource(R.string.subtitles),
+                tint = if (subtitlesOn) RawkoonTokens.Primary400 else RawkoonTokens.Neutral100,
                 onClick = {
                     onControllerInteraction()
                     onClickPlaybackDialogType(PlaybackDialogType.CAPTIONS)
                 },
                 modifier = modifier,
-            )
+            ) { color ->
+                Icon(
+                    painter = painterResource(R.drawable.captions_svgrepo_com),
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
 
         RawkoonPlayerControl.Previous -> {
@@ -727,4 +720,34 @@ private fun TransportButton(
         onClick = onClick,
         modifier = modifier,
     )
+}
+
+/**
+ * A 40dp ghost icon button (8dp radius, focus ring, white@14% when focused) whose glyph is drawn by [icon] in [tint].
+ * Used for the audio and subtitle pickers.
+ */
+@Composable
+private fun RawkoonGhostIconButton(
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable (Color) -> Unit,
+) {
+    RawkoonSurface(
+        onClick = onClick,
+        shape = RoundedCornerShape(RawkoonTokens.RadiusMedium),
+        container = Color.Transparent,
+        focusedContainer = RawkoonTokens.white(0.14f),
+        contentColor = tint,
+        focusedContentColor = tint,
+        modifier = modifier,
+    ) {
+        Box(
+            Modifier.size(40.dp).semantics { this.contentDescription = contentDescription },
+            contentAlignment = Alignment.Center,
+        ) {
+            icon(tint)
+        }
+    }
 }

@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,8 +62,8 @@ import kotlin.time.Duration.Companion.minutes
 private val Dim = RawkoonTokens.Neutral900
 
 /**
- * The pause screen. There is no pause icon: once the player has been paused for 8 seconds with the controls hidden,
- * the video dims over 700ms and the detail block of [item] shows at the bottom left. The page removes it from
+ * The pause screen. Once the player has been paused for 8 seconds with the controls hidden,
+ * the video dims over 700ms, a pause icon fades in at the center and the detail block of [item] shows at the bottom left. The page removes it from
  * composition on any key press (it only composes this while the controls are hidden).
  *
  * Replaces Wholphin's `PauseIndicator`. Same parameters, minus the animation duration, plus the [item] to describe.
@@ -110,6 +114,14 @@ fun RawkoonPauseScreen(
             )
         }
         AnimatedVisibility(
+            visible = showScreen,
+            enter = fadeIn(tween(700)),
+            exit = fadeOut(tween(120)),
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            PauseGlyph()
+        }
+        AnimatedVisibility(
             visible = showScreen && item != null,
             enter = fadeIn(tween(300, delayMillis = 150)),
             exit = fadeOut(tween(120)),
@@ -117,6 +129,32 @@ fun RawkoonPauseScreen(
         ) {
             if (item != null) {
                 PauseDetails(item = item, player = player)
+            }
+        }
+    }
+}
+
+/** The centered pause mark: an 88dp dark circle with a hairline border and two rounded white bars */
+@Composable
+private fun PauseGlyph(modifier: Modifier = Modifier) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .background(RawkoonTokens.Neutral900.copy(alpha = 0.6f))
+                .border(1.dp, RawkoonTokens.white(0.15f), CircleShape),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.height(36.dp)) {
+            repeat(2) {
+                Box(
+                    Modifier
+                        .width(10.dp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.White),
+                )
             }
         }
     }
