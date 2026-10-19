@@ -22,8 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.rawkoon.ui.kit.SectionHeader
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -126,14 +125,15 @@ fun <T> ItemRow(
     }
 }
 
+/**
+ * The title of a row. Rawkoon draws it as a [SectionHeader] (the apricot bar and the display font).
+ */
 @Composable
 @NonRestartableComposable
 fun ItemRowTitle(
     title: String,
     modifier: Modifier = Modifier,
-) = Text(
-    text = title,
-    style = MaterialTheme.typography.titleLarge,
-    color = MaterialTheme.colorScheme.onBackground,
+) = SectionHeader(
+    title = title,
     modifier = modifier.padding(start = 8.dp),
 )
