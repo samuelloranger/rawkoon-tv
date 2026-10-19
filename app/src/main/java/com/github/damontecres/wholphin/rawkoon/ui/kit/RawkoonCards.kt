@@ -213,6 +213,9 @@ fun RawkoonLandscapeCard(
     }
 }
 
+/** Clamps a progress [fraction] to 0..1; NaN counts as 0 */
+internal fun progressFraction(fraction: Float): Float = if (fraction.isNaN()) 0f else fraction.coerceIn(0f, 1f)
+
 /** A white-at-15% track with an apricot fill of [fraction] of its width (clamped to 0..1) */
 @Composable
 internal fun ProgressTrack(
@@ -224,7 +227,7 @@ internal fun ProgressTrack(
     Box(modifier.background(trackColor)) {
         Box(
             Modifier
-                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .fillMaxWidth(progressFraction(fraction))
                 .fillMaxSize()
                 .background(fillColor, RoundedCornerShape(topEnd = 99.dp, bottomEnd = 99.dp)),
         )
