@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.rawkoon.home
 
 import com.github.damontecres.wholphin.rawkoon.TitleStatus
 import com.github.damontecres.wholphin.rawkoon.seerr.RkRequest
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonStatus
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.DayOfWeek
@@ -265,3 +266,13 @@ sealed interface RequestChip {
 
     data object Denied : RequestChip
 }
+
+/** The Rawkoon status tone a request chip is drawn in: pending is amber, approved and downloading sky, ready emerald */
+fun RequestChip.toStatus(): RawkoonStatus =
+    when (this) {
+        RequestChip.Pending -> RawkoonStatus.Pending
+        RequestChip.Approved -> RawkoonStatus.Approved
+        is RequestChip.Downloading -> RawkoonStatus.Downloading
+        RequestChip.Ready -> RawkoonStatus.Ready
+        RequestChip.Denied -> RawkoonStatus.Denied
+    }

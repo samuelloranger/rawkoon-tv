@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.Composable
@@ -34,16 +33,14 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.ui.AppColors
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonStatus
+import com.github.damontecres.wholphin.rawkoon.ui.kit.StatusPill
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.ItemCardImage
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import java.time.LocalDate
 import java.util.Locale
-
-private val EPISODE_PILL_COLOR = Color(0xFFE8A06A)
-private val EPISODE_PILL_TEXT = Color(0xFF1C1715)
 
 @Composable
 fun UpcomingRowContent(
@@ -84,8 +81,7 @@ fun UpcomingRowContent(
                     subtitle = date,
                     posterUrl = card.posterUrl,
                     chipText = pill,
-                    chipColor = EPISODE_PILL_COLOR,
-                    chipTextColor = EPISODE_PILL_TEXT,
+                    chipStatus = RawkoonStatus.Returning,
                     inLibrary = card.inLibrary,
                     onClick = onItemClick,
                     onLongClick = onLongClick,
@@ -119,8 +115,7 @@ fun RequestsRowContent(
                     subtitle = card.request.year?.toString(),
                     posterUrl = card.request.posterUrl,
                     chipText = chip,
-                    chipColor = chipColor(card.chip),
-                    chipTextColor = Color.White,
+                    chipStatus = card.chip.toStatus(),
                     inLibrary = false,
                     onClick = onItemClick,
                     onLongClick = onLongClick,
@@ -159,15 +154,6 @@ private fun chipText(chip: RequestChip): String =
         }
     }
 
-@Composable
-private fun chipColor(chip: RequestChip): Color =
-    when (chip) {
-        RequestChip.Pending -> AppColors.Discover.Yellow
-        RequestChip.Approved, is RequestChip.Downloading -> AppColors.Discover.Blue
-        RequestChip.Ready -> AppColors.Discover.Green
-        RequestChip.Denied -> MaterialTheme.colorScheme.error
-    }
-
 /** A poster with the title and a line under it, an optional status chip over the bottom and a mark over the corner */
 @Composable
 private fun RawkoonPosterCard(
@@ -175,8 +161,7 @@ private fun RawkoonPosterCard(
     subtitle: String?,
     posterUrl: String?,
     chipText: String?,
-    chipColor: Color,
-    chipTextColor: Color,
+    chipStatus: RawkoonStatus,
     inLibrary: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -223,7 +208,7 @@ private fun RawkoonPosterCard(
                                 .size(18.dp),
                     )
                 }
-                chipText?.let { Pill(it, chipColor, chipTextColor, Modifier.align(Alignment.BottomStart)) }
+                chipText?.let { StatusPill(chipStatus, Modifier.align(Alignment.BottomStart).padding(6.dp), label = it) }
             }
         }
         Text(
@@ -244,25 +229,4 @@ private fun RawkoonPosterCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         )
     }
-}
-
-@Composable
-private fun Pill(
-    text: String,
-    color: Color,
-    textColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    // titleSmall is Hanken Grotesk SemiBold in the Rawkoon theme
-    Text(
-        text = text,
-        maxLines = 1,
-        style = MaterialTheme.typography.titleSmall,
-        color = textColor,
-        modifier =
-            modifier
-                .padding(6.dp)
-                .background(color, RoundedCornerShape(50))
-                .padding(horizontal = 10.dp, vertical = 3.dp),
-    )
 }
