@@ -99,5 +99,4 @@ class RawkoonPlayerLogicTest {
         assertEquals("E4", formatSeasonEpisode(null, 4))
         assertNull(formatSeasonEpisode(null, null))
     }
-
 }
