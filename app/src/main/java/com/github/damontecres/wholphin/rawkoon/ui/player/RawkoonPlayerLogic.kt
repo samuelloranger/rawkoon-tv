@@ -32,23 +32,14 @@ fun formatSeekDelta(deltaMillis: Long): String {
     return sign + formatClock(abs(deltaMillis))
 }
 
+/** The seek distance label, or null when the seek is back where it started so no `+0:00` shows */
+fun seekDeltaLabel(deltaMillis: Long): String? = if (deltaMillis == 0L) null else formatSeekDelta(deltaMillis)
+
 /** The accumulated D-pad skip, such as `+30s` or `-1:30`: whole seconds below a minute, a clock above */
 fun formatSkipAmount(deltaMillis: Long): String {
     val sign = if (deltaMillis < 0) "-" else "+"
     val seconds = abs(deltaMillis) / 1000
     return if (seconds < 60) "$sign${seconds}s" else sign + formatClock(abs(deltaMillis))
-}
-
-/**
- * Adds a skip to the running total. Skipping the other way starts a new total, so `+30s` then `-10s` reads `-10s`
- * and not `+20s`.
- */
-fun accumulateSkip(
-    currentMillis: Long,
-    deltaMillis: Long,
-): Long {
-    val opposite = (currentMillis > 0 && deltaMillis < 0) || (currentMillis < 0 && deltaMillis > 0)
-    return (if (opposite) 0L else currentMillis) + deltaMillis
 }
 
 /** A part of the seek bar as fractions of its width, both between 0 and 1 */
@@ -74,22 +65,6 @@ fun fractionOf(
     positionMillis: Long,
     durationMillis: Long,
 ): Float = if (durationMillis > 0) (positionMillis.toFloat() / durationMillis).coerceIn(0f, 1f) else 0f
-
-/**
- * The left edge, in pixels, of a thumbnail [thumbPx] wide centered on the playhead at [fraction] of a track
- * [containerPx] wide, kept inside the track.
- */
-fun trickplayLeft(
-    fraction: Float,
-    containerPx: Int,
-    thumbPx: Int,
-): Int = ((containerPx * fraction.coerceIn(0f, 1f)).toInt() - thumbPx / 2).coerceIn(0, (containerPx - thumbPx).coerceAtLeast(0))
-
-/** The part of the [windowMillis] left to run after [elapsedMillis], 1 at the start and 0 at the end */
-fun countdownFraction(
-    elapsedMillis: Long,
-    windowMillis: Long,
-): Float = if (windowMillis <= 0) 0f else (1f - elapsedMillis.toFloat() / windowMillis).coerceIn(0f, 1f)
 
 /** The controls of the control row */
 enum class RawkoonPlayerControl {

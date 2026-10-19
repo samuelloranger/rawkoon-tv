@@ -64,16 +64,4 @@
     <string name="rawkoon_status_in_production">In production</string>
     <string name="rawkoon_status_returning">Returning</string>
     <string name="rawkoon_status_planned">Planned</string>
-    <string name="rawkoon_player_type_episode">Episode</string>
-    <string name="rawkoon_player_type_movie">Movie</string>
-    <string name="rawkoon_player_next_episode">Next episode ›</string>
-    <string name="rawkoon_player_off">Off</string>
-    <string name="rawkoon_player_previous">Previous</string>
-    <string name="rawkoon_player_seek_back">Skip back</string>
-    <string name="rawkoon_player_seek_forward">Skip forward</string>
-    <string name="rawkoon_player_pause">Pause</string>
-    <string name="rawkoon_player_paused">Paused</string>
-    <string name="rawkoon_player_skipped">Skipped</string>
-    <string name="rawkoon_player_logo">Logo</string>
-    <string name="rawkoon_player_chapter_fallback">Chapter %1$d</string>
 </resources>

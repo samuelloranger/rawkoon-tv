@@ -31,15 +31,10 @@ class RawkoonPlayerLogicTest {
     }
 
     @Test
-    fun skips_accumulate_in_one_direction_and_reset_on_reversal() {
-        var total = 0L
-        total = accumulateSkip(total, 30_000)
-        total = accumulateSkip(total, 30_000)
-        assertEquals(60_000, total)
-        total = accumulateSkip(total, -10_000)
-        assertEquals(-10_000, total)
-        total = accumulateSkip(total, -10_000)
-        assertEquals(-20_000, total)
+    fun seek_delta_label_is_hidden_at_zero() {
+        assertNull(seekDeltaLabel(0))
+        assertEquals("+1:30", seekDeltaLabel(90_000))
+        assertEquals("-0:30", seekDeltaLabel(-30_000))
     }
 
     @Test
@@ -55,23 +50,6 @@ class RawkoonPlayerLogicTest {
         assertEquals(0.25f, fractionOf(25, 100), 0.0001f)
         assertEquals(0f, fractionOf(25, -1), 0f)
         assertEquals(1f, fractionOf(500, 100), 0f)
-    }
-
-    @Test
-    fun trickplay_thumbnail_follows_the_playhead_and_stays_inside_the_track() {
-        assertEquals(0, trickplayLeft(0f, 1000, 200))
-        assertEquals(400, trickplayLeft(0.5f, 1000, 200))
-        assertEquals(800, trickplayLeft(1f, 1000, 200))
-        assertEquals(0, trickplayLeft(0.05f, 1000, 200))
-        assertEquals(0, trickplayLeft(0.5f, 100, 200))
-    }
-
-    @Test
-    fun countdown_shrinks_linearly() {
-        assertEquals(1f, countdownFraction(0, 10_000), 0f)
-        assertEquals(0.5f, countdownFraction(5_000, 10_000), 0.0001f)
-        assertEquals(0f, countdownFraction(12_000, 10_000), 0f)
-        assertEquals(0f, countdownFraction(0, 0), 0f)
     }
 
     @Test

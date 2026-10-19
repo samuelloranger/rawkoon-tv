@@ -288,7 +288,7 @@ internal fun RawkoonTrickplayThumb(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RawkoonMonoText(formatClock(seekProgressMs), fontSize = 13.sp, color = RawkoonTokens.Neutral50)
-            RawkoonMonoText(formatSeekDelta(deltaMs), fontSize = 13.sp, color = RawkoonTokens.Primary300)
+            seekDeltaLabel(deltaMs)?.let { RawkoonMonoText(it, fontSize = 13.sp, color = RawkoonTokens.Primary300) }
         }
     }
 }

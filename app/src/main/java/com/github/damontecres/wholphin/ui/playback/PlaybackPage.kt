@@ -329,7 +329,7 @@ fun PlaybackPageContent(
     val showSegment =
         state.currentSegment?.interacted == false &&
             state.nextUp == null && skipIndicatorDuration == 0L
-    BackHandler(showSegment) {
+    BackHandler(showSegment && !controllerViewState.controlsVisible) {
         viewModel.updateSegment(state.currentSegment?.segment?.id, true)
     }
 
@@ -605,7 +605,7 @@ fun PlaybackPageContent(
             showSegment,
             modifier =
                 Modifier
-                    .padding(40.dp)
+                    .padding(48.dp)
                     .align(Alignment.BottomEnd),
         ) {
             state.currentSegment?.let { segment ->
