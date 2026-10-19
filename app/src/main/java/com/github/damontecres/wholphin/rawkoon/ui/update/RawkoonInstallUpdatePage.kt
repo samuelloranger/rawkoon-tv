@@ -123,7 +123,7 @@ fun RawkoonInstallUpdatePage(
                 UpdateMessage(
                     kicker = stringResource(R.string.rawkoon_update_error_kicker),
                     title = stringResource(R.string.rawkoon_update_error_title),
-                    body = st.localizedMessage,
+                    body = st.localizedMessage.ifBlank { stringResource(R.string.rawkoon_update_error_unknown) },
                     onRetry = { viewModel.init() },
                     onBack = onBack,
                 )
@@ -236,10 +236,25 @@ fun RawkoonInstallUpdateContent(
                         onCancel = onCancelDownload,
                     )
                 } else {
-                    UpdateActions(kind = kind, version = release.version, onInstall = onInstall, onBack = onBack)
+                    UpdateActions(
+                        kind = kind,
+                        version = release.version,
+                        canDownload = release.downloadUrl != null,
+                        onInstall = onInstall,
+                        onBack = onBack,
+                    )
                 }
             }
-            if (kind == UpdateKind.AVAILABLE || downloading) {
+            if (release.downloadUrl == null) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.rawkoon_update_no_asset),
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp,
+                    color = RawkoonTokens.Rose300,
+                    modifier = Modifier.widthIn(max = 380.dp),
+                )
+            } else if (kind == UpdateKind.AVAILABLE || downloading) {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.rawkoon_update_hint),
@@ -318,6 +333,7 @@ private fun VersionPill(
 private fun UpdateActions(
     kind: UpdateKind,
     version: Version,
+    canDownload: Boolean,
     onInstall: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -330,9 +346,14 @@ private fun UpdateActions(
                 onClick = onInstall,
                 variant = RawkoonButtonVariant.Primary,
                 icon = DownloadIcon,
-                modifier = Modifier.focusRequester(focusRequester),
+                enabled = canDownload,
+                modifier = if (canDownload) Modifier.focusRequester(focusRequester) else Modifier,
             )
-            RawkoonButton(text = stringResource(R.string.rawkoon_update_later), onClick = onBack)
+            RawkoonButton(
+                text = stringResource(R.string.rawkoon_update_later),
+                onClick = onBack,
+                modifier = if (canDownload) Modifier else Modifier.focusRequester(focusRequester),
+            )
         } else {
             RawkoonButton(
                 text = stringResource(R.string.rawkoon_update_back),
@@ -340,12 +361,14 @@ private fun UpdateActions(
                 variant = RawkoonButtonVariant.Primary,
                 modifier = Modifier.focusRequester(focusRequester),
             )
-            RawkoonButton(
-                text = stringResource(R.string.rawkoon_update_reinstall),
-                onClick = onInstall,
-                icon = DownloadIcon,
-                meta = version.toString(),
-            )
+            if (canDownload) {
+                RawkoonButton(
+                    text = stringResource(R.string.rawkoon_update_reinstall),
+                    onClick = onInstall,
+                    icon = DownloadIcon,
+                    meta = version.toString(),
+                )
+            }
         }
     }
 }
