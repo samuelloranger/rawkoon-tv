@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
-import com.github.damontecres.wholphin.ui.main.HomePageHeader
+import com.github.damontecres.wholphin.rawkoon.ui.home.RawkoonHomeHeader
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -46,7 +46,7 @@ fun RawkoonHeaderOr(
     if (current == null) {
         default()
     } else {
-        HomePageHeader(
+        RawkoonHomeHeader(
             title = current.title,
             subtitle = null,
             overview = current.overview,

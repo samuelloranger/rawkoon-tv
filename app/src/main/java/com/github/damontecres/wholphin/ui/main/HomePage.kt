@@ -55,9 +55,10 @@ import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.rawkoon.home.RawkoonHeaderOr
 import com.github.damontecres.wholphin.rawkoon.home.RawkoonHomePreview
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonBannerCard
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonBannerCardWithTitle
+import com.github.damontecres.wholphin.rawkoon.ui.home.RawkoonHomeHeader
 import com.github.damontecres.wholphin.ui.Cards
-import com.github.damontecres.wholphin.ui.cards.BannerCard
-import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
 import com.github.damontecres.wholphin.ui.cards.GenreCard
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.StudioCard
@@ -301,7 +302,7 @@ fun HomePageContent(
     showEmptyRows: Boolean = false,
     headerComposable: @Composable (focusedItem: BaseItem?) -> Unit = { focusedItem ->
         RawkoonHeaderOr(HeaderUtils.modifier) {
-            HomePageHeader(
+            RawkoonHomeHeader(
                 item = focusedItem,
                 showLogo = showLogo,
                 modifier = HeaderUtils.modifier,
@@ -707,7 +708,7 @@ fun HomePageCardContent(
                     }
                 }
             if (viewOptions.showTitles) {
-                BannerCardWithTitle(
+                RawkoonBannerCardWithTitle(
                     title = item?.title,
                     subtitle = item?.subtitle,
                     item = item,
@@ -727,7 +728,7 @@ fun HomePageCardContent(
                     useSeriesForPrimary = viewOptions.useSeries,
                 )
             } else {
-                BannerCard(
+                RawkoonBannerCard(
                     name = item?.data?.seriesName ?: item?.name,
                     item = item,
                     aspectRatio = ratio,

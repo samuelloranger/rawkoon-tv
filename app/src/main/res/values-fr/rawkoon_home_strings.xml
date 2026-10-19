@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawkoon_status_partial">Partiel</string>
+    <string name="rawkoon_header_type_movie">Film</string>
+    <string name="rawkoon_header_type_show">Série</string>
+    <string name="rawkoon_header_type_season">Saison</string>
+    <string name="rawkoon_header_type_episode">Épisode</string>
+    <plurals name="rawkoon_card_versions">
+        <item quantity="one">%d version</item>
+        <item quantity="other">%d versions</item>
+    </plurals>
+</resources>

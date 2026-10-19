@@ -22,11 +22,11 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.api.seerr.model.MediaRequest
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.SeerrItemType
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonDiscoverItemCard
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.SeerrService
-import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.detail.CardGrid
@@ -207,7 +207,7 @@ fun SeerrRequestsPage(
                         showLetterButtons = false,
                         spacing = 16.dp,
                         cardContent = @Composable { (item, index, onClick, onLongClick, widthPx, mod) ->
-                            DiscoverItemCard(
+                            RawkoonDiscoverItemCard(
                                 item = item?.item,
                                 onClick = onClick,
                                 onLongClick = onLongClick,

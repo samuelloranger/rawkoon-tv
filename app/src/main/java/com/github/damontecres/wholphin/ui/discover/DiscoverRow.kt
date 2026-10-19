@@ -26,7 +26,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.DiscoverItem
-import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonDiscoverItemCard
 import com.github.damontecres.wholphin.ui.cards.ItemRowTitle
 import com.github.damontecres.wholphin.ui.cards.ViewMoreCard
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
@@ -159,7 +159,7 @@ fun DiscoverItemRow(
                         }
                     }
 
-                DiscoverItemCard(
+                RawkoonDiscoverItemCard(
                     item = item,
                     onClick = onClick,
                     onLongClick = onLongClick,

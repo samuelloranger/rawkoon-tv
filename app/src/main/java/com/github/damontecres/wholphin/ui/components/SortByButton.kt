@@ -16,6 +16,7 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.DiscoverSort
 import com.github.damontecres.wholphin.data.filter.DiscoverSortAndDirection
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonChip
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.data.flip
@@ -40,16 +41,12 @@ fun SortByButton(
     var sortByDropDown by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        TextButton(
+        RawkoonChip(
+            label = stringResource(getStringRes(currentSort)),
+            value = sortArrow(currentDirection),
             onClick = { sortByDropDown = true },
-            onLongClick = {
-                onSortChange.invoke(current.flip())
-            },
-        ) {
-            Text(
-                text = current.toAnnotatedString(),
-            )
-        }
+            onLongClick = { onSortChange.invoke(current.flip()) },
+        )
 
         DropdownMenu(
             expanded = sortByDropDown,
@@ -131,16 +128,12 @@ fun DiscoverSortByButton(
     var sortByDropDown by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        TextButton(
+        RawkoonChip(
+            label = stringResource(currentSort.stringRes),
+            value = sortArrow(currentDirection),
             onClick = { sortByDropDown = true },
-            onLongClick = {
-                onSortChange.invoke(current.flip())
-            },
-        ) {
-            Text(
-                text = current.toAnnotatedString(),
-            )
-        }
+            onLongClick = { onSortChange.invoke(current.flip()) },
+        )
 
         DropdownMenu(
             expanded = sortByDropDown,
@@ -208,3 +201,6 @@ fun DiscoverSortAndDirection.toAnnotatedString() =
         append(" ")
         append(stringResource(sort.stringRes))
     }
+
+/** The arrow shown next to the sort name in the Rawkoon chip */
+private fun sortArrow(direction: SortOrder) = if (direction == SortOrder.ASCENDING) "\u2191" else "\u2193"

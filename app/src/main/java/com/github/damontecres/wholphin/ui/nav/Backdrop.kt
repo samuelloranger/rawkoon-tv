@@ -161,16 +161,17 @@ fun Backdrop(
                         .transitionFactory(CrossFadeFactory(crossfadeDuration))
                         .build(),
                 contentDescription = null,
-                contentScale = ContentScale.Fit,
-                alignment = Alignment.TopEnd,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
                         .fillMaxHeight(.7f)
-                        .fillMaxWidth(.7f)
+                        .fillMaxWidth()
                         .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                         .drawWithContent {
                             val start = if (isRtl) size.width else 0f
+                            val towardsEnd = if (isRtl) -1f else 1f
                             drawContent()
                             if (drawerIsOpen) {
                                 drawRect(
@@ -192,26 +193,38 @@ fun Backdrop(
                                     blendMode = BlendMode.Multiply,
                                 )
                             }
-                            drawRect(
-                                brush =
-                                    Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, Color.Black),
-                                        startX = start,
-                                        endX = size.width * 0.6f,
-                                    ),
-                                blendMode = BlendMode.DstIn,
-                            )
+                            // Rawkoon: the page background rises over the bottom and covers the left edge
                             drawRect(
                                 brush =
                                     Brush.verticalGradient(
-                                        colors = listOf(Color.Black, Color.Transparent),
-                                        startY = 0f,
-                                        endY = size.height,
+                                        colorStops =
+                                            arrayOf(
+                                                0f to baseBackgroundColor.copy(alpha = BOTTOM_SCRIM_TOP_ALPHA),
+                                                BOTTOM_SCRIM_MID_FRACTION to baseBackgroundColor.copy(alpha = BOTTOM_SCRIM_MID_ALPHA),
+                                                1f to baseBackgroundColor,
+                                            ),
                                     ),
-                                blendMode = BlendMode.DstIn,
+                            )
+                            drawRect(
+                                brush =
+                                    Brush.horizontalGradient(
+                                        colors =
+                                            listOf(
+                                                baseBackgroundColor.copy(alpha = LEFT_SCRIM_ALPHA),
+                                                Color.Transparent,
+                                            ),
+                                        startX = start,
+                                        endX = start + towardsEnd * size.width * LEFT_SCRIM_END_FRACTION,
+                                    ),
                             )
                         },
             )
         }
     }
 }
+
+private const val BOTTOM_SCRIM_TOP_ALPHA = 0.2f
+private const val BOTTOM_SCRIM_MID_ALPHA = 0.75f
+private const val BOTTOM_SCRIM_MID_FRACTION = 0.55f
+private const val LEFT_SCRIM_ALPHA = 0.85f
+private const val LEFT_SCRIM_END_FRACTION = 0.65f

@@ -29,11 +29,11 @@ import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.discoverMovieFilters
 import com.github.damontecres.wholphin.data.filter.discoverTvFilters
 import com.github.damontecres.wholphin.data.model.DiscoverItem
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonDiscoverItemCard
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrApi
 import com.github.damontecres.wholphin.services.SeerrService
-import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.detail.CardGrid
@@ -308,7 +308,7 @@ fun DiscoverRequestGrid(
                     showJumpButtons = false,
                     showLetterButtons = false,
                     cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                        DiscoverItemCard(
+                        RawkoonDiscoverItemCard(
                             item = item,
                             onClick = onClick,
                             onLongClick = onLongClick,

@@ -56,12 +56,12 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
-import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
-import com.github.damontecres.wholphin.ui.cards.GridCard
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonDiscoverItemCard
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonGridCard
+import com.github.damontecres.wholphin.rawkoon.ui.library.RawkoonSearchEditTextBox
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.ItemRowTitle
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
-import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabRow
 import com.github.damontecres.wholphin.ui.components.VoiceSearchButton
@@ -305,7 +305,7 @@ fun SearchPage(
                     )
                 }
 
-                SearchEditTextBox(
+                RawkoonSearchEditTextBox(
                     value = query,
                     onValueChange = {
                         isSearchActive = true
@@ -584,7 +584,7 @@ fun SearchCombinedResults(
                     onClickPosition = onClickPosition,
                     positionCallback = positionCallback,
                     cardContent = { details ->
-                        GridCard(
+                        RawkoonGridCard(
                             item = details.item,
                             onClick = details.onClick,
                             onLongClick = details.onLongClick,
@@ -614,7 +614,7 @@ fun SearchCombinedResults(
                     onClickPosition = onClickPosition,
                     positionCallback = positionCallback,
                     cardContent = { details ->
-                        DiscoverItemCard(
+                        RawkoonDiscoverItemCard(
                             item = details.item,
                             onClick = details.onClick,
                             onLongClick = details.onLongClick,
@@ -735,7 +735,7 @@ fun SearchRowResult(
                     onLongClickItem = { _, _ -> },
                     modifier = modifier.focusRequester(focusRequester),
                     cardContent = { index: Int, item: DiscoverItem?, mod: Modifier, onClick: () -> Unit, onLongClick: () -> Unit ->
-                        DiscoverItemCard(
+                        RawkoonDiscoverItemCard(
                             item = item,
                             onClick = onClick,
                             onLongClick = onLongClick,
