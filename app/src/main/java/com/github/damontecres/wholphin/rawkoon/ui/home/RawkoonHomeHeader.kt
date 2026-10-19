@@ -43,12 +43,21 @@ import com.github.damontecres.wholphin.rawkoon.ui.kit.TypeChip
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.EpisodeName
 import com.github.damontecres.wholphin.ui.components.QuickDetails
-import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import kotlin.time.Duration
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import com.github.damontecres.wholphin.ui.components.HeaderUtils
 
 /**
  * Rawkoon replacement for [com.github.damontecres.wholphin.ui.main.HomePageHeader] (the item overload), with the same
@@ -203,24 +212,13 @@ private fun HeaderBody(h: HeaderContent) {
             if (status != null) StatusPill(status)
         }
         if (showLogo && logoImageUrl != null) {
-            TitleOrLogo(
+            HeaderLogo(
                 title = title,
                 logoImageUrl = logoImageUrl,
-                showLogo = true,
                 modifier = Modifier.fillMaxWidth(.75f),
             )
         } else {
-            Text(
-                text = title ?: "",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontFamily = RawkoonDisplay,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 34.sp,
-                lineHeight = 38.sp,
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth(.75f),
-            )
+            HeaderTitle(title, Modifier.fillMaxWidth(.75f))
         }
         if (subtitle != null) {
             EpisodeName(subtitle, Modifier.fillMaxWidth(.6f))
@@ -243,6 +241,62 @@ private fun HeaderBody(h: HeaderContent) {
             )
         } else {
             Spacer(overviewModifier)
+        }
+    }
+}
+
+@Composable
+private fun HeaderTitle(
+    title: String?,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = title ?: "",
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        fontFamily = RawkoonDisplay,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 34.sp,
+        lineHeight = 38.sp,
+        color = Color.White,
+        modifier = modifier,
+    )
+}
+
+/**
+ * The item logo, shown only once it has loaded and then faded in, so a logo that arrives after the header's own
+ * cross-fade does not pop in. The row keeps the logo height while it loads, and an image that fails shows the title.
+ */
+@Composable
+private fun HeaderLogo(
+    title: String?,
+    logoImageUrl: String,
+    modifier: Modifier = Modifier,
+) {
+    var loaded by remember(logoImageUrl) { mutableStateOf(false) }
+    var failed by remember(logoImageUrl) { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (loaded) 1f else 0f,
+        animationSpec = tween(RawkoonMotion.HEADER_IN_MILLIS, easing = RawkoonMotion.EnterEasing),
+        label = "rawkoon_header_logo",
+    )
+    Box(modifier = modifier.height(HeaderUtils.logoHeight), contentAlignment = Alignment.CenterStart) {
+        if (failed) {
+            HeaderTitle(title)
+        } else {
+            AsyncImage(
+                model = logoImageUrl,
+                contentDescription = title,
+                contentScale = ContentScale.Fit,
+                alignment = Alignment.CenterStart,
+                onSuccess = { loaded = true },
+                onError = { failed = true },
+                modifier =
+                    Modifier
+                        .height(HeaderUtils.logoHeight)
+                        .widthIn(max = 320.dp)
+                        .graphicsLayer { this.alpha = alpha },
+            )
         }
     }
 }
