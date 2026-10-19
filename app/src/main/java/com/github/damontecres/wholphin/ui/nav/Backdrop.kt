@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -17,7 +18,10 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -94,56 +98,69 @@ fun Backdrop(
             animationSpec = tween(1250),
             label = "dynamic_backdrop_tertiary",
         )
+        // Rawkoon: the gradients are drawn into a layer at 1/DYNAMIC_COLOR_SCALE of the screen size and scaled up when
+        // composited. They are soft enough that this looks the same, and it saves the GPU from filling four
+        // full-screen radial gradients on every frame of every animation.
         Box(
-            modifier =
-                modifier
-                    .fillMaxSize()
-                    .drawBehind {
-                        drawRect(color = baseBackgroundColor)
-                        val start = if (isRtl) size.width else 0f
-                        val end = if (isRtl) 0f else size.width
-                        // Top Left (Vibrant/Muted)
-                        drawRect(
-                            brush =
-                                Brush.radialGradient(
-                                    colors = listOf(animSecondary, Color.Transparent),
-                                    center = Offset(start, 0f),
-                                    radius = size.width * 0.8f,
-                                ),
-                        )
-                        // Bottom Right (DarkVibrant/DarkMuted)
-                        drawRect(
-                            brush =
-                                Brush.radialGradient(
-                                    colors = listOf(animPrimary, Color.Transparent),
-                                    center = Offset(end, size.height),
-                                    radius = size.width * 0.8f,
-                                ),
-                        )
-                        // Bottom Left (Dark / Bridge)
-                        drawRect(
-                            brush =
-                                Brush.radialGradient(
-                                    colors =
-                                        listOf(
-                                            baseBackgroundColor,
-                                            Color.Transparent,
-                                        ),
-                                    center = Offset(start, size.height),
-                                    radius = size.width * 0.8f,
-                                ),
-                        )
-                        // Top Right (Under Image - Vibrant/Bright)
-                        drawRect(
-                            brush =
-                                Brush.radialGradient(
-                                    colors = listOf(animTertiary, Color.Transparent),
-                                    center = Offset(end, 0f),
-                                    radius = size.width * 0.8f,
-                                ),
-                        )
-                    },
-        )
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = AbsoluteAlignment.TopLeft,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize(1f / DYNAMIC_COLOR_SCALE)
+                        .graphicsLayer {
+                            scaleX = DYNAMIC_COLOR_SCALE
+                            scaleY = DYNAMIC_COLOR_SCALE
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            compositingStrategy = CompositingStrategy.Offscreen
+                        }.drawBehind {
+                            drawRect(color = baseBackgroundColor)
+                            val start = if (isRtl) size.width else 0f
+                            val end = if (isRtl) 0f else size.width
+                            // Top Left (Vibrant/Muted)
+                            drawRect(
+                                brush =
+                                    Brush.radialGradient(
+                                        colors = listOf(animSecondary, Color.Transparent),
+                                        center = Offset(start, 0f),
+                                        radius = size.width * 0.8f,
+                                    ),
+                            )
+                            // Bottom Right (DarkVibrant/DarkMuted)
+                            drawRect(
+                                brush =
+                                    Brush.radialGradient(
+                                        colors = listOf(animPrimary, Color.Transparent),
+                                        center = Offset(end, size.height),
+                                        radius = size.width * 0.8f,
+                                    ),
+                            )
+                            // Bottom Left (Dark / Bridge)
+                            drawRect(
+                                brush =
+                                    Brush.radialGradient(
+                                        colors =
+                                            listOf(
+                                                baseBackgroundColor,
+                                                Color.Transparent,
+                                            ),
+                                        center = Offset(start, size.height),
+                                        radius = size.width * 0.8f,
+                                    ),
+                            )
+                            // Top Right (Under Image - Vibrant/Bright)
+                            drawRect(
+                                brush =
+                                    Brush.radialGradient(
+                                        colors = listOf(animTertiary, Color.Transparent),
+                                        center = Offset(end, 0f),
+                                        radius = size.width * 0.8f,
+                                    ),
+                            )
+                        },
+            )
+        }
     }
     if (backdropStyle != BackdropStyle.BACKDROP_NONE) {
         Box(
@@ -217,6 +234,9 @@ fun Backdrop(
         }
     }
 }
+
+// Rawkoon: how much smaller than the screen the dynamic color gradients are drawn
+private const val DYNAMIC_COLOR_SCALE = 8f
 
 private const val BOTTOM_SCRIM_TOP_ALPHA = 0.2f
 private const val BOTTOM_SCRIM_MID_ALPHA = 0.75f
