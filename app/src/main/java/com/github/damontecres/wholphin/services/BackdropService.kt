@@ -78,12 +78,9 @@ class BackdropService
             imageUrl: String?,
         ) = withContext(WholphinDispatchers.IO) {
             if (backdropFlow.firstOrNull()?.imageUrl != imageUrl || imageUrl == null) {
-                _backdropFlow.update {
-                    it.copy(
-                        itemId = itemId,
-                        imageUrl = null,
-                    )
-                }
+                // Keep the current image until the next one is ready, so the backdrop cross-fades instead of
+                // blanking between items
+                _backdropFlow.update { it.copy(itemId = itemId) }
                 extractColors(itemId, imageUrl)
             }
         }
@@ -101,7 +98,7 @@ class BackdropService
             itemId: String,
             imageUrl: String?,
         ) {
-            delay(500)
+            delay(300)
             val backdropStyle =
                 preferences.data
                     .firstOrNull()
