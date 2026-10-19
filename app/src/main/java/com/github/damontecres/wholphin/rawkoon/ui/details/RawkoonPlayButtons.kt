@@ -6,6 +6,28 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Icon
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonSurface
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -46,8 +68,9 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The action row of the details pages as always-labelled [RawkoonButton]s: a primary Play or Resume, then Restart,
- * Version, Watched, Favorite, Trailer, Delete and More, as offered by [playActions]. Nothing expands on focus.
+ * The action row of the details pages as [RawkoonButton]s: a labelled primary Play or Resume and labelled
+ * Trailer, Version and Delete buttons, then icon-only Restart, Watched, Favorite and More, as offered by [playActions].
+ * A fixed caption line under the row names the focused icon button. Nothing expands or moves on focus.
  *
  * Replaces Wholphin's `ui.components.ExpandablePlayButtons` (same parameters).
  */
@@ -94,111 +117,170 @@ fun RawkoonPlayButtons(
     // The buttons sit in a focus wrapper, so report the wrapper's focus as the button's own
     val onFocus = Modifier.onFocusChanged { buttonOnFocusChanged(ChildFocusState(it)) }
 
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(8.dp),
-        modifier =
-            modifier
-                .focusGroup()
-                .focusRestorer(firstFocus),
-    ) {
-        items(actions, key = { it.name }) { action ->
-            when (action) {
-                RawkoonPlayAction.Play -> {
-                    val resuming = resumePosition > Duration.ZERO
-                    RawkoonButton(
-                        text = stringResource(if (resuming) R.string.resume else R.string.play),
-                        onClick = { playOnClick.invoke(resumePosition) },
-                        variant = RawkoonButtonVariant.Primary,
-                        icon = Icons.Filled.PlayArrow,
-                        meta = if (resuming) formatResumeTime(resumePosition) else null,
-                        modifier = onFocus.focusRequester(firstFocus),
-                    )
-                }
+    var focusedIconAction by remember { mutableStateOf<RawkoonPlayAction?>(null) }
+    // Icon buttons also report which action holds focus, for the caption line
+    fun iconFocus(action: RawkoonPlayAction) =
+        onFocus.onFocusChanged {
+            if (it.hasFocus) {
+                focusedIconAction = action
+            } else if (focusedIconAction == action) {
+                focusedIconAction = null
+            }
+        }
+    val restartLabel = stringResource(R.string.restart)
+    val watchedLabel = stringResource(if (watched) R.string.mark_unwatched else R.string.mark_watched)
+    val favoriteLabel = stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite)
+    val moreLabel = stringResource(R.string.more)
+    val caption =
+        when (focusedIconAction) {
+            RawkoonPlayAction.Restart -> restartLabel
+            RawkoonPlayAction.Watched -> watchedLabel
+            RawkoonPlayAction.Favorite -> favoriteLabel
+            RawkoonPlayAction.More -> moreLabel
+            else -> ""
+        }
 
-                RawkoonPlayAction.Restart -> {
-                    RawkoonButton(
-                        text = stringResource(R.string.restart),
-                        onClick = { playOnClick.invoke(Duration.ZERO) },
-                        interactionSource = restartInteractionSource,
-                        modifier = onFocus,
-                    )
-                }
+    Column(modifier = modifier) {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(8.dp),
+            modifier =
+                Modifier
+                    .focusGroup()
+                    .focusRestorer(firstFocus),
+        ) {
+            items(actions, key = { it.name }) { action ->
+                when (action) {
+                    RawkoonPlayAction.Play -> {
+                        val resuming = resumePosition > Duration.ZERO
+                        RawkoonButton(
+                            text = stringResource(if (resuming) R.string.resume else R.string.play),
+                            onClick = { playOnClick.invoke(resumePosition) },
+                            variant = RawkoonButtonVariant.Primary,
+                            icon = Icons.Filled.PlayArrow,
+                            meta = if (resuming) formatResumeTime(resumePosition) else null,
+                            modifier = onFocus.focusRequester(firstFocus),
+                        )
+                    }
 
-                RawkoonPlayAction.Version -> {
-                    RawkoonButton(
-                        text = stringResource(R.string.version),
-                        onClick = {
-                            if (chooseVersionParams != null) {
-                                chooseVersion =
-                                    chooseVersionParams(
-                                        resources,
-                                        chooseVersionParams.mediaSources,
-                                        chooseVersionParams.chosenStreams
-                                            ?.source
-                                            ?.id
-                                            ?.toUUIDOrNull(),
-                                    ) { idx ->
-                                        chooseVersionParams.onChooseVersion.invoke(chooseVersionParams.mediaSources[idx])
-                                    }
-                            }
-                        },
-                        modifier = onFocus,
-                    )
-                }
+                    RawkoonPlayAction.Restart -> {
+                        RawkoonActionIconButton(
+                            contentDescription = restartLabel,
+                            onClick = { playOnClick.invoke(Duration.ZERO) },
+                            interactionSource = restartInteractionSource,
+                            modifier = iconFocus(action),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(ICON_SIZE).graphicsLayer { scaleX = -1f },
+                            )
+                        }
+                    }
 
-                RawkoonPlayAction.Watched -> {
-                    RawkoonButton(
-                        text = stringResource(if (watched) R.string.mark_unwatched else R.string.mark_watched),
-                        onClick = watchOnClick,
-                        modifier = onFocus,
-                    )
-                }
+                    RawkoonPlayAction.Version -> {
+                        RawkoonButton(
+                            text = stringResource(R.string.version),
+                            onClick = {
+                                if (chooseVersionParams != null) {
+                                    chooseVersion =
+                                        chooseVersionParams(
+                                            resources,
+                                            chooseVersionParams.mediaSources,
+                                            chooseVersionParams.chosenStreams
+                                                ?.source
+                                                ?.id
+                                                ?.toUUIDOrNull(),
+                                        ) { idx ->
+                                            chooseVersionParams.onChooseVersion.invoke(chooseVersionParams.mediaSources[idx])
+                                        }
+                                }
+                            },
+                            modifier = onFocus,
+                        )
+                    }
 
-                RawkoonPlayAction.Favorite -> {
-                    RawkoonButton(
-                        text = stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite),
-                        onClick = favoriteOnClick,
-                        modifier = onFocus,
-                    )
-                }
+                    RawkoonPlayAction.Watched -> {
+                        RawkoonActionIconButton(
+                            contentDescription = watchedLabel,
+                            onClick = watchOnClick,
+                            modifier = iconFocus(action),
+                        ) {
+                            FaGlyph(stringResource(if (watched) R.string.fa_eye else R.string.fa_eye_slash), RawkoonTokens.Neutral100)
+                        }
+                    }
 
-                RawkoonPlayAction.Trailer -> {
-                    val list = trailers.orEmpty()
-                    RawkoonButton(
-                        text =
-                            stringResource(
-                                when {
-                                    list.size == 1 -> R.string.play_trailer
-                                    else -> R.string.trailers_title
-                                },
-                            ),
-                        onClick = {
-                            if (list.size == 1) {
-                                trailerOnClick.invoke(list.first())
-                            } else {
-                                showTrailers = true
-                            }
-                        },
-                        modifier = onFocus,
-                    )
-                }
+                    RawkoonPlayAction.Favorite -> {
+                        RawkoonActionIconButton(
+                            contentDescription = favoriteLabel,
+                            onClick = favoriteOnClick,
+                            modifier = iconFocus(action),
+                        ) {
+                            FaGlyph(
+                                stringResource(R.string.fa_heart),
+                                if (favorite) RawkoonTokens.Rose400 else RawkoonTokens.Neutral100,
+                            )
+                        }
+                    }
 
-                RawkoonPlayAction.Delete -> {
-                    RawkoonButton(
-                        text = stringResource(R.string.delete),
-                        onClick = { showDelete = true },
-                        modifier = onFocus,
-                    )
-                }
+                    RawkoonPlayAction.Trailer -> {
+                        val list = trailers.orEmpty()
+                        RawkoonButton(
+                            text =
+                                stringResource(
+                                    when {
+                                        list.size == 1 -> R.string.play_trailer
+                                        else -> R.string.trailers_title
+                                    },
+                                ),
+                            onClick = {
+                                if (list.size == 1) {
+                                    trailerOnClick.invoke(list.first())
+                                } else {
+                                    showTrailers = true
+                                }
+                            },
+                            modifier = onFocus,
+                        )
+                    }
 
-                RawkoonPlayAction.More -> {
-                    RawkoonButton(
-                        text = stringResource(R.string.more),
-                        onClick = { moreOnClick.invoke() },
-                        modifier = onFocus,
-                    )
+                    RawkoonPlayAction.Delete -> {
+                        RawkoonButton(
+                            text = stringResource(R.string.delete),
+                            onClick = { showDelete = true },
+                            modifier = onFocus,
+                        )
+                    }
+
+                    RawkoonPlayAction.More -> {
+                        RawkoonActionIconButton(
+                            contentDescription = moreLabel,
+                            onClick = { moreOnClick.invoke() },
+                            modifier = iconFocus(action),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = null,
+                                modifier = Modifier.size(ICON_SIZE),
+                            )
+                        }
+                    }
                 }
+            }
+        }
+        // One fixed line, always reserved, so nothing shifts when it fills
+        Box(
+            contentAlignment = Alignment.CenterStart,
+            modifier = Modifier.height(CAPTION_HEIGHT).padding(horizontal = 8.dp),
+        ) {
+            Crossfade(targetState = caption, animationSpec = tween(150), label = "action-caption") { text ->
+                Text(
+                    text = text,
+                    maxLines = 1,
+                    color = RawkoonTokens.Neutral400,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                )
             }
         }
     }
@@ -229,6 +311,53 @@ fun RawkoonPlayButtons(
             },
         )
     }
+}
+
+private val ICON_SIZE = 20.dp
+private val CAPTION_HEIGHT = 20.dp
+
+/** A 44dp square, 12dp radius Secondary icon-only button; the glyph is [content], the label is [contentDescription] */
+@Composable
+private fun RawkoonActionIconButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    content: @Composable () -> Unit,
+) {
+    RawkoonSurface(
+        onClick = onClick,
+        shape = RoundedCornerShape(RawkoonTokens.RadiusLarge),
+        container = RawkoonTokens.white(0.10f),
+        focusedContainer = RawkoonTokens.white(0.14f),
+        contentColor = RawkoonTokens.Neutral100,
+        focusedContentColor = RawkoonTokens.Neutral100,
+        interactionSource = interactionSource,
+        modifier = modifier,
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(RawkoonTokens.ButtonHeight).semantics { this.contentDescription = contentDescription },
+        ) {
+            content()
+        }
+    }
+}
+
+/** A Font Awesome glyph at icon size in [color] */
+@Composable
+private fun FaGlyph(
+    glyph: String,
+    color: Color,
+) {
+    Text(
+        text = glyph,
+        color = color,
+        fontSize = 16.sp,
+        fontFamily = FontAwesome,
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.titleSmall,
+    )
 }
 
 /** A [FocusState] that reports a focused child as the element's own focus */

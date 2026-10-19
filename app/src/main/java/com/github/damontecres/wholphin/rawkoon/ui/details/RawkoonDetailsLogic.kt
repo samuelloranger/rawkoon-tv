@@ -89,17 +89,30 @@ fun streamChipLabels(
         if (!subtitle.isNullOrBlank()) add(subtitle)
     }
 
-/** The buttons of the details action row, in display order */
+/** The buttons of the details action row, in display order: primary, labelled secondaries, then icon buttons */
 enum class RawkoonPlayAction {
     Play,
-    Restart,
+    Trailer,
     Version,
+    Delete,
+    Restart,
     Watched,
     Favorite,
-    Trailer,
-    Delete,
     More,
 }
+
+/** Actions drawn as icon-only buttons, with their label shown in the caption line while focused */
+val RawkoonPlayAction.isIconOnly: Boolean
+    get() =
+        when (this) {
+            RawkoonPlayAction.Restart,
+            RawkoonPlayAction.Watched,
+            RawkoonPlayAction.Favorite,
+            RawkoonPlayAction.More,
+            -> true
+
+            else -> false
+        }
 
 /**
  * Which action buttons to show, mirroring what Wholphin's expandable play buttons offer.
@@ -114,12 +127,12 @@ fun playActions(
 ): List<RawkoonPlayAction> =
     buildList {
         add(RawkoonPlayAction.Play)
-        if (resumePosition > Duration.ZERO) add(RawkoonPlayAction.Restart)
+        if (hasTrailerButton) add(RawkoonPlayAction.Trailer)
         if (mediaSourceCount > 1) add(RawkoonPlayAction.Version)
+        if (canDelete) add(RawkoonPlayAction.Delete)
+        if (resumePosition > Duration.ZERO) add(RawkoonPlayAction.Restart)
         add(RawkoonPlayAction.Watched)
         add(RawkoonPlayAction.Favorite)
-        if (hasTrailerButton) add(RawkoonPlayAction.Trailer)
-        if (canDelete) add(RawkoonPlayAction.Delete)
         add(RawkoonPlayAction.More)
     }
 

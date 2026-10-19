@@ -98,16 +98,33 @@ class RawkoonDetailsLogicTest {
         assertEquals(
             listOf(
                 RawkoonPlayAction.Play,
-                RawkoonPlayAction.Restart,
+                RawkoonPlayAction.Trailer,
                 RawkoonPlayAction.Version,
+                RawkoonPlayAction.Delete,
+                RawkoonPlayAction.Restart,
                 RawkoonPlayAction.Watched,
                 RawkoonPlayAction.Favorite,
-                RawkoonPlayAction.Trailer,
-                RawkoonPlayAction.Delete,
                 RawkoonPlayAction.More,
             ),
             playActions(5.minutes, mediaSourceCount = 2, hasTrailerButton = true, canDelete = true),
         )
+    }
+
+    @Test
+    fun onlyRestartWatchedFavoriteAndMoreAreIconOnly() {
+        val iconOnly = RawkoonPlayAction.entries.filter { it.isIconOnly }
+        assertEquals(
+            listOf(
+                RawkoonPlayAction.Restart,
+                RawkoonPlayAction.Watched,
+                RawkoonPlayAction.Favorite,
+                RawkoonPlayAction.More,
+            ),
+            iconOnly,
+        )
+        // icon buttons always come last
+        val all = playActions(5.minutes, mediaSourceCount = 2, hasTrailerButton = true, canDelete = true)
+        assertEquals(all.filter { it.isIconOnly }, all.takeLast(4))
     }
 
     @Test
