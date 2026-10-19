@@ -1,6 +1,17 @@
 package com.github.damontecres.wholphin.rawkoon.ui.home
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,31 +19,40 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.rawkoon.RawkoonDisplay
 import com.github.damontecres.wholphin.rawkoon.ui.kit.GenreChip
+import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonMotion
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonStatus
 import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.rawkoon.ui.kit.StatusPill
 import com.github.damontecres.wholphin.rawkoon.ui.kit.TypeChip
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.EpisodeName
+import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.QuickDetails
-import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import org.jellyfin.sdk.model.DateTime
@@ -109,9 +129,73 @@ fun RawkoonHomeHeader(
     status: RawkoonStatus? = null,
     genres: List<String> = emptyList(),
 ) {
+    val target =
+        HeaderContent(
+            title = title,
+            subtitle = subtitle,
+            overview = overview,
+            quickDetails = quickDetails,
+            timeRemaining = timeRemaining,
+            endsAt = endsAt,
+            showLogo = showLogo,
+            logoImageUrl = logoImageUrl,
+            typeLabel = typeLabel,
+            status = status,
+            genres = genres,
+        )
+    // Cross-fade between items: the old header leaves fast, the new one fades in with a short rise. Updates for the
+    // same item (such as the end time ticking) keep the content key, so they don't animate.
+    AnimatedContent(
+        targetState = target,
+        contentKey = { it.title to it.subtitle },
+        contentAlignment = Alignment.TopStart,
+        transitionSpec = { headerEnter() togetherWith headerExit() using SizeTransform(clip = false) },
+        label = "rawkoon_home_header",
+        modifier = modifier,
+    ) { h ->
+        HeaderBody(h)
+    }
+}
+
+/** Everything the header shows, so [AnimatedContent] can keep the outgoing item on screen while it fades */
+private data class HeaderContent(
+    val title: String?,
+    val subtitle: String?,
+    val overview: String?,
+    val quickDetails: QuickDetailsData?,
+    val timeRemaining: Duration?,
+    val endsAt: DateTime?,
+    val showLogo: Boolean,
+    val logoImageUrl: String?,
+    val typeLabel: String?,
+    val status: RawkoonStatus?,
+    val genres: List<String>,
+)
+
+private fun headerEnter(): EnterTransition {
+    val spec = tween<Float>(RawkoonMotion.HEADER_IN_MILLIS, RawkoonMotion.HEADER_IN_DELAY_MILLIS, RawkoonMotion.EnterEasing)
+    val slide =
+        tween<IntOffset>(RawkoonMotion.HEADER_IN_MILLIS, RawkoonMotion.HEADER_IN_DELAY_MILLIS, RawkoonMotion.EnterEasing)
+    return fadeIn(spec) + slideInVertically(slide) { it / 30 }
+}
+
+private fun headerExit(): ExitTransition = fadeOut(tween(RawkoonMotion.HEADER_OUT_MILLIS, easing = RawkoonMotion.ExitEasing))
+
+@Composable
+private fun HeaderBody(h: HeaderContent) {
+    val title = h.title
+    val subtitle = h.subtitle
+    val overview = h.overview
+    val quickDetails = h.quickDetails
+    val timeRemaining = h.timeRemaining
+    val endsAt = h.endsAt
+    val showLogo = h.showLogo
+    val logoImageUrl = h.logoImageUrl
+    val typeLabel = h.typeLabel
+    val status = h.status
+    val genres = h.genres
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier,
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,24 +212,13 @@ fun RawkoonHomeHeader(
             if (status != null) StatusPill(status)
         }
         if (showLogo && logoImageUrl != null) {
-            TitleOrLogo(
+            HeaderLogo(
                 title = title,
                 logoImageUrl = logoImageUrl,
-                showLogo = true,
                 modifier = Modifier.fillMaxWidth(.75f),
             )
         } else {
-            Text(
-                text = title ?: "",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontFamily = RawkoonDisplay,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 34.sp,
-                lineHeight = 38.sp,
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth(.75f),
-            )
+            HeaderTitle(title, Modifier.fillMaxWidth(.75f))
         }
         if (subtitle != null) {
             EpisodeName(subtitle, Modifier.fillMaxWidth(.6f))
@@ -168,6 +241,62 @@ fun RawkoonHomeHeader(
             )
         } else {
             Spacer(overviewModifier)
+        }
+    }
+}
+
+@Composable
+private fun HeaderTitle(
+    title: String?,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = title ?: "",
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        fontFamily = RawkoonDisplay,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 34.sp,
+        lineHeight = 38.sp,
+        color = Color.White,
+        modifier = modifier,
+    )
+}
+
+/**
+ * The item logo, shown only once it has loaded and then faded in, so a logo that arrives after the header's own
+ * cross-fade does not pop in. The row keeps the logo height while it loads, and an image that fails shows the title.
+ */
+@Composable
+private fun HeaderLogo(
+    title: String?,
+    logoImageUrl: String,
+    modifier: Modifier = Modifier,
+) {
+    var loaded by remember(logoImageUrl) { mutableStateOf(false) }
+    var failed by remember(logoImageUrl) { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (loaded) 1f else 0f,
+        animationSpec = tween(RawkoonMotion.HEADER_IN_MILLIS, easing = RawkoonMotion.EnterEasing),
+        label = "rawkoon_header_logo",
+    )
+    Box(modifier = modifier.height(HeaderUtils.logoHeight), contentAlignment = Alignment.CenterStart) {
+        if (failed) {
+            HeaderTitle(title)
+        } else {
+            AsyncImage(
+                model = logoImageUrl,
+                contentDescription = title,
+                contentScale = ContentScale.Fit,
+                alignment = Alignment.CenterStart,
+                onSuccess = { loaded = true },
+                onError = { failed = true },
+                modifier =
+                    Modifier
+                        .height(HeaderUtils.logoHeight)
+                        .widthIn(max = 320.dp)
+                        .graphicsLayer { this.alpha = alpha },
+            )
         }
     }
 }

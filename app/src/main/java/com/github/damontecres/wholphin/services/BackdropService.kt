@@ -77,13 +77,13 @@ class BackdropService
             itemId: String,
             imageUrl: String?,
         ) = withContext(WholphinDispatchers.IO) {
-            if (backdropFlow.firstOrNull()?.imageUrl != imageUrl || imageUrl == null) {
-                _backdropFlow.update {
-                    it.copy(
-                        itemId = itemId,
-                        imageUrl = null,
-                    )
-                }
+            val current = backdropFlow.firstOrNull()
+            // Compare the item too: returning to an item whose image is still on screen must still claim the
+            // backdrop, or a pending update for the item just left would win
+            if (current?.itemId != itemId || current.imageUrl != imageUrl || imageUrl == null) {
+                // Keep the current image until the next one is ready, so the backdrop cross-fades instead of
+                // blanking between items. An item with no backdrop clears it at once.
+                _backdropFlow.update { it.copy(itemId = itemId, imageUrl = if (imageUrl == null) null else it.imageUrl) }
                 extractColors(itemId, imageUrl)
             }
         }
@@ -101,7 +101,7 @@ class BackdropService
             itemId: String,
             imageUrl: String?,
         ) {
-            delay(500)
+            delay(300)
             val backdropStyle =
                 preferences.data
                     .firstOrNull()

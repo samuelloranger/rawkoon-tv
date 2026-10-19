@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.rawkoon.ui.kit
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -17,20 +19,34 @@ import androidx.compose.ui.graphics.drawscope.translate
 
 /**
  * The one Rawkoon focus indicator: a 2dp gap in the app background, then a 2dp apricot ring, both outside the
- * element's [shape]. Nothing scales and nothing moves, so it is safe on rows and grids.
+ * element's [shape]. Nothing scales and nothing moves, so it is safe on rows and grids. The ring fades in over
+ * [RawkoonMotion.FOCUS_IN_MILLIS] and out over [RawkoonMotion.FOCUS_OUT_MILLIS], so focus glides from one element to
+ * the next instead of jumping. The fade is read in the draw phase, so it only redraws.
  */
+@Composable
 fun Modifier.rawkoonFocusRing(
     shape: Shape,
     focused: Boolean,
-): Modifier =
-    if (!focused) {
-        this
-    } else {
-        drawWithContent {
-            drawContent()
-            drawRing(shape)
-        }
+): Modifier {
+    val alpha =
+        animateFloatAsState(
+            targetValue = if (focused) 1f else 0f,
+            animationSpec =
+                if (focused) {
+                    tween(RawkoonMotion.FOCUS_IN_MILLIS, easing = RawkoonMotion.EnterEasing)
+                } else {
+                    tween(RawkoonMotion.FOCUS_OUT_MILLIS, easing = RawkoonMotion.ExitEasing)
+                },
+            label = "rawkoon_focus_ring",
+        )
+    // An element that is not focused and not fading out adds no draw node, which keeps large grids cheap
+    if (!focused && alpha.value == 0f) return this
+    return drawWithContent {
+        drawContent()
+        val a = alpha.value
+        if (a > 0f) drawRing(shape, a)
     }
+}
 
 /** [rawkoonFocusRing] that follows the focus state of [interactionSource] */
 @Composable
@@ -42,12 +58,15 @@ fun Modifier.rawkoonFocusRing(
     return rawkoonFocusRing(shape, focused)
 }
 
-private fun DrawScope.drawRing(shape: Shape) {
+private fun DrawScope.drawRing(
+    shape: Shape,
+    alpha: Float,
+) {
     val gap = RawkoonTokens.FocusRingGap.toPx()
     val ring = RawkoonTokens.FocusRingWidth.toPx()
     // A stroke is centered on its path, so each path sits half a stroke width out from its band's inner edge
-    drawStrokeAt(shape, gap / 2, gap, RawkoonTokens.FocusRingGapColor)
-    drawStrokeAt(shape, gap + ring / 2, ring, RawkoonTokens.FocusRingColor)
+    drawStrokeAt(shape, gap / 2, gap, RawkoonTokens.FocusRingGapColor.copy(alpha = alpha))
+    drawStrokeAt(shape, gap + ring / 2, ring, RawkoonTokens.FocusRingColor.copy(alpha = alpha))
 }
 
 private fun DrawScope.drawStrokeAt(

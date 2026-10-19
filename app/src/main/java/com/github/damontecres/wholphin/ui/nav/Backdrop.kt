@@ -49,8 +49,8 @@ fun Backdrop(
     viewModel: ApplicationContentViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
     enableTopScrim: Boolean = true,
-    useExistingImageAsPlaceholder: Boolean = false,
-    crossfadeDuration: Duration = 800.milliseconds,
+    useExistingImageAsPlaceholder: Boolean = true,
+    crossfadeDuration: Duration = 600.milliseconds,
 ) {
     val backdrop by viewModel.backdropService.backdropFlow.collectAsStateWithLifecycle()
     Backdrop(
@@ -74,8 +74,8 @@ fun Backdrop(
     backdropStyle: BackdropStyle,
     modifier: Modifier = Modifier,
     enableTopScrim: Boolean = true,
-    useExistingImageAsPlaceholder: Boolean = false,
-    crossfadeDuration: Duration = 800.milliseconds,
+    useExistingImageAsPlaceholder: Boolean = true,
+    crossfadeDuration: Duration = 600.milliseconds,
 ) {
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val baseBackgroundColor = MaterialTheme.colorScheme.background

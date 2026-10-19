@@ -93,6 +93,15 @@ object RawkoonMotion {
     const val EXIT_MILLIS = 120
     const val COLOR_MILLIS = 150
 
+    /** The focus ring fades in a little slower than it fades out, so the eye follows it to the new element */
+    const val FOCUS_IN_MILLIS = 150
+    const val FOCUS_OUT_MILLIS = 90
+
+    /** A header that follows focus: the old content leaves fast, the new one settles in */
+    const val HEADER_OUT_MILLIS = 120
+    const val HEADER_IN_MILLIS = 260
+    const val HEADER_IN_DELAY_MILLIS = 40
+
     val EnterEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
     val ExitEasing = FastOutLinearInEasing
 
