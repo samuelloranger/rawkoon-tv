@@ -43,6 +43,7 @@ fun RawkoonChip(
     selected: Boolean = false,
     plainBackground: Boolean = false,
     enabled: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     val idleBorder = BorderStroke(1.dp, if (plainBackground) RawkoonTokens.Neutral700 else RawkoonTokens.white(0.14f))
@@ -50,6 +51,7 @@ fun RawkoonChip(
     val activeText = RawkoonTokens.Primary400
     RawkoonSurface(
         onClick = onClick,
+        onLongClick = onLongClick,
         enabled = enabled,
         shape = CircleShape,
         container = if (selected) ChipSelectedBg else Color.Transparent,

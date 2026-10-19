@@ -25,25 +25,23 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.rawkoon.ui.cards.RawkoonGridCard
+import com.github.damontecres.wholphin.rawkoon.ui.home.RawkoonHomeHeader
+import com.github.damontecres.wholphin.rawkoon.ui.library.RawkoonFaButton
+import com.github.damontecres.wholphin.rawkoon.ui.library.RawkoonGridTitle
 import com.github.damontecres.wholphin.ui.AspectRatios
-import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.detail.GridItemDetails
 import com.github.damontecres.wholphin.ui.ifElse
-import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -77,7 +75,7 @@ fun CollectionFolderGrid(
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val density = LocalDensity.current
             AnimatedVisibility(viewOptions.showDetails) {
-                HomePageHeader(
+                RawkoonHomeHeader(
                     item = focusedItem,
                     showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                     modifier =
@@ -100,7 +98,7 @@ fun CollectionFolderGrid(
                 initialPosition = initialPosition,
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                    GridCard(
+                    RawkoonGridCard(
                         item = item,
                         onClick = onClick,
                         onLongClick = onLongClick,
@@ -137,7 +135,7 @@ data class CollectionFolderGridParameters(
     val columns: Int = 6,
     val spacing: Dp = 16.dp,
     val cardContent: @Composable (GridItemDetails<BaseItem>) -> Unit = { (item, index, onClick, onLongClick, widthPx, mod) ->
-        GridCard(
+        RawkoonGridCard(
             item = item,
             onClick = onClick,
             onLongClick = onLongClick,
@@ -153,7 +151,7 @@ data class CollectionFolderGridParameters(
                 columns = 6,
                 spacing = 16.dp,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                    GridCard(
+                    RawkoonGridCard(
                         item = item,
                         onClick = onClick,
                         onLongClick = onLongClick,
@@ -169,7 +167,7 @@ data class CollectionFolderGridParameters(
                 columns = 4,
                 spacing = 24.dp,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                    GridCard(
+                    RawkoonGridCard(
                         item = item,
                         onClick = onClick,
                         onLongClick = onLongClick,
@@ -185,7 +183,7 @@ data class CollectionFolderGridParameters(
                 columns = 6,
                 spacing = 16.dp,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                    GridCard(
+                    RawkoonGridCard(
                         item = item,
                         onClick = onClick,
                         onLongClick = onLongClick,
@@ -272,15 +270,7 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
 fun GridTitle(
     title: String,
     modifier: Modifier = Modifier,
-) = Text(
-    text = title,
-    style = MaterialTheme.typography.displaySmall,
-    color = MaterialTheme.colorScheme.onBackground,
-    textAlign = TextAlign.Center,
-    maxLines = 1,
-    overflow = TextOverflow.Ellipsis,
-    modifier = modifier.fillMaxWidth(),
-)
+) = RawkoonGridTitle(title, modifier)
 
 data class GridClickActions(
     val onClickItem: (Int, BaseItem) -> Unit,
@@ -365,7 +355,7 @@ fun CollectionFolderHeader(
                             onShow = onShowFilterDropdown,
                         )
                     }
-                    ExpandableFaButton(
+                    RawkoonFaButton(
                         title = R.string.view_options,
                         iconStringRes = R.string.fa_sliders,
                         onClick = onClickShowViewOptions,
@@ -384,7 +374,7 @@ fun CollectionFolderHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier,
                 ) {
-                    ExpandableFaButton(
+                    RawkoonFaButton(
                         title = R.string.sort_by_random,
                         iconStringRes = R.string.fa_dice,
                         onClick = onClickRandom,
@@ -400,7 +390,7 @@ fun CollectionFolderHeader(
                             onClick = { onClickPlayAll.invoke(false) },
                             enabled = listIsNotEmpty,
                         )
-                        ExpandableFaButton(
+                        RawkoonFaButton(
                             title = R.string.shuffle,
                             iconStringRes = R.string.fa_shuffle,
                             onClick = { onClickPlayAll.invoke(true) },
