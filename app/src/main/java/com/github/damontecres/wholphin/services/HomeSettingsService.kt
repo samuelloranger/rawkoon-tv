@@ -771,6 +771,7 @@ class HomeSettingsService
                                 imageUrlService.getItemImageUrl(
                                     itemId = it.id,
                                     imageType = ImageType.THUMB,
+                                    tag = it.imageTags?.get(ImageType.THUMB),
                                 )
                             BaseItem(
                                 it,
