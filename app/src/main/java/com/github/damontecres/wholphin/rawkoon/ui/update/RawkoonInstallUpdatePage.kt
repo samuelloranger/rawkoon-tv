@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -238,21 +239,25 @@ fun RawkoonInstallUpdateContent(
                     UpdateActions(kind = kind, version = release.version, onInstall = onInstall, onBack = onBack)
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.rawkoon_update_hint),
-                fontSize = 12.5.sp,
-                lineHeight = 18.sp,
-                color = RawkoonTokens.Neutral500,
-                modifier = Modifier.widthIn(max = 380.dp),
-            )
+            if (kind == UpdateKind.AVAILABLE || downloading) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.rawkoon_update_hint),
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp,
+                    color = RawkoonTokens.Neutral500,
+                    modifier = Modifier.widthIn(max = 380.dp),
+                )
+            }
         }
+        // The panel hugs short notes and scrolls long ones, centered against the left column
         ReleaseNotesPanel(
             release = release,
             modifier =
                 Modifier
                     .weight(0.56f)
-                    .fillMaxHeight(),
+                    .align(Alignment.CenterVertically)
+                    .heightIn(max = 460.dp),
         )
     }
 }
@@ -452,7 +457,7 @@ private fun ReleaseNotesPanel(
         LazyColumn(
             state = listState,
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             item { RawkoonReleaseNotes(release) }
         }
