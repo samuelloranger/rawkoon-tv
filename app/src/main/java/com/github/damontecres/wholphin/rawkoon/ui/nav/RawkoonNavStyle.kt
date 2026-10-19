@@ -60,6 +60,10 @@ import com.github.damontecres.wholphin.rawkoon.ui.kit.RawkoonTokens
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import kotlinx.coroutines.launch
 import kotlin.math.floor
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 
 /**
  * The Rawkoon look of the navigation rail: a 64dp `#1C1715` rail with a 1dp right border, 36dp tall rail items with an
@@ -308,7 +312,7 @@ fun RawkoonLogoRow(
         RawkoonLogoMark(ringRotation = rotation.value)
         Spacer(Modifier.width(RawkoonLogoMotion.WordmarkGap))
         Text(
-            text = "Rawkoon",
+            text = rawkoonTvWordmark(),
             color = Color.White,
             fontFamily = RawkoonText,
             fontWeight = FontWeight.Bold,
@@ -328,6 +332,26 @@ fun RawkoonLogoRow(
         )
     }
 }
+
+/**
+ * "Rawkoon TV" as on the app banner: "Rawkoon" in white, then "TV" in the logo's apricot to terracotta gradient
+ */
+private fun rawkoonTvWordmark(): AnnotatedString =
+    buildAnnotatedString {
+        append("Rawkoon ")
+        withStyle(
+            SpanStyle(
+                brush =
+                    Brush.linearGradient(
+                        colorStops = LogoGradientStops,
+                        start = Offset.Zero,
+                        end = Offset(0f, Float.POSITIVE_INFINITY),
+                    ),
+            ),
+        ) {
+            append("TV")
+        }
+    }
 
 /**
  * The profile avatar of the rail: 30dp with an 8dp radius. It shows the user's image when there is one, and otherwise
