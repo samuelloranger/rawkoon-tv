@@ -1,0 +1,11 @@
+{
+  "uniqueId": "com.tonsky.firacode",
+  "developers": [],
+  "artifactVersion": "static instances",
+  "description": "Fira Code, a monospaced font used for times and numbers in the Rawkoon theme",
+  "name": "Fira Code",
+  "licenses": [
+    "ofl_fira_code"
+  ],
+  "website": "https://github.com/tonsky/FiraCode"
+}

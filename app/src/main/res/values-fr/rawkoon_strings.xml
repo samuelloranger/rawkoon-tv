@@ -22,7 +22,7 @@
     <string name="rawkoon_not_set">Non défini</string>
     <string name="rawkoon_interface_size">Taille de l\'interface</string>
     <string name="rawkoon_credits_title">À propos de RawkoonTV</string>
-    <string name="rawkoon_fonts">Polices : Fraunces et Hanken Grotesk, licence SIL Open Font 1.1 (voir Paramètres, Informations de licence)</string>
+    <string name="rawkoon_fonts">Polices : Fraunces, Hanken Grotesk et Fira Code, licence SIL Open Font 1.1 (voir Paramètres, Informations de licence)</string>
     <string name="rawkoon_credits">Basé sur Wholphin de damontecres, sous licence GPL-2.0</string>
     <string name="rawkoon_error_credentials">Courriel ou mot de passe incorrect</string>
     <string name="rawkoon_error_rate_limited">Trop de tentatives, réessaie dans un instant</string>
@@ -56,4 +56,12 @@
         <item quantity="other">%d épisodes</item>
     </plurals>
     <string name="rawkoon_open">Ouvrir</string>
+    <string name="rawkoon_status_downloaded">Téléchargé</string>
+    <string name="rawkoon_status_watched">Vu</string>
+    <string name="rawkoon_status_missing">Manquant</string>
+    <string name="rawkoon_status_failed">Échec</string>
+    <string name="rawkoon_status_requested">Demandé</string>
+    <string name="rawkoon_status_in_production">En production</string>
+    <string name="rawkoon_status_returning">En cours</string>
+    <string name="rawkoon_status_planned">Prévu</string>
 </resources>

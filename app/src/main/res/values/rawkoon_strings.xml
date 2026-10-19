@@ -23,7 +23,7 @@
     <string name="rawkoon_not_set">Not set</string>
     <string name="rawkoon_interface_size">Interface size</string>
     <string name="rawkoon_credits_title">About RawkoonTV</string>
-    <string name="rawkoon_fonts">Fonts: Fraunces and Hanken Grotesk, SIL Open Font License 1.1 (see Settings, License information)</string>
+    <string name="rawkoon_fonts">Fonts: Fraunces, Hanken Grotesk and Fira Code, SIL Open Font License 1.1 (see Settings, License information)</string>
     <string name="rawkoon_credits">Based on Wholphin by damontecres, licensed under GPL-2.0</string>
     <string name="rawkoon_error_credentials">Wrong email or password</string>
     <string name="rawkoon_error_rate_limited">Too many attempts, try again in a moment</string>
@@ -56,4 +56,12 @@
         <item quantity="other">%d episodes</item>
     </plurals>
     <string name="rawkoon_open">Open</string>
+    <string name="rawkoon_status_downloaded">Downloaded</string>
+    <string name="rawkoon_status_watched">Watched</string>
+    <string name="rawkoon_status_missing">Missing</string>
+    <string name="rawkoon_status_failed">Failed</string>
+    <string name="rawkoon_status_requested">Requested</string>
+    <string name="rawkoon_status_in_production">In production</string>
+    <string name="rawkoon_status_returning">Returning</string>
+    <string name="rawkoon_status_planned">Planned</string>
 </resources>
