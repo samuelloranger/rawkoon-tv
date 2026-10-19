@@ -125,17 +125,3 @@ fun formatSeasonEpisode(
     listOfNotNull(season?.let { "S$it" }, episode?.let { "E$it" })
         .takeIf { it.isNotEmpty() }
         ?.joinToString(" · ")
-
-/**
- * The short text of an audio or subtitle chip: the language when known, else the stream title, else the full display
- * title. [detail] (such as `5.1`) follows the language.
- */
-fun trackChipValue(
-    language: String?,
-    title: String?,
-    displayTitle: String?,
-    detail: String? = null,
-): String? {
-    val main = listOf(language, title, displayTitle).firstOrNull { !it.isNullOrBlank() }?.trim() ?: return null
-    return if (detail.isNullOrBlank() || main == displayTitle) main else "$main $detail"
-}

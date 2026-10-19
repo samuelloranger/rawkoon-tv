@@ -100,11 +100,4 @@ class RawkoonPlayerLogicTest {
         assertNull(formatSeasonEpisode(null, null))
     }
 
-    @Test
-    fun track_chip_value_prefers_language() {
-        assertEquals("English 5.1", trackChipValue("English", "Commentary", "English - AC3", "5.1"))
-        assertEquals("Commentary", trackChipValue(null, "Commentary", "x"))
-        assertEquals("English - AC3", trackChipValue(" ", null, "English - AC3", "5.1"))
-        assertNull(trackChipValue(null, "", null))
-    }
 }
