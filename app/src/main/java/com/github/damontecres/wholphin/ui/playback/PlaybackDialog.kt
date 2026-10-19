@@ -42,10 +42,12 @@ import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonBottomDialog
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonStreamChoiceBottomDialog
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonSubtitleChoiceBottomDialog
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
 import com.github.damontecres.wholphin.ui.indexOfFirstOrNull
-import com.github.damontecres.wholphin.ui.playback.overlay.BottomDialog
 import com.github.damontecres.wholphin.ui.playback.overlay.BottomDialogItem
 import com.github.damontecres.wholphin.ui.playback.overlay.PlaybackAction
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -105,7 +107,8 @@ fun PlaybackDialog(
         }
 
         PlaybackDialogType.CAPTIONS -> {
-            SubtitleChoiceBottomDialog(
+            RawkoonSubtitleChoiceBottomDialog(
+                title = stringResource(R.string.subtitles),
                 choices = settings.subtitleStreams,
                 currentChoice = settings.subtitleIndex,
                 hasDownloadPermission = settings.hasSubtitleDownloadPermission,
@@ -170,7 +173,8 @@ fun PlaybackDialog(
                         ),
                     )
                 }
-            BottomDialog(
+            RawkoonBottomDialog(
+                title = stringResource(R.string.settings),
                 choices = options,
                 currentChoice = null,
                 onDismissRequest = onDismissRequest,
@@ -186,7 +190,8 @@ fun PlaybackDialog(
         }
 
         PlaybackDialogType.AUDIO -> {
-            StreamChoiceBottomDialog(
+            RawkoonStreamChoiceBottomDialog(
+                title = stringResource(R.string.audio),
                 choices = settings.audioStreams,
                 currentChoice = settings.audioIndex,
                 onDismissRequest = {
@@ -209,7 +214,8 @@ fun PlaybackDialog(
                         supporting = null,
                     )
                 }
-            BottomDialog(
+            RawkoonBottomDialog(
+                title = stringResource(R.string.playback_speed),
                 choices = choices,
                 currentChoice = choices.firstOrNull { it.data == settings.playbackSpeed },
                 onDismissRequest = {
@@ -232,7 +238,8 @@ fun PlaybackDialog(
                         supporting = null,
                     )
                 }
-            BottomDialog(
+            RawkoonBottomDialog(
+                title = stringResource(R.string.video_scale),
                 choices = choices,
                 currentChoice = choices.firstOrNull { it.data == settings.contentScale },
                 onDismissRequest = {

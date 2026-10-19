@@ -74,6 +74,10 @@ import com.github.damontecres.wholphin.preferences.DpadSeekMode
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.skipBackOnResume
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonPauseScreen
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonPlaybackOverlay
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonSkipIndicator
+import com.github.damontecres.wholphin.rawkoon.ui.player.RawkoonSkipSegmentButton
 import com.github.damontecres.wholphin.rawkoon.unscaledDensity
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.AspectRatios
@@ -83,11 +87,7 @@ import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.overlay.DpadSeekOverlay
-import com.github.damontecres.wholphin.ui.playback.overlay.PauseIndicator
 import com.github.damontecres.wholphin.ui.playback.overlay.PlaybackAction
-import com.github.damontecres.wholphin.ui.playback.overlay.PlaybackOverlay
-import com.github.damontecres.wholphin.ui.playback.overlay.SkipIndicator
-import com.github.damontecres.wholphin.ui.playback.overlay.SkipSegmentButton
 import com.github.damontecres.wholphin.ui.playback.overlay.rememberSeekBarState
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.applyTo
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
@@ -328,8 +328,8 @@ fun PlaybackPageContent(
 
     val showSegment =
         state.currentSegment?.interacted == false &&
-            state.nextUp == null && !controllerViewState.controlsVisible && skipIndicatorDuration == 0L
-    BackHandler(showSegment) {
+            state.nextUp == null && skipIndicatorDuration == 0L
+    BackHandler(showSegment && !controllerViewState.controlsVisible) {
         viewModel.updateSegment(state.currentSegment?.segment?.id, true)
     }
 
@@ -417,7 +417,7 @@ fun PlaybackPageContent(
                 prefs.dpadSeekMode != DpadSeekMode.SEEKBAR_TRICKPLAY
             ) {
                 // Skip time mode: show seek distance indicator
-                SkipIndicator(
+                RawkoonSkipIndicator(
                     durationMs = skipIndicatorDuration,
                     onFinish = {
                         skipIndicatorDuration = 0L
@@ -457,8 +457,9 @@ fun PlaybackPageContent(
                         subtitleSearchState.status != SubtitleSearchStatus.Inactive
                 }
             if (!controlsVisible && skipIndicatorDuration == 0L) {
-                PauseIndicator(
+                RawkoonPauseScreen(
                     player = player,
+                    item = state.currentPlayback?.item,
                     modifier =
                         Modifier
                             .align(Alignment.Center),
@@ -467,7 +468,7 @@ fun PlaybackPageContent(
 
             // The playback controls
 
-            PlaybackOverlay(
+            RawkoonPlaybackOverlay(
                 modifier =
                     Modifier
                         .padding(WindowInsets.systemBars.asPaddingValues())
@@ -604,7 +605,7 @@ fun PlaybackPageContent(
             showSegment,
             modifier =
                 Modifier
-                    .padding(40.dp)
+                    .padding(48.dp)
                     .align(Alignment.BottomEnd),
         ) {
             state.currentSegment?.let { segment ->
@@ -614,8 +615,9 @@ fun PlaybackPageContent(
                     delay(10.seconds)
                     viewModel.updateSegment(segment.segment.id, true)
                 }
-                SkipSegmentButton(
+                RawkoonSkipSegmentButton(
                     type = segment.segment.type,
+                    controlsVisible = controllerViewState.controlsVisible,
                     onClick = {
                         viewModel.updateSegment(segment.segment.id, false)
                     },
