@@ -17,10 +17,15 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +38,7 @@ import coil3.request.transitionFactory
 import com.github.damontecres.wholphin.preferences.BackdropStyle
 import com.github.damontecres.wholphin.services.BackdropResult
 import com.github.damontecres.wholphin.ui.CrossFadeFactory
+import kotlin.math.ceil
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -94,11 +100,30 @@ fun Backdrop(
             animationSpec = tween(1250),
             label = "dynamic_backdrop_tertiary",
         )
+        // Rawkoon: the gradients are drawn into a layer at 1/DYNAMIC_COLOR_SCALE of the screen size and scaled up when
+        // composited. They are soft enough that this looks the same, and it saves the GPU from filling four
+        // full-screen radial gradients on every frame of every animation.
         Box(
             modifier =
                 modifier
                     .fillMaxSize()
-                    .drawBehind {
+                    .layout { measurable, constraints ->
+                        // Round up, so the scaled layer always reaches the right and bottom edges, and place it at the
+                        // physical top left, where the scale grows from
+                        val placeable =
+                            measurable.measure(
+                                Constraints.fixed(
+                                    ceil(constraints.maxWidth / DYNAMIC_COLOR_SCALE).toInt(),
+                                    ceil(constraints.maxHeight / DYNAMIC_COLOR_SCALE).toInt(),
+                                ),
+                            )
+                        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
+                    }.graphicsLayer {
+                        scaleX = DYNAMIC_COLOR_SCALE
+                        scaleY = DYNAMIC_COLOR_SCALE
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }.drawBehind {
                         drawRect(color = baseBackgroundColor)
                         val start = if (isRtl) size.width else 0f
                         val end = if (isRtl) 0f else size.width
@@ -217,6 +242,9 @@ fun Backdrop(
         }
     }
 }
+
+// Rawkoon: how much smaller than the screen the dynamic color gradients are drawn
+private const val DYNAMIC_COLOR_SCALE = 8f
 
 private const val BOTTOM_SCRIM_TOP_ALPHA = 0.2f
 private const val BOTTOM_SCRIM_MID_ALPHA = 0.75f
