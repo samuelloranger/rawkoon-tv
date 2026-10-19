@@ -165,19 +165,19 @@ fun Modifier.rawkoonRailSurface(): Modifier =
 /** Timing and geometry of the logo row: values of the open/close animation, kept pure so they can be unit tested */
 object RawkoonLogoMotion {
     val Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-    const val RotationDegrees = 120f
-    const val RotationMs = 600
-    const val RevealMs = 320
-    const val RevealDelayMs = 80
-    const val FadeOutMs = 120
+    const val ROTATION_DEGREES = 120f
+    const val ROTATION_MS = 600
+    const val REVEAL_MS = 320
+    const val REVEAL_DELAY_MS = 80
+    const val FADE_OUT_MS = 120
 
     /** Horizontal start of the mark: its center sits on the center of the 20dp item icons (32dp from the rail edge) */
     val MarkStart = 18.dp
     val RowHeight = 56.dp
     val WordmarkGap = 10.dp
 
-    /** The ring angle after one more opening: each opening turns the ring by [RotationDegrees] */
-    fun nextRotation(current: Float): Float = current + RotationDegrees
+    /** The ring angle after one more opening: each opening turns the ring by [ROTATION_DEGREES] */
+    fun nextRotation(current: Float): Float = current + ROTATION_DEGREES
 
     /** Right edge of the wordmark clip for a reveal [fraction] in 0..1 */
     fun clipRight(
@@ -267,7 +267,7 @@ fun RawkoonLogoRow(
             launch {
                 rotation.animateTo(
                     RawkoonLogoMotion.nextRotation(rotation.value),
-                    tween(RawkoonLogoMotion.RotationMs, easing = RawkoonLogoMotion.Easing),
+                    tween(RawkoonLogoMotion.ROTATION_MS, easing = RawkoonLogoMotion.Easing),
                 )
             }
             reveal.snapTo(0f)
@@ -275,15 +275,15 @@ fun RawkoonLogoRow(
             launch {
                 reveal.animateTo(
                     1f,
-                    tween(RawkoonLogoMotion.RevealMs, RawkoonLogoMotion.RevealDelayMs, RawkoonLogoMotion.Easing),
+                    tween(RawkoonLogoMotion.REVEAL_MS, RawkoonLogoMotion.REVEAL_DELAY_MS, RawkoonLogoMotion.Easing),
                 )
             }
             alpha.animateTo(
                 1f,
-                tween(RawkoonLogoMotion.RevealMs, RawkoonLogoMotion.RevealDelayMs, RawkoonLogoMotion.Easing),
+                tween(RawkoonLogoMotion.REVEAL_MS, RawkoonLogoMotion.REVEAL_DELAY_MS, RawkoonLogoMotion.Easing),
             )
         } else {
-            alpha.animateTo(0f, tween(RawkoonLogoMotion.FadeOutMs, easing = FastOutLinearInEasing))
+            alpha.animateTo(0f, tween(RawkoonLogoMotion.FADE_OUT_MS, easing = FastOutLinearInEasing))
             reveal.snapTo(0f)
         }
     }
