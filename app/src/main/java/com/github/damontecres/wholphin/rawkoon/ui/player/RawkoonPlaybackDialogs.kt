@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.rawkoon.ui.player
 import android.view.Gravity
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,7 +38,6 @@ import com.github.damontecres.wholphin.ui.playback.isUp
 import com.github.damontecres.wholphin.ui.playback.overlay.BottomDialogItem
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.PaddingValues
 
 /** The most a dialog list grows before it scrolls */
 private val DialogListPadding = PaddingValues(vertical = 6.dp)
@@ -98,7 +98,8 @@ fun <T> RawkoonBottomDialog(
         LazyColumn(
             // Room for the focus ring, which draws outside the rows and would be clipped by the list
             contentPadding = DialogListPadding,
-            modifier = Modifier.heightIn(max = DialogListMaxHeight)) {
+            modifier = Modifier.heightIn(max = DialogListMaxHeight),
+        ) {
             itemsIndexed(choices) { index, choice ->
                 RawkoonDialogItem(
                     text = choice.headline,
@@ -147,7 +148,9 @@ fun RawkoonSubtitleChoiceBottomDialog(
         LazyColumn(
             // Room for the focus ring, which draws outside the rows and would be clipped by the list
             contentPadding = DialogListPadding,
-            state = listState, modifier = Modifier.heightIn(max = DialogListMaxHeight)) {
+            state = listState,
+            modifier = Modifier.heightIn(max = DialogListMaxHeight),
+        ) {
             item {
                 val interactionSource = remember { MutableInteractionSource() }
                 val focused by interactionSource.collectIsFocusedAsState()
@@ -230,7 +233,8 @@ fun RawkoonStreamChoiceBottomDialog(
         LazyColumn(
             // Room for the focus ring, which draws outside the rows and would be clipped by the list
             contentPadding = DialogListPadding,
-            modifier = Modifier.heightIn(max = DialogListMaxHeight)) {
+            modifier = Modifier.heightIn(max = DialogListMaxHeight),
+        ) {
             streamItems(choices, currentChoice, focusRequesters) { stream ->
                 onDismissRequest()
                 onSelectChoice(choices.indexOf(stream), stream)

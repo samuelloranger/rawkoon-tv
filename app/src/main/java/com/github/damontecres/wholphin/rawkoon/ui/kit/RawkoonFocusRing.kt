@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.rawkoon.ui.kit
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -14,8 +16,6 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 
 /**
  * The one Rawkoon focus indicator: a 2dp gap in the app background, then a 2dp apricot ring, both outside the
