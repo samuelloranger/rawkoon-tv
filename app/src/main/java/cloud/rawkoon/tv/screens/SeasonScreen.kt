@@ -97,6 +97,7 @@ class SeasonScreen(
         content.addView(overview, at(start, 180, context.dp(575), context.dp(42)))
         content.addView(episodes, at(0, 228, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         content.addView(actions.view, at(start - Tokens.RING_INSET, 412, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        actions.beforeUse = ::describePending
         episodes.onLeftEdge = { rail.activeItem() }
         content.addView(parking, FrameLayout.LayoutParams(1, 1))
         load()

@@ -233,8 +233,16 @@ class ActionBar(private val screen: RailScreen) {
     private val context = screen.context
     val primary = PillButton(context, context.getString(R.string.play), Icon.PLAY, primary = true, height = 40)
 
+    /** Runs before the bar is used or gets focus: a page that settles its item late catches up first. */
+    var beforeUse: () -> Unit = {}
+
     /** Coming from above or below, focus lands on the main action rather than the nearest button. */
     val view: LinearLayout = object : LinearLayout(context) {
+        override fun requestChildFocus(child: View?, focused: View?) {
+            if (!hasFocus()) beforeUse()
+            super.requestChildFocus(child, focused)
+        }
+
         override fun addFocusables(views: ArrayList<View>, direction: Int, focusableMode: Int) {
             if (!hasFocus() && (direction == FOCUS_UP || direction == FOCUS_DOWN)) {
                 views.add(primary)
@@ -271,6 +279,7 @@ class ActionBar(private val screen: RailScreen) {
 
     /** Plays the item, or for a show the episode it is at. */
     private fun play() {
+        beforeUse()
         val current = item ?: return
         val target = if (current.kind == MediaItem.Kind.SERIES) next else current
         if (target == null) {
@@ -292,6 +301,7 @@ class ActionBar(private val screen: RailScreen) {
     }
 
     private fun toggle(watched: Boolean) {
+        beforeUse()
         val current = item ?: return
         val updated = if (watched) current.copy(played = !current.played) else current.copy(favorite = !current.favorite)
         bind(updated)
