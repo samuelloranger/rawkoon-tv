@@ -17,33 +17,35 @@ dry="${2:-}"
 [[ -z "$dry" || "$dry" == "--dry-run" ]] || { echo "unknown option $dry" >&2; exit 2; }
 signing="${RAWKOONTV_SIGNING_DIR:?set RAWKOONTV_SIGNING_DIR}"
 [[ -f "$signing/release.jks" && -f "$signing/signing.env" ]] || { echo "$signing needs release.jks and signing.env" >&2; exit 2; }
-# The first RawkoonTV's release certificate (public): any other key can't update installed copies.
-expected_cert="a2719edc5c9d1a7551b0a41d027d40551e14daf12f359ff5fa1ae38aa983ad8b"
 
 cd "$(git rev-parse --show-toplevel)"
 [[ -z "$(git status --porcelain)" ]] || { echo "working tree is not clean" >&2; exit 2; }
 # The signing dir is the only key source here: a CI-style key in the shell must not win.
 unset SIGNING_KEY
 
-# The version comes from the tag, so the build must see it; a dry run removes it again.
+# The version comes from the tag, so the build must see it. A tag that already exists is only
+# reused when it points at HEAD, so an old tag on an old commit is never pushed.
 created=
-if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  [[ "$(git rev-parse "$tag^{commit}")" == "$(git rev-parse HEAD)" ]] \
+    || { echo "tag $tag exists on another commit than HEAD; delete it or check out its commit" >&2; exit 2; }
+else
   git tag -a "$tag" -m "RawkoonTV $tag"
   created=1
 fi
-trap '[[ -n "$created" && -n "$dry" ]] && git tag -d "$tag" >/dev/null || true' EXIT
+# A tag this run created goes away on any failure, and after a dry run; it stays only once pushed.
+cleanup() {
+  if [[ -n "$created" ]]; then git tag -d "$tag" >/dev/null 2>&1 || true; fi
+}
+trap cleanup EXIT
 
 ./gradlew --no-daemon testDebugUnitTest
 rm -rf app/build/outputs/apk/release
 ./gradlew --no-daemon assembleRelease -Prawkoontv.signingDir="$signing"
 
-apksigner="$(ls -d "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"/build-tools/*/apksigner | sort -V | tail -1)"
-for apk in app/build/outputs/apk/release/RawkoonTV*.apk; do
-  "$apksigner" verify --print-certs "$apk" | grep -q "certificate SHA-256 digest: $expected_cert" \
-    || { echo "$apk is not signed with the RawkoonTV key" >&2; exit 1; }
-  echo "ok: $apk"
-done
+scripts/verify-signature.sh app/build/outputs/apk/release/RawkoonTV*.apk
 
 [[ -z "$dry" ]] || { echo "dry run: APKs verified, no tag pushed"; exit 0; }
 git push origin "$tag"
+created=
 echo "Pushed $tag: the release workflow publishes it."
