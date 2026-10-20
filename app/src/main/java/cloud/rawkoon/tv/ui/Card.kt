@@ -76,7 +76,7 @@ class Card(
      */
     private fun requestArt() {
         if (frame.art.bitmap != null) return
-        val url = (if (wide) item.thumbUrl else item.posterUrl) ?: return
+        val url = (if (wide) item.thumbUrl else item.posterUrl ?: item.thumbUrl) ?: return
         // A TMDB image's URL is final; a library image is asked at the card's width
         images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive }) { frame.art.bitmap = it }
     }

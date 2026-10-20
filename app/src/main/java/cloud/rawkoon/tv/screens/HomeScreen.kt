@@ -174,11 +174,17 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                ""
+                // A failed lookup is not "no backdrop": leave it uncached so the next focus asks again
+                return@launch useBackdrop(null, now = true)
             }
             backdrops.put(item.id, url)
-            useBackdrop(url.ifEmpty { null }, now = true)
+            // Only the card still focused takes it: focus may have moved on or the rows been rebuilt
+            if (rows.hasFocus() && (rows.findFocus() as? Card)?.item?.id == item.id) useBackdrop(url.ifEmpty { null }, now = true)
         }
+    }
+
+    override fun onRowsReplaced() {
+        backdropJob?.cancel()
     }
 
     override fun destroy() {

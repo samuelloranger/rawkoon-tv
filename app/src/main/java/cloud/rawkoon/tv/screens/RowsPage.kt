@@ -103,7 +103,11 @@ abstract class RowsPage(
         rows.post { ((rows.column.focusedChild as? Section) ?: next.first()).let { rows.reveal(it) } }
     }
 
+    /** Called when the rows are about to be replaced or removed: a page that looks things up for the focused card drops them here. */
+    protected open fun onRowsReplaced() {}
+
     private fun replaceRows(sections: List<Section>) {
+        onRowsReplaced()
         rows.column.removeAllViews()
         sections.forEach { rows.column.addView(it) }
     }
@@ -125,6 +129,7 @@ abstract class RowsPage(
         mainHandler.removeCallbacks(settleBackdrop)
         mainHandler.post(settleBackdrop)
         if (!hasRows()) return
+        onRowsReplaced()
         parking.around(rows.hasFocus(), rebuild = {
             rows.column.removeAllViews()
             rows.reset()
