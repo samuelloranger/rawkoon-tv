@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.ui
 import android.content.Context
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 
 /**
  * A plain view for backgrounds, scrims and focus rings. Nothing inside it overlaps, so
@@ -55,4 +56,9 @@ class CenteredRow(context: Context, private val start: View, private val middle:
         place(start, middle.left - gap - start.measuredWidth)
         place(end, middle.right + gap)
     }
+}
+
+/** A row or column of labels that never overlap, so fading it needs no offscreen layer. */
+internal class FlatLinearLayout(context: Context) : LinearLayout(context) {
+    override fun hasOverlappingRendering() = false
 }
