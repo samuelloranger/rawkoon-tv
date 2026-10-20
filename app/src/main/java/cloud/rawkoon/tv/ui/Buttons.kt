@@ -70,3 +70,32 @@ class PillButton(context: Context, text: String, glyph: String? = null, primary:
         return super.onKeyUp(keyCode, event)
     }
 }
+
+/** A round action button with an icon: watched, favorite, more. [setOn] paints the icon apricot. */
+class CircleButton(context: Context, glyph: String, description: String, private val filled: Boolean = false) : Focusable(context) {
+    private val ring = FlatView(context)
+    private val icon: TextView = icon(context, glyph, 14f, if (filled) Tokens.background else Tokens.textPrimary)
+    override val motion = FocusMotion(this, ring)
+
+    init {
+        contentDescription = description
+        val inset = context.dp(Tokens.RING_INSET)
+        val size = context.dp(SIZE)
+        icon.background = oval(if (filled) Tokens.textPrimary else 0x24FFFFFF)
+        addView(icon, LayoutParams(size, size).apply { setMargins(inset, inset, inset, inset) })
+        ring.background = ovalRing(context)
+        ring.alpha = 0f
+        addView(ring, LayoutParams(size + inset * 2, size + inset * 2))
+        listenForFocus()
+    }
+
+    fun setOn(on: Boolean) = icon.setTextColor(if (on) Tokens.accent else if (filled) Tokens.background else Tokens.textPrimary)
+
+    fun setGlyph(glyph: String) {
+        icon.text = glyph
+    }
+
+    companion object {
+        const val SIZE = 40
+    }
+}

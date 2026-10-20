@@ -1,22 +1,9 @@
 package cloud.rawkoon.tv.ui
 
 import android.content.Context
-import android.graphics.LinearGradient
-import android.graphics.Shader
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.text.TextUtils
-import android.view.Gravity
 import android.view.View
-import android.view.ViewTreeObserver
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.TextView
-import cloud.rawkoon.tv.R
-
-fun Context.dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
-
-fun Context.dpf(value: Float): Float = value * resources.displayMetrics.density
+import android.widget.LinearLayout
 
 /**
  * A plain view for backgrounds, scrims and focus rings. Nothing inside it overlaps, so
@@ -37,156 +24,6 @@ class FlatView(context: Context) : View(context) {
     }
 }
 
-/** Layout params filling the parent, for the stacked layers of a [FrameLayout]. */
-fun fill() = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-
-/** The app's three families, loaded once. */
-object Fonts {
-    private var cache: Map<Int, Typeface> = emptyMap()
-
-    private fun get(context: Context, res: Int): Typeface =
-        cache[res] ?: context.resources.getFont(res).also { cache = cache + (res to it) }
-
-    fun title(context: Context) = get(context, R.font.fraunces_semibold)
-
-    fun body(context: Context) = get(context, R.font.hanken_regular)
-
-    fun medium(context: Context) = get(context, R.font.hanken_medium)
-
-    fun bold(context: Context) = get(context, R.font.hanken_semibold)
-
-    fun icons(context: Context) = get(context, R.font.icons)
-}
-
-/** A single-line label, ellipsized; [size] in sp. */
-fun label(context: Context, size: Float, color: Int, face: Typeface, lines: Int = 1) = TextView(context).apply {
-    textSize = size
-    setTextColor(color)
-    typeface = face
-    includeFontPadding = false
-    maxLines = lines
-    ellipsize = TextUtils.TruncateAt.END
-}
-
-/** A Font Awesome glyph, centered in its box. */
-fun icon(context: Context, glyph: String, size: Float, color: Int) = TextView(context).apply {
-    text = glyph
-    textSize = size
-    setTextColor(color)
-    typeface = Fonts.icons(context)
-    includeFontPadding = false
-    gravity = Gravity.CENTER
-}
-
-fun rounded(color: Int, radius: Float) = GradientDrawable().apply {
-    setColor(color)
-    cornerRadius = radius
-}
-
-/** Font Awesome 6 solid code points. */
-object Icon {
-    const val SEARCH = "\uf002"
-    const val HOME = "\uf015"
-    const val HEART = "\uf004"
-    const val DISCOVER = "\uf00e"
-    const val FILM = "\uf008"
-    const val TV = "\uf26c"
-    const val FOLDER = "\uf07c"
-    const val GEAR = "\uf013"
-    const val PLAY = "\uf04b"
-    const val PLUS = "\u002b"
-    const val LOCK = "\uf023"
-    const val PEN = "\uf304"
-    const val KEY = "\uf084"
-    const val BACK = "\uf060"
-    const val NEXT = "\uf054"
-    const val CHECK = "\uf00c"
-    const val XMARK = "\uf00d"
-    const val TRASH = "\uf1f8"
-    const val PAUSE = "\uf04c"
-    const val SUBTITLES = "\uf20a"
-    const val AUDIO = "\uf028"
-    const val REWIND = "\uf2ea"
-    const val FORWARD = "\uf2f9"
-    const val NEXT_TRACK = "\uf051"
-    const val SKIP = "\uf04e"
-}
-
-/** Text filled with a top-to-bottom gradient, like the "TV" of the brand. */
-class GradientLabel(context: Context, private val top: Int, private val bottom: Int) : TextView(context) {
-    init {
-        includeFontPadding = false
-        maxLines = 1
-        // Opaque: the shader is drawn at the paint's alpha, and the theme's text colour is translucent
-        setTextColor(0xFFFFFFFF.toInt())
-    }
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        paint.shader = LinearGradient(0f, 0f, 0f, h.toFloat(), top, bottom, Shader.TileMode.CLAMP)
-    }
-}
-
-/** True when [this] sits somewhere under [ancestor]. */
-fun View.isWithin(ancestor: View): Boolean {
-    var parent = parent
-    while (parent != null) {
-        if (parent === ancestor) return true
-        parent = parent.parent
-    }
-    return false
-}
-
-/**
- * Lets children draw past this view's bounds and padding. Focused things grow by a few percent
- * and draw their ring near their edge; every container that holds them calls this, so no ring
- * is ever cut.
- */
-fun <T : ViewGroup> T.noClip(): T = apply {
-    clipChildren = false
-    clipToPadding = false
-}
-
-/** Anything a [FocusRow] holds: cards, cast, seasons. The key brings focus back to the same thing after a reload. */
-interface RowItem {
-    val key: String
-}
-
-/**
- * Listens to focus moves anywhere in the window while this view is attached. The window's
- * observer outlives screens, so the listener is removed on detach instead of leaking with it.
- */
-fun View.whileAttachedOnFocusChange(listener: (View?) -> Unit) {
-    val global = ViewTreeObserver.OnGlobalFocusChangeListener { _, now -> listener(now) }
-    addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-        override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalFocusChangeListener(global)
-        override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalFocusChangeListener(global)
-    })
-}
-
-/**
- * Holds focus while a container swaps its children. Removing the focused view makes Android
- * hand focus to the first focusable it finds (and every view added after that may take it), so
- * a rebuild parks focus here, then puts it back on the right card. Never reachable with the D-pad.
- */
-class FocusParking(context: Context) : View(context) {
-    init {
-        isFocusable = false
-    }
-
-    /** Runs [rebuild] with focus parked if [parked] (the container had focus), then lets [restore] place it. */
-    fun around(parked: Boolean, rebuild: () -> Unit, restore: () -> Unit) {
-        if (parked) {
-            isFocusable = true
-            requestFocus()
-        }
-        rebuild()
-        if (parked) {
-            restore()
-            isFocusable = false
-        }
-    }
-}
 
 /**
  * A row with one view in its exact middle and two groups beside it: [start] ends a gap before
@@ -219,4 +56,9 @@ class CenteredRow(context: Context, private val start: View, private val middle:
         place(start, middle.left - gap - start.measuredWidth)
         place(end, middle.right + gap)
     }
+}
+
+/** A row or column of labels that never overlap, so fading it needs no offscreen layer. */
+internal class FlatLinearLayout(context: Context) : LinearLayout(context) {
+    override fun hasOverlappingRendering() = false
 }

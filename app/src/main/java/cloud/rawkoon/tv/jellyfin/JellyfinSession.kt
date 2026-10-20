@@ -10,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
@@ -19,10 +18,7 @@ import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.playStateApi
-import org.jellyfin.sdk.api.client.extensions.quickConnectApi
-import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
-import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.createJellyfin
@@ -31,7 +27,6 @@ import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaType
-import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
@@ -49,31 +44,6 @@ object JellyfinSdk {
         // The SDK's own device id: the first RawkoonTV used it too, so its sessions stay valid.
         deviceInfo = androidDevice(context.applicationContext)
     }.also { instance = it }
-}
-
-/** A Jellyfin account a sign-in just produced, ready to become a profile. */
-data class SignedInUser(val url: String, val userId: String, val name: String, val token: String, val avatarTag: String?)
-
-/** Signs in to the Jellyfin server at [url] with Quick Connect, once [approve] has had the code approved. */
-suspend fun quickConnect(context: Context, url: String, approve: suspend (code: String) -> Unit): SignedInUser {
-    val api = JellyfinSdk.get(context).createApi(url.trimEnd('/'))
-    // Fails fast with a clear error when the server is unreachable or not Jellyfin
-    api.systemApi.getPublicSystemInfo()
-    var state = api.quickConnectApi.initiateQuickConnect().content
-    approve(state.code)
-    while (!state.authenticated) {
-        delay(1_000)
-        state = api.quickConnectApi.getQuickConnectState(secret = state.secret).content
-    }
-    val result = api.userApi.authenticateWithQuickConnect(QuickConnectDto(secret = state.secret)).content
-    val user = checkNotNull(result.user)
-    return SignedInUser(
-        url = url.trimEnd('/'),
-        userId = user.id.toString().replace("-", ""),
-        name = user.name.orEmpty(),
-        token = checkNotNull(result.accessToken),
-        avatarTag = user.primaryImageTag,
-    )
 }
 
 /** One profile's connection to its Jellyfin server. */
@@ -204,7 +174,6 @@ class JellyfinSession(context: Context, val profile: Profile) {
         }
     }
 }
-
 
 /** True when the server answered 401: the session ended, so retrying can't help. */
 fun Exception.isSessionEnded() = this is InvalidStatusException && status == 401

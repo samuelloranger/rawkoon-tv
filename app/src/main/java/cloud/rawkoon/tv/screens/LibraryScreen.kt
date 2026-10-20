@@ -1,6 +1,5 @@
 package cloud.rawkoon.tv.screens
 
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -16,8 +15,6 @@ import cloud.rawkoon.tv.jellyfin.LibrarySort
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.PagedItems
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
-import cloud.rawkoon.tv.jellyfin.libraryLetterIndex
-import cloud.rawkoon.tv.jellyfin.libraryPage
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -32,11 +29,6 @@ import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 /**
@@ -76,13 +68,6 @@ class LibraryScreen(
         gravity = Gravity.CENTER_VERTICAL
     }.noClip()
     private var dialog: ChoiceDialog? = null
-    private var query = LibraryQuery()
-    private var loading: Job? = null
-    private var jumping: Job? = null
-    private var refreshing: Job? = null
-
-    /** The page fetches on their way, by page; a restarted grid has no use for them. */
-    private val pageJobs = HashMap<Int, Job>()
     private var layoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     private var focusWhenLoaded = false
     private var backdropUrl: String? = null
@@ -95,6 +80,44 @@ class LibraryScreen(
         parentId == null -> listOf(BaseItemKind.BOX_SET)
         else -> listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
     }
+
+    private val host = object : LibraryLoader.Host {
+        override fun restarted(jumping: Boolean) {
+            if (message.hasFocus()) focusWhenLoaded = true
+            // A restarted grid is no longer at a letter
+            if (!jumping) letters.active = null
+            message.hide()
+            grid.reset()
+            count.text = ""
+        }
+
+        override fun firstPageLoaded(total: Int, jumpIndex: Int?) {
+            grid.pageLoaded(0, firstLoad = true)
+            count.text = context.resources.getQuantityString(R.plurals.library_count, total, total)
+            if (total == 0) {
+                showMessage(string(if (loader.query.filter == LibraryFilter.ALL) R.string.library_empty else R.string.library_empty_filtered), retry = true)
+                return
+            }
+            if (jumpIndex != null) grid.jumpTo(jumpIndex.coerceAtMost(total - 1))
+            if (focusWhenLoaded) focusGridWhenLaidOut()
+        }
+
+        override fun pageFetched(page: Int) {
+            grid.pageLoaded(page, firstLoad = false)
+            if (grid.hasFocus()) showBackdropOf(grid.lastPosition)
+        }
+
+        override fun pageRefreshed(page: Int) = grid.pageLoaded(page, firstLoad = false)
+
+        override fun loadFailed(e: Exception) {
+            val expired = e.isSessionEnded()
+            showMessage(string(if (expired) R.string.error_session else R.string.library_error), retry = !expired)
+        }
+
+        override fun jumpTo(index: Int) = grid.jumpTo(index)
+    }
+
+    private val loader: LibraryLoader = LibraryLoader(scope, session, paged, types, parentId, host)
 
     init {
         backdrop.strength = 0.5f
@@ -122,7 +145,7 @@ class LibraryScreen(
 
         grid.onFocused = ::showBackdropOf
         grid.onOpen = ::open
-        grid.onPages = ::fetch
+        grid.onPages = loader::fetch
         grid.onLeftEdge = { rail.activeItem() }
         grid.onTopEdge = { sortButton }
         grid.onRightEdge = { letters }
@@ -130,37 +153,17 @@ class LibraryScreen(
         sortButton.setOnClickListener { showSortChoices() }
         filterButton.setOnClickListener { showFilterChoices() }
         paintButtons()
-        reload()
+        loader.reload()
     }
 
     private fun paintButtons() {
-        sortButton.label.text = string(R.string.library_sort_button, string(sortLabel(query.sort)))
-        filterButton.label.text = string(R.string.library_filter_button, string(filterLabel(query.filter)))
+        sortButton.label.text = string(R.string.library_sort_button, string(sortLabel(loader.query.sort)))
+        filterButton.label.text = string(R.string.library_filter_button, string(filterLabel(loader.query.filter)))
     }
 
-    private fun sortLabel(sort: LibrarySort) = when (sort) {
-        LibrarySort.ADDED -> R.string.library_sort_added
-        LibrarySort.TITLE -> R.string.library_sort_title
-        LibrarySort.YEAR -> R.string.library_sort_year
-        LibrarySort.RATING -> R.string.library_sort_rating
-    }
+    private fun showSortChoices() = present(sortDialog(context, loader.query, ::apply))
 
-    private fun filterLabel(filter: LibraryFilter) = when (filter) {
-        LibraryFilter.ALL -> R.string.library_filter_all
-        LibraryFilter.UNWATCHED -> R.string.library_filter_unwatched
-        LibraryFilter.FAVORITES -> R.string.library_filter_favorites
-    }
-
-    private fun showSortChoices() {
-        val choices = LibrarySort.entries.map { sort -> string(sortLabel(sort)) to { apply(query.copy(sort = sort)) } } +
-            (string(if (query.reverse) R.string.library_reverse_on else R.string.library_reverse_off) to { apply(query.copy(reverse = !query.reverse)) })
-        present(ChoiceDialog(context, string(R.string.library_sort_dialog), choices))
-    }
-
-    private fun showFilterChoices() {
-        val choices = LibraryFilter.entries.map { filter -> string(filterLabel(filter)) to { apply(query.copy(filter = filter)) } }
-        present(ChoiceDialog(context, string(R.string.library_filter_dialog), choices))
-    }
+    private fun showFilterChoices() = present(filterDialog(context, loader.query, ::apply))
 
     private fun present(choices: ChoiceDialog) {
         dialog = choices
@@ -169,103 +172,26 @@ class LibraryScreen(
 
     /** Applies a new sort or filter: the grid starts over from the first title. */
     private fun apply(next: LibraryQuery) {
-        if (next == query) return
-        query = next
+        if (next == loader.query) return
+        loader.query = next
         paintButtons()
-        reload()
-    }
-
-    /**
-     * Fetches the first page and starts the grid over. With [jump], also asks where that letter
-     * is and scrolls there; the pages around it are fetched as its posters are shown.
-     */
-    private fun reload(jump: Char? = null) {
-        loading?.cancel()
-        refreshing?.cancel()
-        // The pages on their way belong to the grid being replaced
-        pageJobs.values.forEach { it.cancel() }
-        pageJobs.clear()
-        if (message.hasFocus()) focusWhenLoaded = true
-        jumping?.cancel()
-        // A restarted grid is no longer at a letter
-        if (jump == null) letters.active = null
-        message.hide()
-        val gen = paged.begin()
-        grid.reset()
-        count.text = ""
-        loading = scope.launch {
-            try {
-                val (first, index) = coroutineScope {
-                    val page = async { session.libraryPage(types, parentId, query, 0, paged.pageSize) }
-                    val at = jump?.let { letter -> async { session.libraryLetterIndex(types, parentId, query, letter) } }
-                    page.await() to (at?.await() ?: 0)
-                }
-                if (!paged.put(gen, 0, first.items, first.total)) return@launch
-                grid.pageLoaded(0, firstLoad = true)
-                count.text = context.resources.getQuantityString(R.plurals.library_count, first.total, first.total)
-                if (first.total == 0) {
-                    showMessage(string(if (query.filter == LibraryFilter.ALL) R.string.library_empty else R.string.library_empty_filtered), retry = true)
-                    return@launch
-                }
-                if (jump != null) grid.jumpTo(index.coerceAtMost(first.total - 1))
-                if (focusWhenLoaded) focusGridWhenLaidOut()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val expired = e.isSessionEnded()
-                showMessage(string(if (expired) R.string.error_session else R.string.library_error), retry = !expired)
-            }
-        }
-    }
-
-    /** Fetches [pages] of the current grid; a failed page is asked for again the next time focus nears it. */
-    private fun fetch(pages: List<Int>) {
-        val gen = paged.generation
-        for (page in pages) {
-            val job = scope.launch {
-                try {
-                    val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
-                    if (paged.put(gen, page, result.items, result.total)) {
-                        grid.pageLoaded(page, firstLoad = false)
-                        if (grid.hasFocus()) showBackdropOf(grid.lastPosition)
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    paged.release(gen, page)
-                }
-            }
-            pageJobs[page] = job
-            job.invokeOnCompletion { pageJobs.remove(page, job) }
-        }
+        loader.reload()
     }
 
     /** The A to Z column picked [letter]: the grid is sorted by title first if it was not. */
     private fun jumpToLetter(letter: Char) {
         letters.active = letter
-        if (query.sort != LibrarySort.TITLE) {
-            query = query.copy(sort = LibrarySort.TITLE)
+        if (loader.query.sort != LibrarySort.TITLE) {
+            loader.query = loader.query.copy(sort = LibrarySort.TITLE)
             paintButtons()
-            reload(jump = letter)
+            loader.reload(jump = letter)
             return
         }
-        val gen = paged.generation
-        jumping?.cancel()
-        jumping = scope.launch {
-            try {
-                val index = session.libraryLetterIndex(types, parentId, query, letter)
-                if (gen == paged.generation && paged.total > 0) grid.jumpTo(index.coerceAtMost(paged.total - 1))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // The grid stays where it is; picking the letter again retries
-                Log.w(TAG, "letter jump failed", e)
-            }
-        }
+        loader.jumpTo(letter)
     }
 
     private fun showMessage(text: String, retry: Boolean) {
-        message.show(text, messageAction(if (retry) ({ reload() }) else null), takeFocus = focusWhenLoaded)
+        message.show(text, messageAction(if (retry) ({ loader.reload() }) else null), takeFocus = focusWhenLoaded)
         focusWhenLoaded = false
     }
 
@@ -318,36 +244,7 @@ class LibraryScreen(
         return true
     }
 
-    /**
-     * Coming back to the page: the posters around focus are fetched again so watched marks are
-     * current, without moving anything. The rest are dropped and refetched if scrolled to. If the
-     * library's size changed meanwhile, the grid starts over.
-     */
-    private fun refresh() {
-        if (message.visibility == View.VISIBLE) return reload()
-        if (loading?.isActive == true || paged.total == 0) return
-        val gen = paged.generation
-        val first = (grid.lastPosition - PosterGrid.PREFETCH).coerceAtLeast(0) / paged.pageSize
-        val last = (grid.lastPosition + PosterGrid.PREFETCH).coerceAtMost(paged.total - 1) / paged.pageSize
-        paged.keepOnly((first..last).toSet())
-        refreshing?.cancel()
-        refreshing = scope.launch {
-            for (page in first..last) {
-                launch {
-                    try {
-                        val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
-                        if (gen != paged.generation) return@launch
-                        if (result.total != paged.total) return@launch reload()
-                        if (paged.put(gen, page, result.items, result.total)) grid.pageLoaded(page, firstLoad = false)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        // The posters on screen stay as they were
-                    }
-                }
-            }
-        }
-    }
+    private fun refresh() = loader.refresh(grid.lastPosition, PosterGrid.PREFETCH, message.visibility == View.VISIBLE)
 
     override fun onShown(first: Boolean) {
         super.onShown(first)
@@ -378,7 +275,6 @@ class LibraryScreen(
     }
 
     private companion object {
-        const val TAG = "LibraryScreen"
         const val BAR_TOP = 26
         const val GRID_TOP = 84
 
