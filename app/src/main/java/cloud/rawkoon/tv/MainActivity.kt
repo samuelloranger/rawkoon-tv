@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaWords
@@ -114,6 +115,7 @@ class MainActivity : Activity() {
         // of them reloads on the way out
         val dropped = ArrayList<Screen>()
         while (stack.last() !== target) dropped += stack.removeAt(stack.lastIndex)
+        hideKeyboard()
         target.view.visibility = View.VISIBLE
         target.view.alpha = 1f
         target.onShown(first = false)
@@ -130,13 +132,20 @@ class MainActivity : Activity() {
         val below = stack.last()
         // The page below takes focus back before the top one goes: removing a focused view first
         // would hand focus to whatever Android finds, and that can start things (a season tab loads)
+        hideKeyboard()
         below.view.visibility = View.VISIBLE
         below.view.alpha = 1f
         below.onShown(first = false)
         remove(top)
     }
 
+    /** A keyboard opened on the screen being left would otherwise stay up over the next one. */
+    private fun hideKeyboard() {
+        getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(root.windowToken, 0)
+    }
+
     private fun show(view: View) {
+        hideKeyboard()
         if (view.parent == null) root.addView(view, fill())
         view.visibility = View.VISIBLE
         view.alpha = 0f
