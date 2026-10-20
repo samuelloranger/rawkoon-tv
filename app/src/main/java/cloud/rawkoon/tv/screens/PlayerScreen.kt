@@ -116,12 +116,12 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private var countdown = 0
 
     private val hideChrome = Runnable { setChrome(false) }
-    private val tick = object : Runnable {
-        override fun run() {
-            updateProgress()
-            main.postDelayed(this, TICK_MS)
-        }
+    private val tick = Runnable {
+        updateProgress()
+        scheduleTick()
     }
+    private var shownElapsed = -1L
+    private var shownRemaining = -1L
     private val report = object : Runnable {
         override fun run() {
             reportProgress()
@@ -226,7 +226,6 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         upNext.setOnClickListener { playNext() }
         seekBar.setOnKeyListener { _, keyCode, event -> onSeekBarKey(keyCode, event) }
         seekBar.setOnFocusChangeListener { _, focused ->
-            seekBar.invalidate()
             if (!focused) main.post { if (seekBar.scrubMs != null && !seekBar.isFocused) commitScrub() }
         }
     }
@@ -242,6 +241,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         item = target
         app.lastPlayed = target
         started = false
+        shownElapsed = -1
+        shownRemaining = -1
         showTitle(target)
         skip.visibility = View.GONE
         upNext.visibility = View.GONE
@@ -253,7 +254,10 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 stream = s
                 player.load(s, startMs)
                 nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
-                launch { segments = service.segments(target.id) }
+                launch {
+                    segments = service.segments(target.id)
+                    scheduleTick()
+                }
                 launch { trickplay = service.trickplay(target.id, s.mediaSourceId, context.dp(THUMB_W)) }
                 launch { next = if (target.isEpisode) service.nextEpisode(target) else null }
             } catch (e: CancellationException) {
@@ -299,7 +303,12 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             playPause.setGlyph(if (isPlaying) Icon.PAUSE else Icon.PLAY)
+            scheduleTick()
             if (!isPlaying && player.exo.playbackState == Player.STATE_READY) setChrome(true, autoHide = false) else if (isPlaying) scheduleHide()
+        }
+
+        override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+            scheduleTick()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -322,22 +331,49 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     // --- Progress, segments, end ---------------------------------------------------------------
 
+    /** Brings the bar and the times up to date while the controls show; the skip button follows the position either way. */
     private fun updateProgress() {
         val exo = player.exo
-        val duration = exo.duration.takeIf { it > 0 } ?: stream?.durationMs ?: 0L
         val position = exo.currentPosition
-        seekBar.durationMs = duration
-        seekBar.positionMs = position
-        seekBar.bufferedMs = exo.bufferedPosition
-        seekBar.invalidate()
-        elapsed.text = time(seekBar.scrubMs ?: position)
-        remaining.text = string(R.string.time_remaining, time((duration - (seekBar.scrubMs ?: position)).coerceAtLeast(0)))
+        if (chromeShown) {
+            val duration = exo.duration.takeIf { it > 0 } ?: stream?.durationMs ?: 0L
+            seekBar.update(duration, position, exo.bufferedPosition)
+            val at = seekBar.scrubMs ?: position
+            // The texts only change when the second they show does
+            if (at / 1000 != shownElapsed) {
+                shownElapsed = at / 1000
+                elapsed.text = time(at)
+            }
+            val left = (duration - at).coerceAtLeast(0)
+            if (left / 1000 != shownRemaining) {
+                shownRemaining = left / 1000
+                remaining.text = string(R.string.time_remaining, time(left))
+            }
+        }
         updateSegment(position)
     }
 
+    /**
+     * Schedules the next [updateProgress]: often while the controls show a playing film, and with
+     * them hidden only when a segment starts or ends. Nothing runs while paused or buffering; the
+     * player's callbacks start it again.
+     */
+    private fun scheduleTick() {
+        main.removeCallbacks(tick)
+        val exo = player.exo
+        if (!exo.isPlaying) return
+        val delay = if (chromeShown) TICK_MS else nextSegmentEdge(exo.currentPosition) ?: return
+        main.postDelayed(tick, delay)
+    }
+
+    /** Milliseconds until the skip button should next appear or go, or null when no segment is ahead. */
+    private fun nextSegmentEdge(position: Long): Long? =
+        segments.flatMap { listOf(it.startMs, it.endMs - SEGMENT_END_MARGIN_MS) }.filter { it > position }.minOrNull()
+            ?.let { (it - position).coerceIn(TICK_MS, MAX_IDLE_TICK_MS) }
+
     /** Shows the skip button while inside an intro, recap, preview or the credits. */
     private fun updateSegment(position: Long) {
-        val segment = segments.firstOrNull { position >= it.startMs && position < it.endMs - 1_000 }
+        val segment = segments.firstOrNull { position >= it.startMs && position < it.endMs - SEGMENT_END_MARGIN_MS }
         if (segment == activeSegment) return
         activeSegment = segment
         if (segment == null || upNext.visibility == View.VISIBLE) {
@@ -387,6 +423,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         val target = next ?: return
         main.removeCallbacks(countdownStep)
         stopStream(player.exo.currentPosition)
+        trickplayLoader.clear()
+        thumb.setImageDrawable(null)
         next = null
         segments = emptyList()
         trickplay = null
@@ -416,25 +454,28 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     // --- Chrome --------------------------------------------------------------------------------
 
     private fun setChrome(show: Boolean, autoHide: Boolean = true) {
+        val changed = show != chromeShown
         chromeShown = show
-        // Subtitles rise above the controls while they show
-        surface.subtitleView?.setBottomPaddingFraction(if (show) 0.27f else 0.08f)
-        chrome.animate().cancel()
-        chrome.animate().alpha(if (show) 1f else 0f).setDuration(if (show) 160 else 260).start()
-        chrome.descendantFocusability = if (show) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        main.removeCallbacks(tick)
+        if (changed) {
+            // Subtitles rise above the controls while they show
+            surface.subtitleView?.setBottomPaddingFraction(if (show) 0.27f else 0.08f)
+            chrome.animate().cancel()
+            // A layer during the fade: the alpha then applies to one texture, not to a buffer drawn every frame
+            chrome.animate().alpha(if (show) 1f else 0f).setDuration(if (show) 160 else 260).withLayer().start()
+            chrome.descendantFocusability = if (show) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        }
         if (show) {
             updateProgress()
-            main.post(tick)
-            if (!chrome.hasFocus() && !skip.hasFocus() && !upNext.hasFocus()) playPause.requestFocus()
+            // An open track dialog keeps the focus
+            if (dialog?.isAttachedToWindow != true && !chrome.hasFocus() && !skip.hasFocus() && !upNext.hasFocus()) playPause.requestFocus()
             if (autoHide) scheduleHide() else main.removeCallbacks(hideChrome)
         } else {
             main.removeCallbacks(hideChrome)
             thumbFrame.visibility = View.INVISIBLE
             // With the controls hidden, the skip button keeps focus when it is up; otherwise nothing has it
             if (skip.visibility == View.VISIBLE) skip.requestFocus() else view.requestFocus()
-            main.post(tick)
         }
+        scheduleTick()
     }
 
     private fun scheduleHide() {
@@ -512,6 +553,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         main.removeCallbacks(commitScrub)
         val target = seekBar.scrubMs ?: return
         seekBar.scrubMs = null
+        trickplayLoader.clear()
+        thumb.setImageDrawable(null)
         player.exo.seekTo(target)
         thumbFrame.visibility = View.INVISIBLE
         updateProgress()
@@ -617,6 +660,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         }
         if (seekBar.scrubMs != null) {
             seekBar.scrubMs = null
+            trickplayLoader.clear()
+            thumb.setImageDrawable(null)
             thumbFrame.visibility = View.INVISIBLE
             updateProgress()
             return true
@@ -670,6 +715,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     private companion object {
         const val TICK_MS = 250L
+        const val MAX_IDLE_TICK_MS = 5_000L
+        const val SEGMENT_END_MARGIN_MS = 1_000L
         const val REPORT_MS = 10_000L
         const val HIDE_MS = 4_000L
         const val SCRUB_COMMIT_MS = 900L
