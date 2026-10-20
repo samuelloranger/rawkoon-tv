@@ -3,12 +3,18 @@ package cloud.rawkoon.tv
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.FrameLayout
+import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaWords
+import cloud.rawkoon.tv.launcher.LauncherLink
+import cloud.rawkoon.tv.screens.HomeScreen
+import cloud.rawkoon.tv.screens.PinScreen
 import cloud.rawkoon.tv.screens.ProfilesScreen
+import cloud.rawkoon.tv.screens.linkPage
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.fill
 
@@ -34,6 +40,39 @@ class MainActivity : Activity() {
         setContentView(root)
         // "Who's watching?" on every launch
         push(ProfilesScreen(this))
+        // A recreation (language change) keeps the intent: only a real launch opens its card
+        if (savedInstanceState == null) openLink(LauncherLink.from(intent))
+    }
+
+    /** A launcher card tapped while the app runs; any other intent leaves the screens as they are. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val link = LauncherLink.from(intent) ?: return
+        // Start from "Who's watching?" again, so a PIN or the home never lands on a stale stack
+        resetTo(ProfilesScreen(this))
+        openLink(link)
+    }
+
+    /**
+     * Opens a launcher card's page on top of its profile's home: straight away, or after the PIN
+     * for a profile that has one. "Who's watching?" stays below it, and a profile that is gone
+     * leaves the normal launch.
+     */
+    private fun openLink(link: LauncherLink?) {
+        val profile = app.profiles.get(link?.profileId ?: return) ?: return
+        if (profile.hasPin) {
+            push(PinScreen(this, PinScreen.Mode.Verify(profile)) { enter(profile, link) })
+        } else {
+            enter(profile, link)
+        }
+    }
+
+    private fun enter(profile: Profile, link: LauncherLink) {
+        app.profiles.markUsed(profile.id)
+        val home = HomeScreen(this, app.profiles.get(profile.id) ?: profile)
+        resetTo(ProfilesScreen(this), home)
+        push(linkPage(this, home.session, link))
     }
 
     fun push(screen: Screen) {
