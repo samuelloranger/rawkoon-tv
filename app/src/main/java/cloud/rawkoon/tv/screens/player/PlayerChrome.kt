@@ -99,6 +99,8 @@ class PlayerChrome(
     private val hide = Runnable { setChrome(false) }
 
     init {
+        // The controls start up: the subtitles sit above them from the first frame
+        surface.subtitleView?.setBottomPaddingFraction(0.27f)
         build()
         root.addView(overlay, fill())
         root.addView(spinner, FrameLayout.LayoutParams(context.dp(48), context.dp(48), Gravity.CENTER))

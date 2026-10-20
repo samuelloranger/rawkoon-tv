@@ -102,6 +102,7 @@ class SegmentSkipper(
 
     /** Hides both buttons, for a new item. */
     fun hide() {
+        activeSegment = null
         skip.visibility = View.GONE
         upNext.visibility = View.GONE
     }

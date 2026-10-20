@@ -120,6 +120,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
                 launch {
                     skipper.segments = service.segments(target.id)
+                    // The playhead may already be inside a segment (resuming, a slow server)
+                    skipper.update(player.exo.currentPosition)
                     scheduleTick()
                 }
                 launch { scrub.trickplay = service.trickplay(target.id, s.mediaSourceId, context.dp(PlayerChrome.THUMB_W)) }
@@ -160,6 +162,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             // A file the TV can't play after all: ask Jellyfin for a transcode, once
             if (s != null && s.method == PlayMethod.DIRECT_PLAY && !triedTranscode) {
                 triedTranscode = true
+                reporter.stop(player.exo.currentPosition)
                 start(item, player.exo.currentPosition, s.audioIndex, s.subtitleIndex, direct = false)
                 return
             }
