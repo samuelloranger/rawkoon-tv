@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.screens
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -252,6 +253,7 @@ class LibraryScreen(
                 throw e
             } catch (e: Exception) {
                 // The grid stays where it is; picking the letter again retries
+                Log.w(TAG, "letter jump failed", e)
             }
         }
     }
@@ -370,6 +372,7 @@ class LibraryScreen(
     }
 
     private companion object {
+        const val TAG = "LibraryScreen"
         const val BAR_TOP = 26
         const val GRID_TOP = 84
     }

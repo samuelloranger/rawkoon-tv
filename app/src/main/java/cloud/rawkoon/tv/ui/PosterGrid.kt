@@ -45,9 +45,28 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     var lastPosition = 0
         private set
 
+    /** Set by [jumpTo] until the next layout places that row: the re-anchoring below must not undo it. */
+    private var jumpPending = false
+
     private val manager = object : GridLayoutManager(context, SPAN) {
         // The glide below keeps the focused row in place; the stock scroll would fight it
         override fun requestChildRectangleOnScreen(parent: RecyclerView, child: View, rect: Rect, immediate: Boolean, focusedChildVisible: Boolean) = false
+
+        /**
+         * With clipToPadding off (the ring's room above the top row), the stock anchor can be the row
+         * laid out above the padding, and every layout (each page of posters that lands is one) then
+         * slides the grid up a row. Pinning the anchor to the first row that reaches below the top
+         * padding keeps the grid where it is.
+         */
+        override fun onLayoutChildren(recycler: Recycler, state: State) {
+            if (jumpPending) {
+                jumpPending = false
+            } else if (!state.isPreLayout && childCount > 0) {
+                val first = (0 until childCount).mapNotNull { getChildAt(it) }.firstOrNull { getDecoratedBottom(it) > paddingTop }
+                if (first != null) scrollToPositionWithOffset(getPosition(first), getDecoratedTop(first) - paddingTop)
+            }
+            super.onLayoutChildren(recycler, state)
+        }
     }
 
     private val posters = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -86,6 +105,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     fun reset() {
         stopScroll()
         lastPosition = 0
+        jumpPending = true
         posters.notifyDataSetChanged()
         manager.scrollToPositionWithOffset(0, 0)
     }
@@ -94,6 +114,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     fun jumpTo(position: Int) {
         stopScroll()
         lastPosition = position
+        jumpPending = true
         // The manager adds the start padding itself
         manager.scrollToPositionWithOffset(position, 0)
     }

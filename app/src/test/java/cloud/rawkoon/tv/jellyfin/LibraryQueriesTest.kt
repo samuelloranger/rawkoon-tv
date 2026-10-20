@@ -44,10 +44,10 @@ class LibraryQueriesTest {
 
     @Test
     fun `a letter is the count of titles before it, counted from the other end when reversed`() {
-        assertEquals(NameBound(lessThan = "M"), letterBound('M', descending = false))
+        assertEquals(NameBound(lessThan = "m"), letterBound('M', descending = false))
         assertNull(letterBound('#', descending = false))
-        assertEquals(NameBound(orGreater = "N"), letterBound('M', descending = true))
-        assertEquals(NameBound(orGreater = "A"), letterBound('#', descending = true))
+        assertEquals(NameBound(orGreater = "n"), letterBound('M', descending = true))
+        assertEquals(NameBound(orGreater = "a"), letterBound('#', descending = true))
         // Reversed, Z leads the grid
         assertNull(letterBound('Z', descending = true))
     }

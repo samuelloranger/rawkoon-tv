@@ -36,7 +36,10 @@ data class LibraryQuery(val sort: LibrarySort = LibrarySort.ADDED, val reverse: 
 /** One page of a library, with the number of titles in all of it. */
 data class LibraryPage(val items: List<MediaItem>, val total: Int)
 
-/** A bound on the sort name, as the server filters it (case-insensitive, on the name articles are stripped from). */
+/**
+ * A bound on the sort name, as the server filters it: an ordinal comparison on the sort name, which
+ * Jellyfin stores lowercased with articles stripped, so bounds are lowercase too.
+ */
 data class NameBound(val lessThan: String? = null, val orGreater: String? = null)
 
 /**
@@ -45,11 +48,11 @@ data class NameBound(val lessThan: String? = null, val orGreater: String? = null
  * those titles is the position of the letter: no need to page through the library to find it.
  */
 fun letterBound(letter: Char, descending: Boolean): NameBound? = when {
-    letter == '#' -> if (descending) NameBound(orGreater = "A") else null
+    letter == '#' -> if (descending) NameBound(orGreater = "a") else null
     // Z ends the alphabet: reversed, its titles come first
     descending && letter == 'Z' -> null
-    descending -> NameBound(orGreater = (letter + 1).toString())
-    else -> NameBound(lessThan = letter.toString())
+    descending -> NameBound(orGreater = (letter + 1).lowercase())
+    else -> NameBound(lessThan = letter.lowercase())
 }
 
 internal fun libraryRequest(
