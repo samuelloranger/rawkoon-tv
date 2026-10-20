@@ -16,6 +16,24 @@ class DisplayModeChoiceTest {
     }
 
     @Test
+    fun `a rounded film rate still finds the film mode`() {
+        val modes = listOf(current, mode(2, 23.976f))
+        assertEquals(2, pickDisplayMode(modes, current, 23.98f, matchResolution = false)?.id)
+        assertEquals(2, pickDisplayMode(modes, current, 24f, matchResolution = false)?.id)
+    }
+
+    @Test
+    fun `24 fps prefers 24 hertz over 23_976`() {
+        val modes = listOf(current, mode(2, 23.976f), mode(3, 24f))
+        assertEquals(3, pickDisplayMode(modes, current, 24f, matchResolution = false)?.id)
+    }
+
+    @Test
+    fun `29_97 fps does not take 60 hertz`() {
+        assertNull(pickDisplayMode(listOf(mode(1, 60f)), current, 29.97f, matchResolution = false))
+    }
+
+    @Test
     fun `25 fps picks 50 hertz`() {
         val modes = listOf(current, mode(2, 50f), mode(3, 24f))
         assertEquals(2, pickDisplayMode(modes, current, 25f, matchResolution = false)?.id)

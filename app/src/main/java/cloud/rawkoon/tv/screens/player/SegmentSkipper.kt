@@ -35,6 +35,9 @@ class SegmentSkipper(
 
     /** The segments the player already skipped by itself, so seeking back into one shows the button. */
     private val autoSkipped = mutableSetOf<Segment>()
+
+    /** The credits that brought the up-next button up before the end, if they did. */
+    private var upNextCredits: Segment? = null
     private var countdown = 0
     private val countdownStep = object : Runnable {
         override fun run() {
@@ -56,6 +59,14 @@ class SegmentSkipper(
 
     /** Acts on the segment [position] is inside, if any: shows the skip button, skips it, or moves on to the next episode. */
     fun update(position: Long) {
+        // Seeking back from the credits that brought up the next episode: this one isn't over after all
+        upNextCredits?.let { credits ->
+            if (position < credits.startMs) {
+                upNextCredits = null
+                stopCountdown()
+                upNext.visibility = View.GONE
+            }
+        }
         val segment = segments.firstOrNull { position >= it.startMs && position < it.endMs - END_MARGIN_MS && settings.modeFor(it.type) != SkipMode.NONE }
         if (segment == activeSegment) return
         activeSegment = segment
@@ -75,6 +86,7 @@ class SegmentSkipper(
                 autoSkipped += segment
                 hideButton()
                 showUpNext()
+                upNextCredits = segment
             }
             SkipAction.SHOW_BUTTON -> {
                 skip.label.text = context.getString(
@@ -153,6 +165,8 @@ class SegmentSkipper(
 
     /** Hides both buttons, for a new item. */
     fun hide() {
+        stopCountdown()
+        upNextCredits = null
         activeSegment = null
         skip.visibility = View.GONE
         upNext.visibility = View.GONE
@@ -162,6 +176,7 @@ class SegmentSkipper(
     fun reset() {
         segments = emptyList()
         activeSegment = null
+        upNextCredits = null
         autoSkipped.clear()
     }
 

@@ -32,6 +32,7 @@ class DisplayMatcher(
     private var handled = false
     private var pausedByUs = false
     private var listener: DisplayManager.DisplayListener? = null
+    private var awaitedModeId = 0
     private val resumeAfterTimeout = Runnable { resume() }
 
     /** A new item is loading: the next video track it selects may need a switch of its own. */
@@ -71,12 +72,13 @@ class DisplayMatcher(
         if (chosen.id == current.id) return
         val window = activity.window
         if (window.attributes.preferredDisplayModeId == chosen.id) return
-        pauseForSwitch()
+        awaitedModeId = chosen.id
+        pauseForSwitch(display.displayId)
         window.attributes = window.attributes.also { it.preferredDisplayModeId = chosen.id }
     }
 
     /** Pauses until the display reports a change, or until [SWITCH_TIMEOUT_MS] have passed. */
-    private fun pauseForSwitch() {
+    private fun pauseForSwitch(displayId: Int) {
         if (exo.isPlaying || exo.playWhenReady) {
             exo.pause()
             pausedByUs = true
@@ -84,7 +86,10 @@ class DisplayMatcher(
         val changed = object : DisplayManager.DisplayListener {
             override fun onDisplayAdded(displayId: Int) {}
             override fun onDisplayRemoved(displayId: Int) {}
-            override fun onDisplayChanged(displayId: Int) = resume()
+            // Other changes (HDR, another display) can come first: only the awaited mode ends the wait
+            override fun onDisplayChanged(changedId: Int) {
+                if (changedId == displayId && display()?.mode?.modeId == awaitedModeId) resume()
+            }
         }
         listener = changed
         displayManager.registerDisplayListener(changed, main)
@@ -105,8 +110,11 @@ class DisplayMatcher(
         listener = null
     }
 
-    /** Play or pause was pressed while the TV switched: that choice stands, so the wait doesn't resume. */
-    fun onUserPlayPause() {
+    /**
+     * Play or pause was pressed while the TV switched, or the app went to the background: the
+     * player's state now stands, so the end of the wait doesn't resume it.
+     */
+    fun dropAutoResume() {
         pausedByUs = false
     }
 

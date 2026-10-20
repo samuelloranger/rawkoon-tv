@@ -326,7 +326,6 @@ fun createDeviceProfile(
 				!supportsAV1Main10 -> ProfileConditionValue.VIDEO_PROFILE notEquals "main 10"
 				else -> ProfileConditionValue.VIDEO_PROFILE notEquals "none"
 			}
-			if (maxResolution > 0) ProfileConditionValue.HEIGHT lowerThanOrEquals maxResolution
 		}
 	}
 

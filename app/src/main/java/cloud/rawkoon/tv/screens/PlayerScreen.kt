@@ -130,14 +130,17 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
+                val nextLoad = launch { next = if (target.isEpisode) service.nextEpisode(target) else null }
                 launch {
-                    skipper.segments = service.segments(target.id)
+                    val segments = service.segments(target.id)
+                    // Credits set to skip by themselves need to know whether an episode follows
+                    nextLoad.join()
+                    skipper.segments = segments
                     // The playhead may already be inside a segment (resuming, a slow server)
                     skipper.update(player.exo.currentPosition)
                     scheduleTick()
                 }
                 launch { scrub.trickplay = service.trickplay(target.id, s.mediaSourceId, context.dp(PlayerChrome.THUMB_W)) }
-                launch { next = if (target.isEpisode) service.nextEpisode(target) else null }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -240,7 +243,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     private fun togglePause() {
-        displayMatcher.onUserPlayPause()
+        displayMatcher.dropAutoResume()
         val exo = player.exo
         if (exo.isPlaying) exo.pause() else exo.play()
     }
@@ -261,7 +264,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         when (event.keyCode) {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                 if (down && event.repeatCount == 0) {
-                    displayMatcher.onUserPlayPause()
+                    displayMatcher.dropAutoResume()
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY -> player.exo.play()
                         KeyEvent.KEYCODE_MEDIA_PAUSE -> player.exo.pause()
@@ -333,6 +336,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     /** Pausing reports itself, through the player's play-when-ready callback. */
     override fun onPause() {
+        displayMatcher.dropAutoResume()
         player.exo.pause()
     }
 
