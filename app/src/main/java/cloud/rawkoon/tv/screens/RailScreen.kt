@@ -11,6 +11,7 @@ import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.jellyfin.ImageUrls
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.Backdrop
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FlatView
@@ -57,6 +58,13 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         content.whileAttachedOnFocusChange { now -> if (now != null && isInContent(now)) lastContent = now }
         rail.onOpenChanged = { open -> dim.animate().alpha(if (open) 1f else 0f).setDuration(Tokens.DRAWER_MS).start() }
     }
+
+    /**
+     * A page left through the rail (another rail page opened) comes back to its content, not to
+     * the rail entry that led away.
+     */
+    override fun focusToRemember(focused: View): View =
+        if (focused.isWithin(rail)) contentFocus() ?: focused else focused
 
     /** Where focus goes when it leaves the rail: what the page had focused last. */
     open fun contentFocus(): View? = lastContent?.takeIf { it.isAttachedToWindow && it.isShown }

@@ -45,8 +45,11 @@ abstract class Screen(val activity: MainActivity) {
 
     fun onHidden() {
         // A screen already hidden (replaced while below another) has no focus left to remember
-        view.findFocus()?.let { lastFocus = it }
+        view.findFocus()?.let { lastFocus = focusToRemember(it) }
     }
+
+    /** What to give focus back to when the screen returns, given what had it as the screen left. */
+    protected open fun focusToRemember(focused: View): View = focused
 
     /** True when the screen handled Back itself; otherwise the stack pops it. */
     open fun onBack(): Boolean = false
