@@ -26,6 +26,8 @@ import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.playback.PlaybackService
+import cloud.rawkoon.tv.playback.SEEK_BACK_MS
+import cloud.rawkoon.tv.playback.SEEK_FORWARD_MS
 import cloud.rawkoon.tv.playback.Segment
 import cloud.rawkoon.tv.playback.Stream
 import cloud.rawkoon.tv.playback.Trickplay
@@ -216,8 +218,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
         subtitlesButton.setOnClickListener { chooseSubtitles() }
         audioButton.setOnClickListener { chooseAudio() }
-        rewind.setOnClickListener { seekBy(-10_000) }
-        forward.setOnClickListener { seekBy(30_000) }
+        rewind.setOnClickListener { seekBy(-SEEK_BACK_MS) }
+        forward.setOnClickListener { seekBy(SEEK_FORWARD_MS) }
         playPause.setOnClickListener { togglePause() }
         nextButton.setOnClickListener { playNext() }
         skip.setOnClickListener { skipSegment() }
@@ -250,10 +252,10 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 val s = service.stream(target, startMs, audio, subtitleIndex, direct = direct)
                 stream = s
                 player.load(s, startMs)
-                nextButton.visibility = if (target.kind == MediaItem.Kind.EPISODE) View.VISIBLE else View.GONE
+                nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
                 launch { segments = service.segments(target.id) }
                 launch { trickplay = service.trickplay(target.id, s.mediaSourceId, context.dp(THUMB_W)) }
-                launch { next = if (target.kind == MediaItem.Kind.EPISODE) service.nextEpisode(target) else null }
+                launch { next = if (target.isEpisode) service.nextEpisode(target) else null }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -274,7 +276,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             val h = context.dp(48)
             app.images.load("$url&maxWidth=$w", w, h, 0f, contain = true, isCurrent = { item === target }) { logo.bitmap = it }
         }
-        subtitle.text = if (target.kind == MediaItem.Kind.EPISODE) listOfNotNull(target.episodeLabel, target.title).joinToString(" — ") else target.metaLine()
+        subtitle.text = if (target.isEpisode) listOfNotNull(target.episodeLabel, target.title).joinToString(" — ") else target.metaLine()
     }
 
     private val listener = object : Player.Listener {
@@ -291,9 +293,12 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             if (state == Player.STATE_ENDED) ended()
         }
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (started) reportProgress()
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             playPause.setGlyph(if (isPlaying) Icon.PAUSE else Icon.PLAY)
-            if (started) reportProgress()
             if (!isPlaying && player.exo.playbackState == Player.STATE_READY) setChrome(true, autoHide = false) else if (isPlaying) scheduleHide()
         }
 
@@ -326,7 +331,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         seekBar.bufferedMs = exo.bufferedPosition
         seekBar.invalidate()
         elapsed.text = time(seekBar.scrubMs ?: position)
-        remaining.text = "−" + time((duration - (seekBar.scrubMs ?: position)).coerceAtLeast(0))
+        remaining.text = string(R.string.time_remaining, time((duration - (seekBar.scrubMs ?: position)).coerceAtLeast(0)))
         updateSegment(position)
     }
 
@@ -366,9 +371,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     private fun ended() {
-        val s = stream ?: return close()
-        scope.launch { service.reportStop(s, player.exo.duration.coerceAtLeast(0)) }
-        stream = null
+        if (stream == null) return close()
+        stopStream(player.exo.duration.coerceAtLeast(0))
         if (next == null) return close()
         // Up next: a short countdown, OK plays at once, Back leaves
         skip.visibility = View.GONE
@@ -382,13 +386,25 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private fun playNext() {
         val target = next ?: return
         main.removeCallbacks(countdownStep)
-        stream?.let { s -> scope.launch { service.reportStop(s, player.exo.currentPosition) } }
-        stream = null
+        stopStream(player.exo.currentPosition)
         next = null
         segments = emptyList()
         trickplay = null
         triedTranscode = false
         start(target, target.resumeMs)
+    }
+
+    /**
+     * Reports the stop of the current stream and forgets it. Every way a stream ends goes through
+     * here: the report must outlive this screen's scope (leaving the screen cancels it), and a
+     * transcode that never got to play still has to be ended on the server.
+     */
+    private fun stopStream(positionMs: Long) {
+        val s = stream ?: return
+        stream = null
+        if (started || s.method != PlayMethod.DIRECT_PLAY) {
+            app.reportScope.launch { withContext(NonCancellable) { service.reportStop(s, positionMs) } }
+        }
     }
 
     private fun reportProgress() {
@@ -517,7 +533,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     private fun choose(heading: String, options: List<Pair<Int, String>>, current: Int, pick: (Int) -> Unit) {
         main.removeCallbacks(hideChrome)
-        dialog = ChoiceDialog(context, heading, options.map { (index, label) -> (if (index == current) "✓  $label" else label) to { pick(index); scheduleHide() } })
+        dialog = ChoiceDialog(context, heading, options.map { (index, label) -> (if (index == current) string(R.string.choice_current, label) else label) to { pick(index); scheduleHide() } })
             .also { it.open(view) }
     }
 
@@ -530,9 +546,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             reportProgress()
         } else {
             val position = player.exo.currentPosition
-            scope.launch { service.reportStop(s, position) }
-            stream = null
-            start(item, position, audio, subtitleIndex)
+            stopStream(position)
+            start(item, position, audio, subtitleIndex, direct = !triedTranscode || s.method == PlayMethod.DIRECT_PLAY)
         }
     }
 
@@ -543,17 +558,21 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         when (event.keyCode) {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                 if (down && event.repeatCount == 0) {
-                    togglePause()
+                    when (event.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> player.exo.play()
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> player.exo.pause()
+                        else -> togglePause()
+                    }
                     setChrome(true)
                 }
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                if (down) seekBy(30_000)
+                if (down) seekBy(SEEK_FORWARD_MS)
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                if (down) seekBy(-10_000)
+                if (down) seekBy(-SEEK_BACK_MS)
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_NEXT -> {
@@ -614,9 +633,9 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         playPause.requestFocus()
     }
 
+    /** Pausing reports itself, through the player's play-when-ready callback. */
     override fun onPause() {
         player.exo.pause()
-        reportProgress()
     }
 
     /** Stops, reports where it stopped, and goes back. */
@@ -627,12 +646,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     override fun destroy() {
         main.removeCallbacksAndMessages(null)
-        val s = stream
-        val position = player.exo.currentPosition
-        if (s != null && started) {
-            // Reporting the stop must outlive this screen's scope
-            app.reportScope.launch { withContext(NonCancellable) { service.reportStop(s, position) } }
-        }
+        stopStream(player.exo.currentPosition)
         player.release()
         trickplayLoader.release()
         super.destroy()
@@ -651,6 +665,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         player.exo.addListener(listener)
         start(item, item.resumeMs)
     }
+
+    private val MediaItem.isEpisode get() = kind == MediaItem.Kind.EPISODE
 
     private companion object {
         const val TICK_MS = 250L
