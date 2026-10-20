@@ -240,6 +240,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     private fun togglePause() {
+        displayMatcher.onUserPlayPause()
         val exo = player.exo
         if (exo.isPlaying) exo.pause() else exo.play()
     }
@@ -260,6 +261,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         when (event.keyCode) {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                 if (down && event.repeatCount == 0) {
+                    displayMatcher.onUserPlayPause()
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY -> player.exo.play()
                         KeyEvent.KEYCODE_MEDIA_PAUSE -> player.exo.pause()

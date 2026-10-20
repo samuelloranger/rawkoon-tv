@@ -105,6 +105,11 @@ class DisplayMatcher(
         listener = null
     }
 
+    /** Play or pause was pressed while the TV switched: that choice stands, so the wait doesn't resume. */
+    fun onUserPlayPause() {
+        pausedByUs = false
+    }
+
     /** Gives the display back to the system's choice; for when the player is closed. */
     fun restore() {
         cancelWait()
