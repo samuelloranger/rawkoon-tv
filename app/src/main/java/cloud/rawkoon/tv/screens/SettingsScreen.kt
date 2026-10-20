@@ -47,11 +47,15 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
     private val install = PillButton(context, "", primary = true)
 
     init {
+        // The page clips it at its edges (a view is clipped by its parent), so the rows scroll under
+        // the title rather than over it; the padding leaves room inside for the focus ring and lift
         val scroll = SettingsScroll(context).apply {
             isFocusable = false
             isVerticalScrollBarEnabled = false
             clipChildren = false
             clipToPadding = false
+            val room = context.dp(SCROLL_ROOM)
+            setPadding(room, room, room, 0)
         }
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -125,9 +129,12 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         val page = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(context.dp(Tokens.CONTENT_START), context.dp(40), context.dp(Tokens.OVERSCAN_H), 0)
-        }.noClip()
+            // Its children are clipped to their own bounds, not to this padding: the list reaches past it
+            clipToPadding = false
+        }
         page.addView(label(context, 34f, Tokens.textPrimary, Fonts.title(context)).apply { text = string(R.string.nav_settings) })
-        page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        // Pulled back by its inner room, so the rows still line up with the title
+        page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { marginStart = -context.dp(SCROLL_ROOM) })
         view.addView(page, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
     }
 
@@ -253,6 +260,9 @@ private class SettingsScroll(context: Context) : ScrollView(context) {
 }
 
 private const val ROW_WIDTH = 640
+
+/** Room inside the clipped list for a focused row's ring and lift. */
+private const val SCROLL_ROOM = 16
 private val SKIP_BACK_SECONDS = listOf(5, 10, 15, 30)
 private val SKIP_FORWARD_SECONDS = listOf(10, 15, 30, 60)
 private val RESUME_REWIND_SECONDS = listOf(0, 3, 5, 10, 15)
