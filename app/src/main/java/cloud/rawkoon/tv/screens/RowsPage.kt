@@ -39,6 +39,8 @@ abstract class RowsPage(
     active: Destination,
     headerTop: Int,
     rowsTop: Int,
+    /** The id of the view above the first row, when the page has one: Up from the first row goes to it. */
+    private val aboveId: Int = View.NO_ID,
 ) : RailScreen(activity, session, active) {
     private val main = Handler(Looper.getMainLooper())
     private val header = Header(context, app.images)
@@ -52,9 +54,6 @@ abstract class RowsPage(
     private var backdropUrl: String? = null
     private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
     private var retryButton: PillButton? = null
-
-    /** The view above the first row, when the page has one: Up from the first row goes to it. */
-    protected var aboveId = View.NO_ID
 
     init {
         content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -87,30 +86,39 @@ abstract class RowsPage(
         val current = rows.sections()
         if (current.map { it.id to it.signature } == list.map { it.id to it.signature }) return
         val hadFocus = rows.hasFocus()
-        val focusedRow = rows.focusedSection()?.takeIf { hadFocus }?.id
+        val focusedRow = (rows.column.focusedChild as? Section)?.id?.takeIf { hadFocus }
         val focusedKey = (view.findFocus() as? RowItem)?.key
         val keep = current.associateBy { it.id }
+        val next = list.map { row -> keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row) }
         val restore = {
-            val section = rows.sections().firstOrNull { it.id == focusedRow } ?: rows.sections().first()
+            val section = next.firstOrNull { it.id == focusedRow } ?: next.first()
             focusedKey?.let { section.row.remember(it) }
             section.row.restoreFocus()
         }
-        parking.around(hadFocus, rebuild = {
-            rows.column.removeAllViews()
-            for (row in list) rows.column.addView(keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row))
-        }, restore = { restore() })
+        parking.around(hadFocus, rebuild = { replaceRows(next) }, restore = { restore() })
         if (!hadFocus && view.findFocus() == null) restore()
-        // The first row may have changed or moved: Up from it still leads to what is above
-        rows.sections().forEachIndexed { i, section ->
-            section.row.cards().forEach { it.nextFocusUpId = if (i == 0) aboveId else View.NO_ID }
-        }
-        // Focus is elsewhere (typing in the search field): the header still shows the first result
-        if (!hadFocus && (view.findFocus() as? Card) == null) list.firstOrNull()?.items?.firstOrNull()?.let(::preview)
-        rows.post { rows.focusedSection()?.let { rows.reveal(it) } }
+        rewireUp(current.firstOrNull(), next.first())
+        if (!hadFocus && view.findFocus() !is Card) list.first().items.firstOrNull()?.let(::preview)
+        rows.post { ((rows.column.focusedChild as? Section) ?: next.first()).let { rows.reveal(it) } }
     }
 
-    /** Removes every row, and the header and backdrop with them. Focus held in the rows goes to the rail. */
+    private fun replaceRows(sections: List<Section>) {
+        rows.column.removeAllViews()
+        sections.forEach { rows.column.addView(it) }
+    }
+
+    /** The first row may have changed or moved: Up from its cards leads to what is above, and from no other. */
+    private fun rewireUp(oldFirst: Section?, newFirst: Section) {
+        oldFirst?.row?.cards()?.forEach { it.nextFocusUpId = View.NO_ID }
+        newFirst.row.cards().forEach { it.nextFocusUpId = aboveId }
+    }
+
+    /**
+     * Removes every row, and the header and backdrop with them. Focus held in the rows goes to the
+     * rail. Does nothing when nothing is shown.
+     */
     protected fun clear() {
+        if (!hasRows() && backdropUrl == null) return
         header.visibility = View.INVISIBLE
         backdropUrl = null
         main.removeCallbacks(settleBackdrop)
@@ -122,6 +130,14 @@ abstract class RowsPage(
         }, restore = { rail.activeItem()?.requestFocus() })
     }
 
+    /** Replaces everything with [text]; when that leaves nothing focused, the rail takes focus. */
+    protected fun showEmpty(text: String) {
+        hideMessage()
+        clear()
+        showMessage(text)
+        if (view.findFocus() == null) rail.activeItem()?.requestFocus()
+    }
+
     protected fun hideMessage() {
         message.visibility = View.GONE
         retryButton = null
@@ -131,12 +147,12 @@ abstract class RowsPage(
     protected fun showMessage(text: String, retry: (() -> Unit)? = null, takeFocus: Boolean = false) {
         message.removeAllViews()
         retryButton = null
-        message.addView(label(context, 16f, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
+        message.addView(label(context, MESSAGE_TEXT_SP, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
         if (retry != null) {
             val button = PillButton(context, string(R.string.try_again), primary = true)
             button.setOnClickListener { retry() }
             button.nextFocusUpId = aboveId
-            message.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(12) })
+            message.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(MESSAGE_GAP) })
             retryButton = button
             if (takeFocus) button.requestFocus()
         }
@@ -145,18 +161,22 @@ abstract class RowsPage(
 
     /**
      * Reports a failed load: an ended session says so (retrying can't help), anything else offers
-     * [retry]. With rows already on screen a failed refresh stays silent.
+     * [retry]. With [silentIfRows] a failed refresh of rows already on screen stays silent;
+     * otherwise the rows give way to the error, so stale results are never passed off as current.
      */
-    protected fun fail(e: Exception, errorText: Int, retry: () -> Unit, takeFocus: Boolean) {
+    protected fun fail(e: Exception, errorText: Int, retry: () -> Unit, takeFocus: Boolean, silentIfRows: Boolean = false) {
         if (e is CancellationException) throw e
         val expired = e is InvalidStatusException && e.status == 401
-        if (!expired && hasRows()) return
-        if (expired) clear()
+        if (!expired && silentIfRows && hasRows()) return
+        clear()
         showMessage(string(if (expired) R.string.error_session else errorText), retry.takeUnless { expired }, takeFocus)
     }
 
-    /** The row title for a kind of result. */
-    protected fun groupTitle(group: FindGroup) = string(
+    /** One row per group in [found], in its order. */
+    protected fun rowsFor(found: Map<FindGroup, List<MediaItem>>) =
+        found.map { (group, items) -> HomeRow(group.name, groupTitle(group), items, group.landscape) }
+
+    private fun groupTitle(group: FindGroup) = string(
         when (group) {
             FindGroup.MOVIES -> R.string.find_row_movies
             FindGroup.SERIES -> R.string.find_row_shows
@@ -206,5 +226,10 @@ abstract class RowsPage(
     override fun destroy() {
         main.removeCallbacks(settleBackdrop)
         super.destroy()
+    }
+
+    private companion object {
+        const val MESSAGE_TEXT_SP = 16f
+        const val MESSAGE_GAP = 12
     }
 }

@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
  * the rows are updated in place so focus stays where it was.
  */
 class FavoritesScreen(activity: MainActivity, session: JellyfinSession) :
-    RowsPage(activity, session, Destination.FAVORITES, headerTop = 26, rowsTop = Tokens.ROWS_TOP - 6) {
+    RowsPage(activity, session, Destination.FAVORITES, headerTop = Tokens.PAGE_HEADER_TOP, rowsTop = Tokens.PAGE_ROWS_TOP) {
     // Declared before init: a property set after load() starts would reset the running job to null
     private var loading: Job? = null
 
@@ -27,19 +27,10 @@ class FavoritesScreen(activity: MainActivity, session: JellyfinSession) :
         loading?.cancel()
         loading = scope.launch {
             try {
-                val list = session.favorites { groupTitle(it) }
-                // The message only goes once there is something to replace it, so focus on its button stays put
-                hideMessage()
-                if (list.isEmpty()) {
-                    clear()
-                    showMessage(string(R.string.favorites_empty))
-                    // The rows that held focus are gone and the message has nothing to focus
-                    if (view.findFocus() == null) rail.activeItem()?.requestFocus()
-                } else {
-                    show(list)
-                }
+                val found = session.favorites()
+                if (found.isEmpty()) showEmpty(string(R.string.favorites_empty)) else show(rowsFor(found))
             } catch (e: Exception) {
-                fail(e, R.string.favorites_error, retry = ::load, takeFocus = true)
+                fail(e, R.string.favorites_error, retry = ::load, takeFocus = true, silentIfRows = true)
             }
         }
     }

@@ -25,36 +25,42 @@ class FindTest {
     }
 
     @Test
-    fun `groups with no result leave no row`() {
-        val rows = Find.rows(
+    fun `groups with no result are dropped`() {
+        val found = Find.nonEmpty(
             mapOf(
                 FindGroup.MOVIES to emptyList(),
                 FindGroup.SERIES to listOf(item("s", MediaItem.Kind.SERIES)),
             ),
-        ) { it.name }
-        assertEquals(listOf("SERIES"), rows.map { it.id })
+        )
+        assertEquals(listOf(FindGroup.SERIES), found.keys.toList())
     }
 
     @Test
-    fun `rows follow the group order whatever order the results arrive in`() {
+    fun `groups follow the group order whatever order the results arrive in`() {
         val found = linkedMapOf(
             FindGroup.COLLECTIONS to listOf(item("c", MediaItem.Kind.OTHER)),
             FindGroup.EPISODES to listOf(item("e", MediaItem.Kind.EPISODE)),
             FindGroup.MOVIES to listOf(item("m", MediaItem.Kind.MOVIE)),
         )
-        assertEquals(listOf("MOVIES", "EPISODES", "COLLECTIONS"), Find.rows(found) { it.name }.map { it.id })
+        assertEquals(
+            listOf(FindGroup.MOVIES, FindGroup.EPISODES, FindGroup.COLLECTIONS),
+            Find.nonEmpty(found).keys.toList(),
+        )
     }
 
     @Test
-    fun `only the episode row is landscape and rows take the given titles`() {
-        val found = FindGroup.entries.associateWith { listOf(item(it.name, MediaItem.Kind.OTHER)) }
-        val rows = Find.rows(found) { "title ${it.name}" }
-        assertEquals(listOf(false, false, true, false), rows.map { it.landscape })
-        assertEquals("title SERIES", rows[1].title)
+    fun `a group keeps its items`() {
+        val items = listOf(item("a", MediaItem.Kind.MOVIE), item("b", MediaItem.Kind.MOVIE))
+        assertEquals(items, Find.nonEmpty(mapOf(FindGroup.MOVIES to items))[FindGroup.MOVIES])
     }
 
     @Test
-    fun `no results at all give no rows`() {
-        assertEquals(emptyList<HomeRow>(), Find.rows(emptyMap()) { it.name })
+    fun `only the episode group is landscape`() {
+        assertEquals(listOf(false, false, true, false), FindGroup.entries.map { it.landscape })
+    }
+
+    @Test
+    fun `no results at all give no groups`() {
+        assertEquals(emptyMap<FindGroup, List<MediaItem>>(), Find.nonEmpty(emptyMap()))
     }
 }
