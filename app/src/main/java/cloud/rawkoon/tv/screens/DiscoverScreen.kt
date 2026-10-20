@@ -50,7 +50,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private val header = Header(context, app.images)
     private val rows = Rows(context)
     private val message = MessagePanel(context)
-    private val search = SearchField(context, hint = string(R.string.discover_search_hint), onChanged = ::onTyped, onSearch = ::onSearchAction)
+    private val search = SearchField(context, hint = string(R.string.discover_search_hint), onChanged = ::onTyped, onSearch = ::onSearchAction, textSp = 14f, paddingDp = 14)
     private var api: RawkoonDiscover? = null
 
     /** The token the rows were loaded with: coming back from linking reloads only when it changed. */
@@ -245,8 +245,9 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
 
     private fun clearSearch() {
         searchJob?.cancel()
-        search.setText("")
+        // Before the text is cleared: clearing fires onTyped, which must see no search to clear
         searching = false
+        search.setText("")
         message.hide()
         place(browse)
         firstItem()?.let(header::show)
