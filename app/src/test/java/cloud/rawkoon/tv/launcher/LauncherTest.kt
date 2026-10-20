@@ -158,7 +158,8 @@ class LauncherTest {
 
     @Test
     fun `a link survives the trip through its extras`() {
-        val link = spec(episode("e")).link
+        val id = "0123456789abcdef0123456789abcdef"
+        val link = spec(episode("e")).link.copy(profileId = id, itemId = id, seriesId = id, seasonId = id)
         val extras = mapOf(
             LauncherLink.PROFILE to link.profileId, LauncherLink.ITEM to link.itemId, LauncherLink.KIND to link.kind.name,
             LauncherLink.SERIES to link.seriesId, LauncherLink.SEASON to link.seasonId, LauncherLink.TITLE to link.title, LauncherLink.POSTER to link.posterUrl,
@@ -169,10 +170,11 @@ class LauncherTest {
     @Test
     fun `an intent that isn't a launcher link, or can't open a page, parses to nothing`() {
         assertNull(LauncherLink.parse { null })
-        val base = mapOf(LauncherLink.PROFILE to "p", LauncherLink.ITEM to "i", LauncherLink.KIND to "EPISODE")
+        val id = "0123456789abcdef0123456789abcdef"
+        val base = mapOf(LauncherLink.PROFILE to id, LauncherLink.ITEM to id, LauncherLink.KIND to "EPISODE")
         assertNull(LauncherLink.parse { base[it] })
         assertNull(LauncherLink.parse { (base + (LauncherLink.KIND to "OTHER"))[it] })
-        assertEquals(MediaItem.Kind.EPISODE, LauncherLink.parse { (base + (LauncherLink.SERIES to "s"))[it] }?.kind)
+        assertEquals(MediaItem.Kind.EPISODE, LauncherLink.parse { (base + (LauncherLink.SERIES to id))[it] }?.kind)
     }
 
     @Test
@@ -182,5 +184,34 @@ class LauncherTest {
         assertFalse(LauncherSchedule.due(1_000, "a", 1_000 + gap - 1, "a"))
         assertTrue(LauncherSchedule.due(1_000, "a", 1_000 + gap, "a"))
         assertTrue(LauncherSchedule.due(1_000, "a", 1_001, "b"))
+    }
+
+    @Test
+    fun `ids must be hex of the right length`() {
+        assertTrue(LauncherLink.isId("0123456789abcdef0123456789ABCDEF"))
+        assertTrue(LauncherLink.isId("01234567-89ab-cdef-0123-456789abcdef"))
+        assertFalse(LauncherLink.isId("0123456789abcdef"))
+        assertFalse(LauncherLink.isId("0123456789abcdef0123456789abcdeg"))
+        assertFalse(LauncherLink.isId("-".repeat(32)))
+        assertFalse(LauncherLink.isId("../../etc/passwd/0123456789abcdef"))
+    }
+
+    @Test
+    fun `a forged id drops the whole link`() {
+        val id = "0123456789abcdef0123456789abcdef"
+        val extras = mapOf(LauncherLink.PROFILE to id, LauncherLink.ITEM to id, LauncherLink.KIND to "MOVIE")
+        assertEquals(id, LauncherLink.parse { extras[it] }?.itemId)
+        assertNull(LauncherLink.parse { (extras + (LauncherLink.ITEM to "x"))[it] })
+        assertNull(LauncherLink.parse { (extras + (LauncherLink.KIND to "EPISODE") + (LauncherLink.SERIES to "x"))[it] })
+        assertNull(LauncherLink.parse { (extras + (LauncherLink.SEASON to "x"))[it] }?.seasonId)
+    }
+
+    @Test
+    fun `the poster is only kept from the profile's own server`() {
+        val profile = cloud.rawkoon.tv.data.Profile("p", "n", "https://jf.example/", "u", "t")
+        val link = spec(item("m")).link.copy(posterUrl = "https://jf.example/Items/1/Images/Primary")
+        assertEquals(link.posterUrl, link.trusted(profile).posterUrl)
+        assertNull(link.copy(posterUrl = "https://evil.example/x").trusted(profile).posterUrl)
+        assertNull(link.copy(posterUrl = "https://jf.example.evil/x").trusted(profile).posterUrl)
     }
 }

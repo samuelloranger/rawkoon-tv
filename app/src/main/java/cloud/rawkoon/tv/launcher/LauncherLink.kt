@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.launcher
 import android.content.Context
 import android.content.Intent
 import cloud.rawkoon.tv.MainActivity
+import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaItem
 
 /**
@@ -30,6 +31,12 @@ data class LauncherLink(
         backdropUrl = null, logoUrl = null, progress = null, played = false, seriesId = seriesId, seasonId = seasonId,
     )
 
+    /** The link with what an outside sender could forge dropped: the poster is only used from the profile's own server. */
+    fun trusted(profile: Profile): LauncherLink {
+        val base = profile.jellyfinUrl.trim().trimEnd('/') + "/"
+        return copy(posterUrl = posterUrl?.takeIf { it.startsWith(base, ignoreCase = true) })
+    }
+
     companion object {
         const val PROFILE = "cloud.rawkoon.tv.extra.PROFILE"
         const val ITEM = "cloud.rawkoon.tv.extra.ITEM"
@@ -49,13 +56,18 @@ data class LauncherLink(
         fun from(intent: Intent?): LauncherLink? = intent?.let { parse { key -> it.getStringExtra(key) } }
 
         fun parse(extra: (String) -> String?): LauncherLink? {
-            val profile = extra(PROFILE) ?: return null
-            val item = extra(ITEM) ?: return null
+            // MainActivity is exported: any app can send these extras, so ids must look like ids
+            val profile = extra(PROFILE)?.takeIf(::isId) ?: return null
+            val item = extra(ITEM)?.takeIf(::isId) ?: return null
             val kind = runCatching { MediaItem.Kind.valueOf(extra(KIND).orEmpty()) }.getOrNull()?.takeIf { it in OPENABLE } ?: return null
-            val series = extra(SERIES)
+            val series = extra(SERIES)?.takeIf(::isId)
             if (kind == MediaItem.Kind.EPISODE && series == null) return null
-            return LauncherLink(profile, item, kind, series, extra(SEASON), extra(TITLE), extra(POSTER))
+            return LauncherLink(profile, item, kind, series, extra(SEASON)?.takeIf(::isId), extra(TITLE), extra(POSTER))
         }
+
+        /** 32 hex digits with optional dashes: a Jellyfin id or a profile id. */
+        fun isId(text: String) = text.length in 32..36 && text.all { it == '-' || it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' } &&
+            text.count { it != '-' } == 32
 
         private val OPENABLE = setOf(MediaItem.Kind.MOVIE, MediaItem.Kind.SERIES, MediaItem.Kind.EPISODE)
     }

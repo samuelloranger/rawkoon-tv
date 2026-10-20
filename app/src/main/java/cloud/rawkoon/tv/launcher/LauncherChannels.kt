@@ -78,6 +78,12 @@ class LauncherChannels(context: Context) {
 
     suspend fun sync(profile: Profile, feed: LauncherFeed, allowCreate: Boolean) = mutex.withLock {
         withContext(Dispatchers.IO) {
+            // A PIN protects the profile's titles: they stay off the launcher, and what was published is taken down
+            if (profile.hasPin) {
+                clear()
+                prefs.edit().putString(KEY_PROFILE, profile.id).apply()
+                return@withContext
+            }
             // Rows of another profile mean nothing here, dismissed ones included
             val previous = prefs.getString(KEY_PROFILE, null)
             if (previous != null && previous != profile.id) resolver.delete(WatchNextPrograms.CONTENT_URI, null, null)
@@ -87,8 +93,16 @@ class LauncherChannels(context: Context) {
         }
     }
 
+    /** Takes down everything published: Watch Next and the channel's programs (the channel itself stays). */
+    private fun clear() {
+        // TvProvider only shows a caller its own package's rows, so these touch nothing else
+        resolver.delete(WatchNextPrograms.CONTENT_URI, null, null)
+        channelId(allowCreate = false)?.let { resolver.delete(TvContract.buildPreviewProgramsUriForChannel(it), null, null) }
+    }
+
     private fun syncWatchNext(profileId: String, items: List<MediaItem>) {
         val specs = items.mapNotNull { ProgramSpec.from(it, profileId) }
+        // The provider scopes this to the rows of this package
         val existing = resolver.query(
             WatchNextPrograms.CONTENT_URI,
             arrayOf(WatchNextPrograms._ID, WatchNextPrograms.COLUMN_INTERNAL_PROVIDER_ID, WatchNextPrograms.COLUMN_BROWSABLE),

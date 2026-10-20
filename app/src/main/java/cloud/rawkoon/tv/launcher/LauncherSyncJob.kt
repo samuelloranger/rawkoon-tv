@@ -7,10 +7,12 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import cloud.rawkoon.tv.App
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** Keeps the launcher rows fresh when the app isn't opened: every few hours, with a network, for the last used profile. */
@@ -21,8 +23,16 @@ class LauncherSyncJob : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         val app = application as App
         work = scope.launch {
-            app.launcher.syncLastUsed(app.profiles.lastUsed())
-            jobFinished(params, false)
+            try {
+                app.launcher.syncLastUsed(app.profiles.lastUsed())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Skipped this round; the next period tries again
+            } finally {
+                // A job the system stopped is already finished as far as it is concerned
+                if (isActive) jobFinished(params, false)
+            }
         }
         return true
     }

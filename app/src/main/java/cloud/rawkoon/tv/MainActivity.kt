@@ -69,6 +69,7 @@ class MainActivity : Activity() {
     }
 
     private fun enter(profile: Profile, link: LauncherLink) {
+        val link = link.trusted(profile)
         app.profiles.markUsed(profile.id)
         val home = HomeScreen(this, app.profiles.get(profile.id) ?: profile)
         resetTo(ProfilesScreen(this), home)
