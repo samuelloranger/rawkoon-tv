@@ -158,7 +158,7 @@
     <string name="setting_subtitle_background">Arrière-plan</string>
     <string name="background_none">Aucun</string>
     <string name="background_box">Boîte noire</string>
-    <string name="setting_subtitle_edge">Contour</string>
+    <string name="setting_subtitle_edge">Bord du texte</string>
     <string name="edge_outline">Contour</string>
     <string name="edge_shadow">Ombre portée</string>
     <string name="edge_none">Aucun</string>

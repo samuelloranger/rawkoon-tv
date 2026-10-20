@@ -26,11 +26,9 @@ fun unsupportedAv1RangeTypes(
 		if (jellyfinTenEleven && !hdr10Plus) add("DOVIWithHDR10Plus")
 	}
 
-	if (!hdr10Plus) {
-		add(VideoRangeType.HDR10_PLUS.serialName)
-
-		if (!hdr10) add(VideoRangeType.HDR10.serialName)
-	}
+	// HDR10 on its own, so "Never" for HDR10 holds on a TV that has HDR10+
+	if (!hdr10Plus) add(VideoRangeType.HDR10_PLUS.serialName)
+	if (!hdr10) add(VideoRangeType.HDR10.serialName)
 }
 
 /** The range types the server must not direct play in a HEVC file, given what is supported. */
@@ -57,10 +55,8 @@ fun unsupportedHevcRangeTypes(
 		}
 	}
 
-	if (!hdr10Plus) {
-		add(VideoRangeType.HDR10_PLUS.serialName)
-		if (!hdr10) add(VideoRangeType.HDR10.serialName)
-	}
+	if (!hdr10Plus) add(VideoRangeType.HDR10_PLUS.serialName)
+	if (!hdr10) add(VideoRangeType.HDR10.serialName)
 
 	if (jellyfinTenEleven && doviHdr10PlusBug) {
 		add("DOVIWithHDR10Plus")

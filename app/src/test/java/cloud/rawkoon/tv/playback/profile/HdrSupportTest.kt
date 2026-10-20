@@ -44,6 +44,13 @@ class HdrSupportTest {
     }
 
     @Test
+    fun `never allowing HDR10 holds on a TV with HDR10 plus`() {
+        val hdr10 = HdrOverride.NEVER.resolve(true)
+        assertTrue("HDR10" in hevc(hdr10 = hdr10))
+        assertTrue("HDR10" in unsupportedAv1RangeTypes(true, dolbyVision = true, hdr10 = hdr10, hdr10Plus = true))
+    }
+
+    @Test
     fun `no Dolby Vision excludes every Dolby Vision range type`() {
         val out = hevc(dv = false, el = false, plus = false)
         assertTrue(listOf("DOVI", "DOVIWithEL", "DOVIWithELHDR10Plus", "DOVIWithHDR10Plus").all { it in out })
