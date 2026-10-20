@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.screens
 
 import android.text.InputType
+import android.util.LruCache
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -14,12 +15,14 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.rawkoon.DiscoverRows
 import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonText
 import cloud.rawkoon.tv.rawkoon.ResourceText
 import cloud.rawkoon.tv.rawkoon.TmdbTitle
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
+import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.rawkoon.toItem
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -66,10 +69,10 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         setTextColor(Tokens.textPrimary)
         setHintTextColor(Tokens.textMuted)
         isSingleLine = true
-        background = rounded(Tokens.surfaceHigh, context.dpf(10f))
+        background = rounded(Tokens.surfaceHigh, context.dpf(SEARCH_RADIUS))
         setPadding(context.dp(14), 0, context.dp(14), 0)
         setOnFocusChangeListener { v, focused ->
-            v.background = rounded(if (focused) Tokens.surfaceFocused else Tokens.surfaceHigh, context.dpf(10f)).apply {
+            v.background = rounded(if (focused) Tokens.surfaceFocused else Tokens.surfaceHigh, context.dpf(SEARCH_RADIUS)).apply {
                 if (focused) setStroke(context.dp(2), Tokens.ring)
             }
         }
@@ -82,8 +85,12 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private var searchJob: Job? = null
     private var backdropJob: Job? = null
 
-    /** Backdrops fetched for titles already focused, by item id. The lists carry none, only a title's own page does. */
-    private val backdrops = HashMap<String, String?>()
+    /**
+     * Backdrops fetched for titles already focused, by item id; "" for a title with none or whose
+     * fetch failed. The lists carry none, only a title's own page does.
+     */
+    private val backdrops = LruCache<String, String>(BACKDROP_CACHE)
+    private val opener = TitleOpener(this)
 
     /** The browse rows, kept while a search's results take their place. */
     private var browse = emptyList<Section>()
@@ -95,14 +102,14 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     init {
         content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = context.dp(Tokens.CONTENT_START)
-            topMargin = context.dp(26)
+            topMargin = context.dp(HEADER_TOP)
         })
         content.addView(rows, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
-            topMargin = context.dp(Tokens.ROWS_TOP - 6)
+            topMargin = context.dp(Tokens.ROWS_TOP - ROWS_LIFT)
         })
         content.addView(search, FrameLayout.LayoutParams(context.dp(SEARCH_W), context.dp(SEARCH_H), Gravity.END).apply {
-            topMargin = context.dp(20)
-            marginEnd = context.dp(120)
+            topMargin = context.dp(SEARCH_TOP)
+            marginEnd = context.dp(SEARCH_END)
         })
         content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         // The rows are clipped to their area, so rows gliding up never pass over the header
@@ -129,13 +136,13 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         loading = scope.launch {
             try {
                 val sections = coroutineScope {
-                    FEATURED.map { (category, title) ->
+                    DiscoverRows.FEATURED.map { (category, title) ->
                         async { optional { api.explore(category).items }?.let { section(category, string(title), it) } }
                     }.awaitAll()
                 }.filterNotNull()
                 if (sections.isEmpty()) return@launch showNotice(string(R.string.discover_error), null, string(R.string.try_again)) { load() }
-                showBrowse(sections)
-                showBrowse(sections + genreSections(api))
+                showFirst(sections)
+                appendSections(genreSections(api))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: RawkoonException.Unauthorized) {
@@ -150,9 +157,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private suspend fun genreSections(api: RawkoonDiscover): List<Section> = coroutineScope {
         val movies = async { optional { api.genres(true) }.orEmpty() }
         val shows = async { optional { api.genres(false) }.orEmpty() }
-        val wanted = movies.await().filter { it.id in MOVIE_GENRES }.map { Triple(true, it, R.string.discover_genre_movies) } +
-            shows.await().filter { it.id in SHOW_GENRES }.map { Triple(false, it, R.string.discover_genre_shows) }
-        wanted.map { (isMovie, genre, title) ->
+        DiscoverRows.genreRows(movies.await(), shows.await()).map { (isMovie, genre, title) ->
             async { optional { api.discover(isMovie, genre.id).items }?.let { section("genre:$isMovie:${genre.id}", string(title, genre.name), it) } }
         }.awaitAll().filterNotNull()
     }
@@ -170,13 +175,13 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private fun section(id: String, title: String, titles: List<TmdbTitle>): Section? {
         if (titles.isEmpty()) return null
         return Section(context, id, title).apply {
-            row.setCards(titles.map { TitleCard(context, it.toItem(text), app.images, ::onFocused) { card -> openTitle(card.item) } })
+            row.setCards(titles.map { TitleCard(context, it.toItem(text), app.images, ::onFocused) { card -> opener.open(card.item) } })
             row.onLeftEdge = { rail.activeItem() }
         }
     }
 
-    /** Puts the browse rows on screen (again, with the genre rows added, as they arrive). */
-    private fun showBrowse(sections: List<Section>) {
+    /** Puts the first browse rows on screen, in place of the notice if there was one. */
+    private fun showFirst(sections: List<Section>) {
         val refocus = message.hasFocus()
         message.visibility = View.GONE
         search.visibility = View.VISIBLE
@@ -184,6 +189,13 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         if (!searching) place(sections)
         if (refocus) focusDefault()
         if (!searching) firstItem()?.let(header::show)
+    }
+
+    /** Adds [more] after the browse rows (the genre rows, as they arrive), leaving the rows in place as they are. */
+    private fun appendSections(more: List<Section>) {
+        if (more.isEmpty()) return
+        browse = browse + more
+        if (!searching) place(browse)
     }
 
     private fun place(sections: List<Section>) {
@@ -200,6 +212,11 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private fun firstItem(): MediaItem? = rows.sections().firstOrNull()?.row?.cards()?.firstOrNull()?.shownItem()
 
     private fun showNotice(title: String, hint: String?, buttonLabel: String, action: () -> Unit) {
+        // Nothing of the rows or a search that was on screen is left to act on
+        searchJob?.cancel()
+        backdropJob?.cancel()
+        searching = false
+        browse = emptyList()
         rows.column.removeAllViews()
         search.visibility = View.GONE
         message.removeAllViews()
@@ -264,19 +281,21 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         backdropJob?.cancel()
         val api = api ?: return
         val item = card.item
-        val tmdbId = item.tmdbId ?: return
+        val tmdbId = item.tmdb?.id ?: return
         backdropJob = scope.launch {
             delay(Tokens.BACKDROP_SETTLE_MS)
-            if (item.id !in backdrops) {
-                backdrops[item.id] = try {
-                    api.modal(item.kind != MediaItem.Kind.SERIES, tmdbId).backdropUrl
+            var url = backdrops.get(item.id)
+            if (url == null) {
+                url = try {
+                    api.modal(item.kind != MediaItem.Kind.SERIES, tmdbId).backdropUrl.let(::tmdbBackdrop).orEmpty()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    return@launch
+                    ""
                 }
+                backdrops.put(item.id, url)
             }
-            backdrop.show(backdrops[item.id])
+            backdrop.show(url.ifEmpty { null })
         }
     }
 
@@ -323,20 +342,13 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private companion object {
         const val SEARCH_W = 270
         const val SEARCH_H = 36
+        const val SEARCH_TOP = 20
+        const val SEARCH_END = 120
+        const val SEARCH_RADIUS = 10f
+        const val HEADER_TOP = 26
 
-        /** Rawkoon explore category (also the row's id) and the row's title. */
-        val FEATURED = listOf(
-            "trending" to R.string.discover_trending,
-            "popular_movies" to R.string.discover_popular_movies,
-            "popular_shows" to R.string.discover_popular_shows,
-            "upcoming_movies" to R.string.discover_upcoming_movies,
-            "on_the_air" to R.string.discover_on_the_air,
-        )
-
-        /** TMDB's own genre ids: action, comedy, science fiction, horror. */
-        val MOVIE_GENRES = setOf(28, 35, 878, 27)
-
-        /** TMDB's own genre ids: action & adventure, comedy, sci-fi & fantasy, crime. */
-        val SHOW_GENRES = setOf(10759, 35, 10765, 80)
+        /** How far the rows start above [Tokens.ROWS_TOP]. */
+        const val ROWS_LIFT = 6
+        const val BACKDROP_CACHE = 100
     }
 }

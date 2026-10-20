@@ -25,6 +25,7 @@ import cloud.rawkoon.tv.rawkoon.TitleState
 import cloud.rawkoon.tv.rawkoon.TitleStatus
 import cloud.rawkoon.tv.rawkoon.rawTmdbImage
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
+import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.rawkoon.tmdbImage
 import cloud.rawkoon.tv.rawkoon.tmdbLogo
 import cloud.rawkoon.tv.rawkoon.toItem
@@ -48,26 +49,11 @@ import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.rounded
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.util.Locale
-
-/**
- * Opens a TMDB title's page. With [preferLibrary], a title Rawkoon has in its library opens its
- * Jellyfin page when Jellyfin has it (looked up by TMDB id), and falls back to the TMDB page.
- */
-fun RailScreen.openTitle(item: MediaItem, preferLibrary: Boolean = false) {
-    val tmdbId = item.tmdbId ?: return
-    if (!preferLibrary) {
-        activity.push(DiscoverDetailsScreen(activity, session, item))
-        return
-    }
-    scope.launch {
-        val found = JellyfinTmdbLookup(session).find(tmdbId, item.title, item.year, item.kind == MediaItem.Kind.SERIES)
-        activity.push(if (found != null) DetailsScreen(activity, session, found) else DiscoverDetailsScreen(activity, session, item))
-    }
-}
 
 /**
  * A TMDB title's page, laid out like a library title's: poster, logo or title, chips, genres and
@@ -77,7 +63,7 @@ fun RailScreen.openTitle(item: MediaItem, preferLibrary: Boolean = false) {
 class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, private val start: MediaItem) :
     RailScreen(activity, session, Destination.DISCOVER) {
     private val isMovie = start.kind != MediaItem.Kind.SERIES
-    private val tmdbId = checkNotNull(start.tmdbId)
+    private val tmdbId = checkNotNull(start.tmdb?.id)
     private val text: RawkoonText = ResourceText(context)
     private val page = Rows(context)
     private val block = FrameLayout(context).noClip()
@@ -96,13 +82,18 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private var inLibrary: MediaItem? = null
     private var modal: TitleModal? = null
     private var busy = false
+    private var loadJob: Job? = null
+
+    /** The status fetch and the library lookup that follows it: the latest one wins. */
+    private var statusJob: Job? = null
+    private val opener = TitleOpener(this)
 
     /** The token the page was loaded with: coming back from linking reloads only when it changed. */
     private var loadedWith: String? = null
 
     init {
-        page.column.setPadding(0, 0, 0, context.dp(200))
-        page.anchor = context.dp(34)
+        page.column.setPadding(0, 0, 0, context.dp(PAGE_BOTTOM))
+        page.anchor = context.dp(PAGE_ANCHOR)
         content.addView(page, fill())
         buildBlock()
         page.column.addView(block, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(BLOCK_H)))
@@ -122,16 +113,16 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         box.addView(logo, fill())
         box.addView(title, fill())
         info.addView(box, LinearLayout.LayoutParams(context.dp(LOGO_W), context.dp(LOGO_H)))
-        block.addView(info, FrameLayout.LayoutParams(context.dp(540), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START + POSTER_W + 25)
+        block.addView(info, FrameLayout.LayoutParams(context.dp(INFO_W), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = context.dp(Tokens.CONTENT_START + POSTER_W + POSTER_GAP)
             topMargin = context.dp(TOP)
         })
         actions.addView(request)
         actions.addView(open)
-        actions.addView(state, LinearLayout.LayoutParams(context.dp(380), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
+        actions.addView(state, LinearLayout.LayoutParams(context.dp(STATE_W), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
         block.addView(actions, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = context.dp(Tokens.CONTENT_START - Tokens.RING_INSET)
-            topMargin = context.dp(TOP + POSTER_H + 14)
+            topMargin = context.dp(TOP + POSTER_H + ACTIONS_GAP)
         })
         title.setAutoSizeTextTypeUniformWithConfiguration(20, 34, 2, TypedValue.COMPLEX_UNIT_SP)
         val w = context.dp(POSTER_W)
@@ -155,7 +146,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         info.addView(chipRow(context, metaChips(modal)), wrapRow(10))
         val tags = modal?.genres.orEmpty().take(3).map { Chip.Outline(it) }
         if (tags.isNotEmpty()) info.addView(chipRow(context, tags, 12.5f), wrapRow(8))
-        info.addView(label(context, 14f, 0xE6ECE3DB.toInt(), Fonts.body(context), lines = 3).apply {
+        info.addView(label(context, 14f, Tokens.textBody, Fonts.body(context), lines = 3).apply {
             this.text = modal?.overview ?: start.overview
             setLineSpacing(0f, 1.2f)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(10) })
@@ -193,7 +184,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         val profile = app.profiles.get(session.profile.id) ?: session.profile
         loadedWith = profile.rawkoonToken
         val api = profile.rawkoonDiscover(context) ?: return reconnect()
-        scope.launch {
+        loadJob?.cancel()
+        loadJob = scope.launch {
             try {
                 coroutineScope {
                     val modalCall = async { api.modal(isMovie, tmdbId) }
@@ -202,8 +194,10 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
                     val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
                     modal = modalCall.await()
                     showTitle()
-                    modal?.backdropUrl?.let { backdrop.show(it) }
-                    applyStatus(statusCall.await())
+                    modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
+                    val status = statusCall.await()
+                    statusJob?.cancel()
+                    statusJob = scope.launch { applyStatus(status) }
                     val cast = modal?.cast.orEmpty().map { Person(it.id.toString(), it.name, it.character, tmdbImage(it.photoUrl)) }
                     addRows(cast, similarCall.await().map { it.toItem(text) })
                 }
@@ -234,15 +228,14 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         activity.push(RawkoonLinkScreen(activity, session.profile.id))
     }
 
-    private fun applyStatus(status: TitleStatus?) {
+    /** Binds what Rawkoon knows of the title, then looks for its Jellyfin item when the library can serve it. */
+    private suspend fun applyStatus(status: TitleStatus?) {
         titleState = TitleState.of(status, !isMovie)
         if (!titleState.inLibrary) inLibrary = null
         bindActions()
         if (!titleState.inLibrary) return
-        scope.launch {
-            inLibrary = JellyfinTmdbLookup(session).find(tmdbId, start.title, modal?.year ?: start.year, !isMovie)
-            bindActions()
-        }
+        inLibrary = JellyfinTmdbLookup(session).find(tmdbId, start.title, modal?.year ?: start.year, !isMovie)
+        bindActions()
     }
 
     /**
@@ -300,7 +293,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
 
     private fun refreshStatus() {
         val api: RawkoonDiscover = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return
-        scope.launch {
+        statusJob?.cancel()
+        statusJob = scope.launch {
             try {
                 applyStatus(api.status(isMovie, tmdbId))
             } catch (e: CancellationException) {
@@ -321,7 +315,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         }
         if (similar.isNotEmpty()) {
             val section = Section(context, "similar", string(R.string.row_similar))
-            section.row.setCards(similar.map { s -> TitleCard(context, s, app.images, {}, { openTitle(it.item) }) })
+            section.row.setCards(similar.map { s -> TitleCard(context, s, app.images, {}, { opener.open(it.item) }) })
             addSection(section)
         }
     }
@@ -349,6 +343,14 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         const val POSTER_H = 202
         const val LOGO_W = 330
         const val LOGO_H = 66
-        const val BLOCK_H = TOP + POSTER_H + 14 + 56
+        const val POSTER_GAP = 25
+        const val INFO_W = 540
+        const val STATE_W = 380
+        const val ACTIONS_GAP = 14
+        const val PAGE_BOTTOM = 200
+        const val PAGE_ANCHOR = 34
+
+        /** Room under the poster for the action row. */
+        const val BLOCK_H = TOP + POSTER_H + ACTIONS_GAP + 56
     }
 }
