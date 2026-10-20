@@ -11,25 +11,35 @@ import android.graphics.Rect
 import android.graphics.Shader
 import android.os.Handler
 import android.os.Looper
+import android.util.LruCache
 import android.widget.FrameLayout
-import android.widget.ImageView
 import cloud.rawkoon.tv.data.DiskCache
 import java.util.concurrent.Executors
 
 /**
  * The page background. Instead of drawing the image, the tint and the scrims as separate layers on
  * every frame, it blends them once, off the main thread, into a single screen-sized hardware
- * bitmap, then cross-fades two ImageViews. While nothing changes the GPU draws one textured quad;
+ * bitmap, then cross-fades two BitmapViews. While nothing changes the GPU draws one textured quad;
  * during the cross-fade, two.
  */
 class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(context) {
     private val bottom = layer()
     private val top = layer()
     private val main = Handler(Looper.getMainLooper())
+
+    /** The key (url and strength) asked for last; read from the worker to drop superseded composes. */
+    @Volatile
     private var requested: String? = null
     private var shown: String? = null
 
-    /** How much of the image shows: 1 on home, lower behind denser pages. */
+    /** Whether [top] holds a bitmap still fading in: a new fade commits it to [bottom] first. */
+    private var fading = false
+    private var fadeId = 0
+
+    /** The last few composed backdrops, so going back to one skips the decode and the blend. Main thread only. */
+    private val composed = LruCache<String, Bitmap>(CACHED)
+
+    /** How much of the image shows: 1 on home, lower behind denser pages. Part of the cache key. */
     var strength = 1f
 
     init {
@@ -38,44 +48,83 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         addView(top, fill())
     }
 
-    private fun layer() = ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_XY }
+    private fun layer() = BitmapView(context)
 
     /** Shows [url] (an image URL, or null for the plain page colour) once it is composed. */
     fun show(url: String?) {
-        if (url == requested) return
-        requested = url
+        val strength = strength
+        val key = url?.let { "$it|$strength" }
+        if (key == requested) return
+        requested = key
+        if (key == shown) return
         if (url == null) {
             crossfade(null, null)
             return
         }
+        composed.get(key)?.let {
+            crossfade(key, it)
+            return
+        }
         val w = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val h = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-        val strength = strength
         worker.execute {
-            if (requested != url) return@execute
+            if (requested != key) return@execute
             val bitmap = try {
                 disk.file(url)?.let { compose(it.path, w, h, strength) }
             } catch (e: Exception) {
                 null
             }
-            main.post { if (requested == url && bitmap != null) crossfade(url, bitmap) }
+            main.post {
+                if (bitmap == null) return@post
+                composed.put(key, bitmap)
+                if (requested == key) crossfade(key, bitmap)
+            }
         }
     }
 
-    private fun crossfade(url: String?, bitmap: Bitmap?) {
-        if (url == shown) return
-        shown = url
+    /**
+     * Fades to [bitmap] (or to the plain page colour when null). The fade is cancelled when the
+     * next one starts and a cancelled animation runs no end action, so a fade in progress is
+     * committed to [bottom] by hand first: the new fade starts from the image that was arriving,
+     * not from an older one.
+     */
+    private fun crossfade(key: String?, bitmap: Bitmap?) {
+        if (key == shown) return
+        shown = key
+        val id = ++fadeId
         top.animate().cancel()
-        top.setImageBitmap(bitmap)
+        bottom.animate().cancel()
+        if (fading) {
+            bottom.bitmap = top.bitmap
+            bottom.alpha = 1f
+            top.bitmap = null
+            top.alpha = 0f
+            fading = false
+        }
+        if (bitmap == null) {
+            bottom.animate().alpha(0f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.ease).withEndAction {
+                if (id != fadeId) return@withEndAction
+                bottom.bitmap = null
+                bottom.alpha = 1f
+            }.start()
+            return
+        }
+        fading = true
+        top.bitmap = bitmap
         top.alpha = 0f
         top.animate().alpha(1f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.ease).withEndAction {
-            bottom.setImageBitmap(bitmap)
-            top.setImageDrawable(null)
+            if (id != fadeId) return@withEndAction
+            // The top layer is opaque and covers the bottom one, so resetting it is not visible
+            bottom.bitmap = bitmap
+            bottom.alpha = 1f
+            top.bitmap = null
             top.alpha = 0f
+            fading = false
         }.start()
     }
 
     companion object {
+        private const val CACHED = 4
         private val worker = Executors.newSingleThreadExecutor()
 
         /**
@@ -132,7 +181,14 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
          * read as part of the image instead of a flat brown band.
          */
         private fun darkTint(image: Bitmap): Int {
-            val tiny = Bitmap.createScaledBitmap(image, 16, 9, true)
+            // Halve in steps down to a few dozen pixels: one bilinear jump from a big image would
+            // sample only four source pixels per output pixel
+            var tiny = image
+            while (tiny.width >= 64 && tiny.height >= 36) {
+                val next = Bitmap.createScaledBitmap(tiny, tiny.width / 2, tiny.height / 2, true)
+                if (tiny !== image) tiny.recycle()
+                tiny = next
+            }
             var r = 0L
             var g = 0L
             var b = 0L
