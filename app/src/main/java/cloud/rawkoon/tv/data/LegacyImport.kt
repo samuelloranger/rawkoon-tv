@@ -26,26 +26,29 @@ object LegacyImport {
     data class OldRawkoon(val url: String, val token: String, val userName: String, val userId: String)
 
     /**
-     * Marked done once the attempt ends, whether or not it worked: a damaged old file would
-     * otherwise be retried (and could fail) on every launch, and signing in again is the fallback.
+     * Marked done once the old data was read, or turned out unreadable: a damaged old file would
+     * otherwise be retried on every launch, and signing in again is the fallback. A failure writing
+     * the new profiles leaves it unmarked, so the next launch tries again.
      */
     fun run(context: Context, store: ProfileStore): Int {
         val prefs = Prefs.of(context)
         if (prefs.getBoolean(DONE, false)) return 0
-        val imported = runCatching { import(context, store) }.getOrDefault(0)
-        prefs.edit().putBoolean(DONE, true).apply()
-        return imported
+        val old = runCatching { readOld(context) }.getOrNull()
+        val profiles = old?.let { (users, rawkoon) -> toProfiles(users, rawkoon) }.orEmpty()
+        val saved = runCatching {
+            old?.second?.url?.takeIf { it.isNotBlank() }?.let { Prefs.setRawkoonUrl(context, it) }
+            profiles.forEach { store.save(it) }
+        }.isSuccess
+        if (saved) prefs.edit().putBoolean(DONE, true).apply()
+        return if (saved) profiles.size else 0
     }
 
-    private fun import(context: Context, store: ProfileStore): Int {
+    private fun readOld(context: Context): Pair<List<OldUser>, OldRawkoon?> {
         val database = context.getDatabasePath("wholphin")
         val users = if (database.isFile) readUsers(database) else emptyList()
         val rawkoon = File(context.filesDir, "datastore/rawkoon_settings.pb").takeIf { it.isFile }
             ?.let { runCatching { parseRawkoon(it.readBytes()) }.getOrNull() }
-        rawkoon?.url?.takeIf { it.isNotBlank() }?.let { Prefs.setRawkoonUrl(context, it) }
-        val profiles = toProfiles(users, rawkoon)
-        profiles.forEach { store.save(it) }
-        return profiles.size
+        return users to rawkoon
     }
 
     private fun readUsers(file: File): List<OldUser> = try {
