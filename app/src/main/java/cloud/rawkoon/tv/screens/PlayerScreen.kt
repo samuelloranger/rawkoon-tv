@@ -283,7 +283,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             val s = stream ?: return
             if (state == Player.STATE_READY && !started) {
                 started = true
-                scope.launch { service.reportStart(s, player.exo.currentPosition, !player.exo.playWhenReady, s.audioIndex, s.subtitleIndex) }
+                scope.launch { service.reportStart(s, player.exo.currentPosition, !player.exo.playWhenReady) }
                 main.removeCallbacks(report)
                 main.postDelayed(report, REPORT_MS)
                 scheduleHide()
@@ -394,7 +394,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private fun reportProgress() {
         val s = stream ?: return
         if (!started) return
-        scope.launch { service.reportProgress(s, player.exo.currentPosition, !player.exo.isPlaying, s.audioIndex, s.subtitleIndex) }
+        scope.launch { service.reportProgress(s, player.exo.currentPosition, !player.exo.playWhenReady) }
     }
 
     // --- Chrome --------------------------------------------------------------------------------
