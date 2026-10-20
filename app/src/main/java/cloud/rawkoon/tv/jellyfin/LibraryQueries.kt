@@ -11,7 +11,8 @@ import java.util.UUID
 
 /** How the library grids can be ordered; [newestFirst] is the direction that reads naturally for it. */
 enum class LibrarySort(val keys: List<ItemSortBy>, val newestFirst: Boolean) {
-    ADDED(listOf(ItemSortBy.DATE_CREATED), true),
+    // Bulk additions share a timestamp: the name keeps their order stable from one page to the next
+    ADDED(listOf(ItemSortBy.DATE_CREATED, ItemSortBy.SORT_NAME), true),
     TITLE(listOf(ItemSortBy.SORT_NAME), false),
     YEAR(listOf(ItemSortBy.PRODUCTION_YEAR, ItemSortBy.SORT_NAME), true),
     RATING(listOf(ItemSortBy.COMMUNITY_RATING, ItemSortBy.SORT_NAME), true),
@@ -45,6 +46,8 @@ data class NameBound(val lessThan: String? = null, val orGreater: String? = null
  */
 fun letterBound(letter: Char, descending: Boolean): NameBound? = when {
     letter == '#' -> if (descending) NameBound(orGreater = "A") else null
+    // Z ends the alphabet: reversed, its titles come first
+    descending && letter == 'Z' -> null
     descending -> NameBound(orGreater = (letter + 1).toString())
     else -> NameBound(lessThan = letter.toString())
 }

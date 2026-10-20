@@ -65,10 +65,12 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
 
     /** Shows [item] at grid [position], or an empty poster when it is not loaded yet. */
     fun bind(item: MediaItem?, position: Int) {
+        // Rebinding the same title (its page was refreshed) keeps its art: clearing it would flash the poster empty
+        val keepArt = item != null && item.id == this.item?.id && art.drawable != null
         this.item = item
         this.position = position
         boundId = item?.id
-        art.setImageDrawable(null)
+        if (!keepArt) art.setImageDrawable(null)
         contentDescription = item?.title
         title.text = item?.title.orEmpty()
         subtitle.text = item?.year?.toString().orEmpty()
@@ -83,6 +85,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
             ring.alpha = 0f
         }
         val url = item?.posterUrl ?: return
+        if (keepArt) return
         val w = context.dp(Tokens.POSTER_W)
         images.load("$url&fillWidth=$w", w, context.dp(Tokens.POSTER_H), context.dpf(Tokens.CARD_RADIUS), opaque = false, isCurrent = { boundId == item.id }) {
             art.setImageBitmap(it)

@@ -5,6 +5,7 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
@@ -81,6 +82,7 @@ class LibraryScreen(
     private var dialog: ChoiceDialog? = null
     private var query = LibraryQuery()
     private var loading: Job? = null
+    private var jumping: Job? = null
     private var focusWhenLoaded = false
     private var backdropUrl: String? = null
     private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
@@ -167,7 +169,6 @@ class LibraryScreen(
     /** Applies a new sort or filter: the grid starts over from the first title. */
     private fun apply(next: LibraryQuery) {
         if (next == query) return
-        if (next.sort != LibrarySort.TITLE) letters.active = null
         query = next
         paintButtons()
         reload()
@@ -180,6 +181,9 @@ class LibraryScreen(
     private fun reload(jump: Char? = null) {
         loading?.cancel()
         if (message.hasFocus()) focusWhenLoaded = true
+        jumping?.cancel()
+        // A restarted grid is no longer at a letter
+        if (jump == null) letters.active = null
         message.visibility = View.GONE
         val gen = paged.begin()
         grid.reset()
@@ -199,7 +203,7 @@ class LibraryScreen(
                     return@launch
                 }
                 if (jump != null) grid.jumpTo(index.coerceAtMost(first.total - 1))
-                if (focusWhenLoaded) focusGrid()
+                if (focusWhenLoaded) focusGridWhenLaidOut()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -239,7 +243,8 @@ class LibraryScreen(
             return
         }
         val gen = paged.generation
-        scope.launch {
+        jumping?.cancel()
+        jumping = scope.launch {
             try {
                 val index = session.libraryLetterIndex(types, parentId, query, letter)
                 if (gen == paged.generation && paged.total > 0) grid.jumpTo(index.coerceAtMost(paged.total - 1))
@@ -281,11 +286,66 @@ class LibraryScreen(
         }
     }
 
-    private fun focusGrid() {
-        focusWhenLoaded = false
+    /**
+     * Hands focus to the grid once the posters just loaded are laid out: before that there is no
+     * view to take it. Wanted until a poster has it, or someone moved on to something other than
+     * the bar and keeps their place.
+     */
+    private fun focusGridWhenLaidOut() {
+        val tree = grid.viewTreeObserver
+        tree.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                if (!focusGrid()) return
+                val observer = grid.viewTreeObserver
+                if (observer.isAlive) observer.removeOnGlobalLayoutListener(this)
+            }
+        })
+    }
+
+    /** True when the grid does not need focus any more. */
+    private fun focusGrid(): Boolean {
         val focus = view.findFocus()
-        // Only take focus from nowhere or the bar: someone who already moved on keeps their place
-        if (focus == null || focus.isWithin(bar)) grid.focusTarget()?.requestFocus()
+        if (focus != null && !focus.isWithin(bar)) {
+            focusWhenLoaded = false
+            return true
+        }
+        val target = grid.focusTarget() ?: return false
+        if (!target.requestFocus()) return false
+        focusWhenLoaded = false
+        return true
+    }
+
+    /**
+     * Coming back to the page: the posters around focus are fetched again so watched marks are
+     * current, without moving anything. The rest are dropped and refetched if scrolled to. If the
+     * library's size changed meanwhile, the grid starts over.
+     */
+    private fun refresh() {
+        if (message.visibility == View.VISIBLE) return reload()
+        if (loading?.isActive == true || paged.total == 0) return
+        val gen = paged.generation
+        val first = (grid.lastPosition - PosterGrid.PREFETCH).coerceAtLeast(0) / paged.pageSize
+        val last = (grid.lastPosition + PosterGrid.PREFETCH).coerceAtMost(paged.total - 1) / paged.pageSize
+        paged.keepOnly((first..last).toSet())
+        for (page in first..last) {
+            scope.launch {
+                try {
+                    val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
+                    if (gen != paged.generation) return@launch
+                    if (result.total != paged.total) return@launch reload()
+                    if (paged.put(gen, page, result.items, result.total)) grid.pageLoaded(page, firstLoad = false)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // The posters on screen stay as they were
+                }
+            }
+        }
+    }
+
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        if (!first) refresh()
     }
 
     override fun contentFocus(): View? = grid.focusTarget()

@@ -15,6 +15,7 @@ class PagedItems(val pageSize: Int = PAGE_SIZE) {
         private set
     private val pages = HashMap<Int, List<MediaItem>>()
     private val requested = HashSet<Int>()
+    private val failedAt = HashMap<Int, Long>()
 
     /** Forgets everything and returns the new generation; the first page is counted as asked for. */
     fun begin(): Int {
@@ -22,34 +23,54 @@ class PagedItems(val pageSize: Int = PAGE_SIZE) {
         total = 0
         pages.clear()
         requested.clear()
+        failedAt.clear()
         requested += 0
         return generation
     }
 
     operator fun get(position: Int): MediaItem? = pages[position / pageSize]?.getOrNull(position % pageSize)
 
-    /** The pages around [position] (within [margin] items) that are neither loaded nor on their way; they count as asked for. */
-    fun claimAround(position: Int, margin: Int): List<Int> {
+    /**
+     * The pages around [position] (within [margin] items) that are neither loaded nor on their way;
+     * they count as asked for. A page that failed is left alone for [RETRY_MS], so a server that is
+     * down is not asked again by every poster scrolled past.
+     */
+    fun claimAround(position: Int, margin: Int, nowMs: Long = System.currentTimeMillis()): List<Int> {
         if (total == 0) return emptyList()
         val first = (position - margin).coerceAtLeast(0) / pageSize
         val last = (position + margin).coerceAtMost(total - 1) / pageSize
-        return (first..last).filter { requested.add(it) }
+        return (first..last).filter { page -> failedAt[page]?.let { nowMs - it < RETRY_MS } != true && requested.add(page) }
     }
 
-    /** Stores [items] as [page]; false when [gen] is no longer the current generation. */
+    /**
+     * Stores [items] as [page]; false when [gen] is no longer the current generation. The total
+     * of the first page stands for the whole generation: a count that moved since would change the
+     * grid's size without the adapter being told.
+     */
     fun put(gen: Int, page: Int, items: List<MediaItem>, total: Int): Boolean {
         if (gen != generation) return false
+        if (pages.isEmpty()) this.total = total
         pages[page] = items
-        this.total = total
+        failedAt -= page
         return true
     }
 
-    /** A page's request failed: it can be asked for again. */
-    fun release(gen: Int, page: Int) {
-        if (gen == generation) requested -= page
+    /** A page's request failed: it can be asked for again once [RETRY_MS] has passed. */
+    fun release(gen: Int, page: Int, nowMs: Long = System.currentTimeMillis()) {
+        if (gen != generation) return
+        requested -= page
+        failedAt[page] = nowMs
+    }
+
+    /** Forgets every loaded page not in [keep], so scrolling back to it fetches it afresh. */
+    fun keepOnly(keep: Set<Int>) {
+        pages.keys.retainAll(keep)
+        requested.retainAll(keep)
+        failedAt.clear()
     }
 
     companion object {
         const val PAGE_SIZE = 100
+        const val RETRY_MS = 5_000L
     }
 }

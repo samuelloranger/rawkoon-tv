@@ -52,8 +52,8 @@ class PagedItemsTest {
         val gen = paged.begin()
         paged.put(gen, 0, page(0, 10), 50)
         assertEquals(listOf(1), paged.claimAround(12, 0))
-        paged.release(gen, 1)
-        assertEquals(listOf(1), paged.claimAround(12, 0))
+        paged.release(gen, 1, nowMs = 0)
+        assertEquals(listOf(1), paged.claimAround(12, 0, nowMs = PagedItems.RETRY_MS))
     }
 
     @Test
@@ -65,5 +65,38 @@ class PagedItemsTest {
         assertEquals(0, paged.total)
         assertTrue(paged.put(fresh, 0, page(0, 10), 10))
         assertEquals(10, paged.total)
+    }
+
+    @Test
+    fun `the first page's total stands for the whole generation`() {
+        val paged = PagedItems(pageSize = 10)
+        val gen = paged.begin()
+        paged.put(gen, 0, page(0, 10), 50)
+        paged.put(gen, 1, page(10, 10), 53)
+        assertEquals(50, paged.total)
+    }
+
+    @Test
+    fun `a failed page is left alone until the retry delay has passed`() {
+        val paged = PagedItems(pageSize = 10)
+        val gen = paged.begin()
+        paged.put(gen, 0, page(0, 10), 50)
+        assertEquals(listOf(1), paged.claimAround(12, 0, nowMs = 0))
+        paged.release(gen, 1, nowMs = 1_000)
+        assertEquals(emptyList<Int>(), paged.claimAround(12, 0, nowMs = 2_000))
+        assertEquals(listOf(1), paged.claimAround(12, 0, nowMs = 1_000 + PagedItems.RETRY_MS))
+    }
+
+    @Test
+    fun `keeping only some pages drops the others so they are fetched afresh`() {
+        val paged = PagedItems(pageSize = 10)
+        val gen = paged.begin()
+        paged.put(gen, 0, page(0, 10), 50)
+        paged.put(gen, 1, page(10, 10), 50)
+        paged.put(gen, 2, page(20, 10), 50)
+        paged.keepOnly(setOf(1))
+        assertNull(paged[5])
+        assertEquals("Title 15", paged[15]?.title)
+        assertEquals(listOf(2), paged.claimAround(25, 0))
     }
 }

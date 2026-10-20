@@ -30,6 +30,12 @@ class LibraryQueriesTest {
     }
 
     @Test
+    fun `date added breaks ties on the title, so bulk additions page stably`() {
+        assertEquals(listOf(ItemSortBy.DATE_CREATED, ItemSortBy.SORT_NAME), LibrarySort.ADDED.keys)
+        assertEquals(listOf(SortOrder.DESCENDING, SortOrder.ASCENDING), LibraryQuery(LibrarySort.ADDED).sortOrder)
+    }
+
+    @Test
     fun `the filters map to the server's`() {
         assertNull(LibraryFilter.ALL.filters)
         assertEquals(listOf(ItemFilter.IS_UNPLAYED), LibraryFilter.UNWATCHED.filters)
@@ -42,6 +48,8 @@ class LibraryQueriesTest {
         assertNull(letterBound('#', descending = false))
         assertEquals(NameBound(orGreater = "N"), letterBound('M', descending = true))
         assertEquals(NameBound(orGreater = "A"), letterBound('#', descending = true))
+        // Reversed, Z leads the grid
+        assertNull(letterBound('Z', descending = true))
     }
 
     @Test

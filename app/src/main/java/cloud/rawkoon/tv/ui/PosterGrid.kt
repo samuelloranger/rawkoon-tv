@@ -94,7 +94,8 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     fun jumpTo(position: Int) {
         stopScroll()
         lastPosition = position
-        manager.scrollToPositionWithOffset(position, paddingTop)
+        // The manager adds the start padding itself
+        manager.scrollToPositionWithOffset(position, 0)
     }
 
     /** The posters of [page] have arrived: shows them. */
@@ -108,7 +109,11 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     }
 
     /** The poster focus should return to: the last focused one, or the first on screen. */
-    fun focusTarget(): View? = manager.findViewByPosition(lastPosition.coerceIn(0, (paged.total - 1).coerceAtLeast(0))) ?: getChildAt(0)
+    fun focusTarget(): View? {
+        // Until the pending update is laid out the children are the old ones
+        if (hasPendingAdapterUpdates()) return null
+        return manager.findViewByPosition(lastPosition.coerceIn(0, (paged.total - 1).coerceAtLeast(0))) ?: getChildAt(0)
+    }
 
     private fun focused(cell: PosterCell) {
         lastPosition = cell.position
@@ -141,6 +146,6 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         const val SPAN = 7
 
         /** Three rows each way are fetched ahead of focus. */
-        private const val PREFETCH = 3 * SPAN
+        const val PREFETCH = 3 * SPAN
     }
 }
