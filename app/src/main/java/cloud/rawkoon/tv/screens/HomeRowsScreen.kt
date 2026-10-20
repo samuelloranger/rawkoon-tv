@@ -9,6 +9,7 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.jellyfin.HomeRow
+import cloud.rawkoon.tv.jellyfin.mergedOrder
 import cloud.rawkoon.tv.jellyfin.movedBy
 import cloud.rawkoon.tv.jellyfin.orderedIds
 import cloud.rawkoon.tv.ui.ChoiceDialog
@@ -114,7 +115,7 @@ class HomeRowsScreen(activity: MainActivity, private val profileId: String) : Sc
     /** Moves the row in the list and on screen, then opens its menu again where it landed. */
     private fun move(id: String, by: Int) {
         ids = movedBy(ids, id, by).toMutableList()
-        Prefs.setHomeOrder(context, profileId, ids)
+        Prefs.setHomeOrder(context, profileId, mergedOrder(ids, Prefs.homeOrder(context, profileId)))
         val row = views.getValue(id)
         column.removeView(row)
         column.addView(row, ids.indexOf(id), LinearLayout.LayoutParams(context.dp(ROW_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))

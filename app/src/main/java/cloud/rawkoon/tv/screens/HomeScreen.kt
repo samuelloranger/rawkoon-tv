@@ -96,7 +96,14 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 }
                 val fresh = RawkoonHome.merge(jellyfin, outcome?.let { RawkoonHome.rowsFor(it, previous) } ?: previous)
                 showHome(fresh)
-                withContext(Dispatchers.IO) { runCatching { cache.writeText(HomeRow.listToJson(fresh)) } }
+                // Written aside then swapped in, so the home rows setting never reads half a file
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        val partial = File(cache.path + ".tmp")
+                        partial.writeText(HomeRow.listToJson(fresh))
+                        partial.renameTo(cache)
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

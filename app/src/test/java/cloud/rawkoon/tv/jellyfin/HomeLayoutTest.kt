@@ -97,4 +97,12 @@ class HomeLayoutTest {
         assertFalse(playsRightAway(play, "latest:a", item(MediaItem.Kind.MOVIE)))
         assertFalse(playsRightAway(ContinueOpen.PAGE, "resume", item(MediaItem.Kind.EPISODE)))
     }
+
+    @Test
+    fun `a saved row the list doesn't show keeps its place`() {
+        // C was first, but the last home load didn't have it; B is moved up
+        assertEquals(listOf("C", "B", "A"), mergedOrder(listOf("B", "A"), listOf("C", "A", "B")))
+        assertEquals(listOf("A", "C", "B"), mergedOrder(listOf("A", "B"), listOf("A", "C", "B")))
+        assertEquals(listOf("B", "A"), mergedOrder(listOf("B", "A"), emptyList()))
+    }
 }

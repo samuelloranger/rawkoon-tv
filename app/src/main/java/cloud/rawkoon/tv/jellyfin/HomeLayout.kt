@@ -40,6 +40,21 @@ fun arrangeRows(rows: List<HomeRow>, order: List<String>, hidden: Set<String>): 
     return orderedIds(rows.map { it.id }, order).filter { it !in hidden }.mapNotNull { byId[it] }
 }
 
+/**
+ * The order to save after the user arranged [listed]: the rows the setting lists can only show
+ * those the home last loaded, so a saved row missing from it (a library that failed to load)
+ * keeps its place, just after the row that came before it in [saved].
+ */
+fun mergedOrder(listed: List<String>, saved: List<String>): List<String> {
+    val result = listed.toMutableList()
+    saved.forEachIndexed { i, id ->
+        if (id in result) return@forEachIndexed
+        val before = saved.subList(0, i).lastOrNull { it in result }
+        result.add(if (before == null) 0 else result.indexOf(before) + 1, id)
+    }
+    return result
+}
+
 /** [ids] with [id] moved [by] places (negative is up), stopping at the ends. */
 fun movedBy(ids: List<String>, id: String, by: Int): List<String> {
     val from = ids.indexOf(id)
