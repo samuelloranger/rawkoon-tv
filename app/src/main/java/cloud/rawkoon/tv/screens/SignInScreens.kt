@@ -1,21 +1,17 @@
 package cloud.rawkoon.tv.screens
 
-import android.graphics.Bitmap
-import android.graphics.Color
 import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
-import cloud.rawkoon.tv.rawkoon.DevicePoll
 import cloud.rawkoon.tv.rawkoon.OnboardingStep
 import cloud.rawkoon.tv.rawkoon.RawkoonClient
 import cloud.rawkoon.tv.rawkoon.onboard
@@ -29,12 +25,8 @@ import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.rounded
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** A centered column: a Fraunces title and a line under it, then whatever the screen adds. */
@@ -132,39 +124,16 @@ class ServerScreen(activity: MainActivity) : FormScreen(activity, activity.getSt
  * server's pace, asks for a new code when one expires, then runs the Jellyfin side on its own.
  */
 class SignInScreen(activity: MainActivity, private val rawkoonUrl: String) :
-    FormScreen(activity, activity.getString(R.string.add_profile_title), activity.getString(R.string.sign_in_hint)) {
+    DeviceCodeScreen(activity, activity.getString(R.string.add_profile_title), activity.getString(R.string.sign_in_hint)) {
     private val client = RawkoonClient(rawkoonUrl)
-    private val qr = ImageView(context).apply {
-        background = rounded(Color.WHITE, context.dpf(8f))
-        val p = context.dp(11)
-        setPadding(p, p, p, p)
-    }
-    // Never ellipsized: Fraunces draws a little past its measured width, which would cut the last letter
-    private val code = label(context, 46f, Tokens.textPrimary, Fonts.title(context)).apply {
-        ellipsize = null
-        setPadding(0, 0, context.dp(6), 0)
-    }
-    private val address = label(context, 15f, Tokens.textSoft, Fonts.medium(context))
-    private val retry = PillButton(context, string(R.string.try_again), primary = true)
-    private var job: Job? = null
 
     init {
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }.noClip()
-        row.addView(qr, LinearLayout.LayoutParams(context.dp(QR_DP), context.dp(QR_DP)))
-        val right = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        right.addView(code)
-        right.addView(address, wrap().apply { topMargin = context.dp(4) })
-        right.addView(label(context, 12f, Tokens.textMuted, Fonts.bold(context)).apply {
+        panel.details.addView(label(context, 12f, Tokens.textMuted, Fonts.bold(context)).apply {
             text = string(R.string.sign_in_steps)
         }, wrap().apply { topMargin = context.dp(20) })
-        row.addView(right, LinearLayout.LayoutParams(context.dp(300), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(44) })
-        column.addView(row)
+        column.addView(panel)
         column.addView(status, LinearLayout.LayoutParams(context.dp(520), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(18) })
         column.addView(retry, wrap().apply { topMargin = context.dp(8) })
-        retry.visibility = android.view.View.GONE
         retry.setOnClickListener { start() }
 
         val email = PillButton(context, string(R.string.email_sign_in), Icon.KEY)
@@ -181,75 +150,7 @@ class SignInScreen(activity: MainActivity, private val rawkoonUrl: String) :
         (footer.getChildAt(0))?.requestFocus()
     }
 
-    private fun start() {
-        job?.cancel()
-        retry.visibility = android.view.View.GONE
-        status.text = ""
-        job = scope.launch {
-            try {
-                var device = client.requestDeviceCode()
-                showCode(device)
-                var interval = device.interval.coerceAtLeast(1) * 1_000L
-                var failures = 0
-                while (true) {
-                    delay(interval)
-                    // A dropped request is retried a few times; only a run of them ends the sign-in
-                    val poll = try {
-                        client.pollDeviceToken(device.deviceCode).also { failures = 0 }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        if (++failures >= MAX_POLL_FAILURES) throw e
-                        continue
-                    }
-                    when (poll) {
-                        DevicePoll.Pending -> Unit
-                        DevicePoll.SlowDown -> interval += 5_000L
-                        DevicePoll.Expired -> {
-                            device = client.requestDeviceCode()
-                            showCode(device)
-                            interval = device.interval.coerceAtLeast(1) * 1_000L
-                        }
-                        DevicePoll.Denied -> {
-                            fail(string(R.string.error_denied))
-                            return@launch
-                        }
-                        is DevicePoll.Granted -> {
-                            runOnboarding(rawkoonUrl, poll.token)
-                            return@launch
-                        }
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                fail(e.signInMessage(context))
-            }
-        }
-    }
-
-    private fun showCode(device: cloud.rawkoon.tv.rawkoon.DeviceCode) {
-        code.text = device.displayCode
-        address.text = device.verificationUri.removePrefix("https://").removePrefix("http://")
-        qr.setImageBitmap(qrBitmap(device.verificationUriComplete ?: device.verificationUri, context.dp(QR_DP) - context.dp(22)))
-    }
-
-    private fun fail(message: String) {
-        status.text = message
-        retry.visibility = android.view.View.VISIBLE
-        retry.requestFocus()
-    }
-
-    private companion object {
-        const val QR_DP = 190
-        const val MAX_POLL_FAILURES = 3
-
-        fun qrBitmap(text: String, size: Int): Bitmap {
-            val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, mapOf(EncodeHintType.MARGIN to 0))
-            val pixels = IntArray(matrix.width * matrix.height) { i -> if (matrix[i % matrix.width, i / matrix.width]) Color.BLACK else Color.WHITE }
-            return Bitmap.createBitmap(pixels, matrix.width, matrix.height, Bitmap.Config.RGB_565)
-        }
-    }
+    private fun start() = runFlow(client) { token -> runOnboarding(rawkoonUrl, token) }
 }
 
 /** The fallback sign-in: the Rawkoon account's email and password. */
