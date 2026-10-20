@@ -17,7 +17,6 @@ import androidx.media3.ui.PlayerView
 import cloud.rawkoon.tv.App
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.MediaItem
-import cloud.rawkoon.tv.screens.clock
 import cloud.rawkoon.tv.ui.CenteredRow
 import cloud.rawkoon.tv.ui.CircleButton
 import cloud.rawkoon.tv.ui.FlatView
@@ -27,25 +26,13 @@ import cloud.rawkoon.tv.ui.LogoView
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.SeekBar
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.clock
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.rounded
-import java.util.Locale
-
-/** True for an episode, which has a next one and a show to read it from. */
-internal val MediaItem.isEpisode get() = kind == MediaItem.Kind.EPISODE
-
-/** Minutes and seconds, with hours when there are any. */
-internal fun formatTime(ms: Long): String {
-    val total = ms / 1000
-    val h = total / 3600
-    val m = (total % 3600) / 60
-    val s = total % 60
-    return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s) else String.format(Locale.ROOT, "%d:%02d", m, s)
-}
 
 /**
  * The player's views and what shows them: the title and logo, the seek bar, the times, the
