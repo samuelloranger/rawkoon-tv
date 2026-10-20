@@ -5,6 +5,8 @@ import android.content.Context
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
+import android.view.KeyEvent
+import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -12,7 +14,8 @@ import android.widget.EditText
 /**
  * A single-line text field for searching: it lights up with the focus ring like the other
  * controls and asks for no suggestions. [onChanged] gets every edit; [onSearch] fires on the
- * keyboard's search action, after the keyboard is hidden.
+ * keyboard's search action, after the keyboard is hidden. Left and Right move the caret, and
+ * leave the field once it can't go further that way (Left goes to [onLeftEdge] when it names a view).
  */
 @SuppressLint("ViewConstructor")
 class SearchField(
@@ -23,6 +26,9 @@ class SearchField(
     textSp: Float = TEXT_SP,
     paddingDp: Int = PAD_H,
 ) : EditText(context) {
+    /** The view Left goes to from the start of the text; null leaves it to the normal focus search. */
+    var onLeftEdge: (() -> View?)? = null
+
     init {
         this.hint = hint
         // No suggestions: autocorrect underlines and a suggestion strip get in the way on a TV
@@ -48,6 +54,17 @@ class SearchField(
             onSearch()
             true
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val caretAt = selectionStart == selectionEnd
+        val target = when {
+            keyCode == KeyEvent.KEYCODE_DPAD_LEFT && caretAt && selectionStart <= 0 -> onLeftEdge?.invoke() ?: focusSearch(FOCUS_LEFT)
+            keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && caretAt && selectionEnd >= length() -> focusSearch(FOCUS_RIGHT)
+            else -> null
+        }
+        if (target != null && target !== this && target.requestFocus()) return true
+        return super.onKeyDown(keyCode, event)
     }
 
     companion object {

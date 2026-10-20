@@ -15,7 +15,8 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 
 /**
  * A poster or landscape card for one item, optionally captioned under the art (episodes, seasons,
- * TMDB titles). The art is decoded at its exact size with its corners already rounded, so drawing
+ * TMDB titles). [landscape] is what its row shows; a movie in such a row is still drawn as a poster
+ * (see [wideArt]), and keeps the row's progress bar. The art is decoded at its exact size with its corners already rounded, so drawing
  * it is a single blit; progress, the watched badge and a TMDB title's status badge are drawn once.
  */
 @SuppressLint("ViewConstructor")
@@ -29,8 +30,9 @@ class Card(
     caption: Pair<String, String?>? = null,
 ) : Focusable(context), RowItem {
     override val key: String get() = item.id
-    private val artW = context.dp(if (landscape) Tokens.LAND_W else Tokens.POSTER_W)
-    private val artH = context.dp(if (landscape) Tokens.LAND_H else Tokens.POSTER_H)
+    private val wide = wideArt(landscape, item.kind)
+    private val artW = context.dp(if (wide) Tokens.LAND_W else Tokens.POSTER_W)
+    private val artH = context.dp(if (wide) Tokens.LAND_H else Tokens.POSTER_H)
     private val artRadius = context.dpf(Tokens.CARD_RADIUS)
     private val frame = PosterFrame(context, artW, artH, artRadius)
     override val motion = FocusMotion(frame, frame.ring, raise = false)
@@ -74,7 +76,7 @@ class Card(
      */
     private fun requestArt() {
         if (frame.art.bitmap != null) return
-        val url = (if (landscape) item.thumbUrl else item.posterUrl) ?: return
+        val url = (if (wide) item.thumbUrl else item.posterUrl ?: item.thumbUrl) ?: return
         // A TMDB image's URL is final; a library image is asked at the card's width
         images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive }) { frame.art.bitmap = it }
     }
@@ -90,6 +92,9 @@ class Card(
         super.onDetachedFromWindow()
     }
 }
+
+/** Whether a card draws a still: in a landscape row, everything but a movie, whose art is a poster. */
+fun wideArt(rowLandscape: Boolean, kind: MediaItem.Kind) = rowLandscape && kind != MediaItem.Kind.MOVIE
 
 /** What a card captions under its art: a TMDB title's name and year or air date, an episode's show and "S1 · E3 · Title"; nothing for the rest. */
 fun cardCaption(item: MediaItem): Pair<String, String?>? {

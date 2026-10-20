@@ -103,7 +103,11 @@ abstract class RowsPage(
         rows.post { ((rows.column.focusedChild as? Section) ?: next.first()).let { rows.reveal(it) } }
     }
 
+    /** Called when the rows are about to be replaced or removed: a page that looks things up for the focused card drops them here. */
+    protected open fun onRowsReplaced() {}
+
     private fun replaceRows(sections: List<Section>) {
+        onRowsReplaced()
         rows.column.removeAllViews()
         sections.forEach { rows.column.addView(it) }
     }
@@ -125,6 +129,7 @@ abstract class RowsPage(
         mainHandler.removeCallbacks(settleBackdrop)
         mainHandler.post(settleBackdrop)
         if (!hasRows()) return
+        onRowsReplaced()
         parking.around(rows.hasFocus(), rebuild = {
             rows.column.removeAllViews()
             rows.reset()
@@ -191,9 +196,20 @@ abstract class RowsPage(
         mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
     }
 
-    protected fun onFocused(card: Card) {
+    protected open fun onFocused(card: Card) {
         preview(card.item)
         prefetchFrom = card
+    }
+
+    /**
+     * Swaps the focused card's backdrop for [url], for a card that carries none and looked one up.
+     * With [now] it is shown at once; otherwise it waits for the settle already pending.
+     */
+    protected fun useBackdrop(url: String?, now: Boolean) {
+        backdropUrl = backdropRequest(url)
+        if (!now) return
+        mainHandler.removeCallbacks(settleBackdrop)
+        mainHandler.post(settleBackdrop)
     }
 
     /** Fetches, behind visible loads, the logos and backdrops of the cards next to [card], so they are ready when focus gets there. */

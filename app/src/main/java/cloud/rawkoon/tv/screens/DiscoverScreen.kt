@@ -70,6 +70,9 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private var browse = emptyList<Section>()
     private var searching = false
 
+    /** Set while the page was entered before its rows arrived: they take focus when they do, unless the search field was used. */
+    private var landOnRows = false
+
     init {
         content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = context.dp(Tokens.CONTENT_START)
@@ -83,6 +86,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
             marginEnd = context.dp(SEARCH_END)
         })
         content.addView(message, MessagePanel.params())
+        search.onLeftEdge = { rail.activeItem() }
         // The rows are clipped to their area, so rows gliding up never pass over the header
         content.clipChildren = true
         load()
@@ -157,7 +161,8 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         search.visibility = View.VISIBLE
         browse = sections
         if (!searching) place(sections)
-        if (refocus) focusDefault()
+        if (refocus || (landOnRows && search.hasFocus() && search.text.isEmpty())) focusDefault()
+        landOnRows = false
         if (!searching) firstItem()?.let(header::show)
     }
 
@@ -294,7 +299,13 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
 
     override fun focusDefault() {
         val notice = message.button?.takeIf { message.visibility == View.VISIBLE }
-        (notice ?: search).requestFocus()
+        if (notice != null) {
+            notice.requestFocus()
+            return
+        }
+        val first = rows.sections().firstOrNull()?.row?.takeIf { !searching }
+        landOnRows = first == null
+        if (first?.restoreFocus() != true) search.requestFocus()
     }
 
     /** Coming back from linking the account: load again with the new session. */
