@@ -1,11 +1,8 @@
 package cloud.rawkoon.tv.screens
 
 import android.view.Gravity
-import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
@@ -17,21 +14,20 @@ import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.CircleButton
 import cloud.rawkoon.tv.ui.Destination
-import cloud.rawkoon.tv.ui.Fonts
+import cloud.rawkoon.tv.ui.EntryRow
 import cloud.rawkoon.tv.ui.Icon
-import cloud.rawkoon.tv.ui.LogoView
 import cloud.rawkoon.tv.ui.PersonCard
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
-import cloud.rawkoon.tv.ui.Tokens
-import cloud.rawkoon.tv.ui.chipRow
+import cloud.rawkoon.tv.ui.TitleBlock
 import cloud.rawkoon.tv.ui.dp
-import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
+import cloud.rawkoon.tv.ui.kindChip
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
-import cloud.rawkoon.tv.ui.rounded
+import cloud.rawkoon.tv.ui.showCountChips
+import cloud.rawkoon.tv.ui.yearChip
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -46,11 +42,7 @@ import kotlinx.coroutines.launch
 class DetailsScreen(activity: MainActivity, session: JellyfinSession, private val start: MediaItem) :
     RailScreen(activity, session, if (start.kind == MediaItem.Kind.SERIES) Destination.SHOWS else Destination.MOVIES) {
     private val page = Rows(context)
-    private val block = FrameLayout(context).noClip()
-    private val poster = ImageView(context)
-    private val logo = LogoView(context)
-    private val title = label(context, 34f, Tokens.textPrimary, Fonts.title(context), lines = 2).apply { gravity = Gravity.BOTTOM }
-    private val info = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val block = TitleBlock(context, app.images) { alive }
     private val actions = ActionBar(this)
     private var item = start
     private var loadJob: Job? = null
@@ -60,82 +52,28 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         page.column.setPadding(0, 0, 0, context.dp(200))
         page.anchor = context.dp(34)
         content.addView(page, fill())
-        buildBlock()
-        page.column.addView(block, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(BLOCK_H)))
+        block.setActions(actions.view)
+        page.column.addView(block, TitleBlock.params(context))
         showItem(start, null)
         backdrop.show(start.backdropUrl?.let { "$it&maxWidth=1920" })
         load()
     }
 
-    private fun buildBlock() {
-        val radius = context.dpf(8f)
-        poster.background = rounded(Tokens.surfaceHigh, radius)
-        block.addView(poster, FrameLayout.LayoutParams(context.dp(POSTER_W), context.dp(POSTER_H)).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START)
-            topMargin = context.dp(TOP)
-        })
-        val box = FrameLayout(context)
-        box.addView(logo, fill())
-        box.addView(title, fill())
-        info.addView(box, LinearLayout.LayoutParams(context.dp(LOGO_W), context.dp(LOGO_H)))
-        block.addView(info, FrameLayout.LayoutParams(context.dp(540), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START + POSTER_W + 25)
-            topMargin = context.dp(TOP)
-        })
-        block.addView(actions.view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START - Tokens.RING_INSET)
-            topMargin = context.dp(TOP + POSTER_H + 14)
-        })
-        title.setAutoSizeTextTypeUniformWithConfiguration(20, 34, 2, TypedValue.COMPLEX_UNIT_SP)
-    }
-
     /** Fills the top block; [details] adds the genres, the studio and a show's span when it arrives. */
     private fun showItem(item: MediaItem, details: Details?) {
         this.item = item
-        val radius = context.dpf(8f)
-        val w = context.dp(POSTER_W)
-        val h = context.dp(POSTER_H)
-        item.posterUrl?.let { url -> app.images.load("$url&fillWidth=$w", w, h, radius, isCurrent = { alive }) { poster.setImageBitmap(it) } }
-        val logoUrl = item.logoUrl
-        if (logoUrl == null) {
-            title.text = item.title
-        } else {
-            title.text = ""
-            val lw = context.dp(LOGO_W)
-            val lh = context.dp(LOGO_H)
-            app.images.load("$logoUrl&maxWidth=$lw", lw, lh, 0f, contain = true, isCurrent = { alive }) { logo.bitmap = it }
-        }
-        while (info.childCount > 1) info.removeViewAt(1)
-        info.addView(chipRow(context, metaChips(item, details)), wrapRow(10))
+        block.setPoster(item.posterUrl, fillWidth = true)
         val tags = details?.genres.orEmpty().map { Chip.Outline(it) } + listOfNotNull(details?.studio?.let { Chip.Text(it) })
-        if (tags.isNotEmpty()) info.addView(chipRow(context, tags, 12.5f), wrapRow(8))
-        info.addView(label(context, 14f, 0xE6ECE3DB.toInt(), Fonts.body(context), lines = 3).apply {
-            text = item.overview
-            setLineSpacing(0f, 1.2f)
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(10) })
+        block.bind(item.title, item.logoUrl, metaChips(item, details), tags, item.overview)
         actions.bind(item)
     }
 
-    private fun wrapRow(top: Int) = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(top) }
-
     private fun metaChips(item: MediaItem, details: Details?): List<Chip> = buildList {
         val show = item.kind == MediaItem.Kind.SERIES
-        add(Chip.Kind(string(if (show) R.string.kind_show else R.string.kind_movie)))
-        item.year?.let { year ->
-            add(
-                Chip.Text(
-                    when {
-                        !show -> year.toString()
-                        details?.continuing == true -> "$year –"
-                        details?.endYear != null && details.endYear != year -> "$year – ${details.endYear}"
-                        else -> year.toString()
-                    },
-                ),
-            )
-        }
+        add(kindChip(context, show))
+        item.year?.let { add(yearChip(it, show, details?.continuing == true, details?.endYear)) }
         if (show) {
-            details?.seasonCount?.let { add(Chip.Text(context.resources.getQuantityString(R.plurals.seasons_count, it, it))) }
-            details?.episodeCount?.let { add(Chip.Text(context.resources.getQuantityString(R.plurals.episodes_count, it, it))) }
+            addAll(showCountChips(context, details?.seasonCount, details?.episodeCount))
         } else {
             item.runtimeMinutes?.takeIf { it > 0 }?.let { add(Chip.Text(MediaItem.duration(it))) }
         }
@@ -215,14 +153,6 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         }
     }
 
-    private companion object {
-        const val TOP = 50
-        const val POSTER_W = 135
-        const val POSTER_H = 202
-        const val LOGO_W = 330
-        const val LOGO_H = 66
-        const val BLOCK_H = TOP + POSTER_H + 14 + 56
-    }
 }
 
 /**
@@ -237,18 +167,12 @@ class ActionBar(private val screen: RailScreen) {
     var beforeUse: () -> Unit = {}
 
     /** Coming from above or below, focus lands on the main action rather than the nearest button. */
-    val view: LinearLayout = object : LinearLayout(context) {
+    val view: LinearLayout = object : EntryRow(context) {
+        override fun entry(): View = primary
+
         override fun requestChildFocus(child: View?, focused: View?) {
             if (!hasFocus()) beforeUse()
             super.requestChildFocus(child, focused)
-        }
-
-        override fun addFocusables(views: ArrayList<View>, direction: Int, focusableMode: Int) {
-            if (!hasFocus() && (direction == FOCUS_UP || direction == FOCUS_DOWN)) {
-                views.add(primary)
-                return
-            }
-            super.addFocusables(views, direction, focusableMode)
         }
     }.apply {
         orientation = LinearLayout.HORIZONTAL
