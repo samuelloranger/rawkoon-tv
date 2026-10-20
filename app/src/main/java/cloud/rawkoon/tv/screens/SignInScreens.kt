@@ -190,9 +190,19 @@ class SignInScreen(activity: MainActivity, private val rawkoonUrl: String) :
                 var device = client.requestDeviceCode()
                 showCode(device)
                 var interval = device.interval.coerceAtLeast(1) * 1_000L
+                var failures = 0
                 while (true) {
                     delay(interval)
-                    when (val poll = client.pollDeviceToken(device.deviceCode)) {
+                    // A dropped request is retried a few times; only a run of them ends the sign-in
+                    val poll = try {
+                        client.pollDeviceToken(device.deviceCode).also { failures = 0 }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (++failures >= MAX_POLL_FAILURES) throw e
+                        continue
+                    }
+                    when (poll) {
                         DevicePoll.Pending -> Unit
                         DevicePoll.SlowDown -> interval += 5_000L
                         DevicePoll.Expired -> {
@@ -232,6 +242,7 @@ class SignInScreen(activity: MainActivity, private val rawkoonUrl: String) :
 
     private companion object {
         const val QR_DP = 190
+        const val MAX_POLL_FAILURES = 3
 
         fun qrBitmap(text: String, size: Int): Bitmap {
             val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, mapOf(EncodeHintType.MARGIN to 0))
@@ -247,6 +258,7 @@ class EmailScreen(activity: MainActivity, private val rawkoonUrl: String) :
     private val email = field(string(R.string.email_label), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
     private val password = field(string(R.string.password_label), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
     private val submit = PillButton(context, string(R.string.sign_in), primary = true)
+    private var job: Job? = null
 
     init {
         column.addView(email, LinearLayout.LayoutParams(context.dp(360), context.dp(44)))
@@ -261,8 +273,10 @@ class EmailScreen(activity: MainActivity, private val rawkoonUrl: String) :
     }
 
     private fun signIn() {
+        // A second OK while one is running would sign in, and save the profile, twice
+        if (job?.isActive == true) return
         status.text = ""
-        scope.launch {
+        job = scope.launch {
             try {
                 val token = RawkoonClient(rawkoonUrl).signInWithEmail(email.text.toString(), password.text.toString())
                 runOnboarding(rawkoonUrl, token)
