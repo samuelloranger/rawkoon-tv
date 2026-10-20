@@ -1,14 +1,18 @@
 package cloud.rawkoon.tv.screens
 
+import android.content.Context
 import android.os.SystemClock
 import android.util.LruCache
 import android.view.View
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.arrangeRows
+import cloud.rawkoon.tv.jellyfin.playsRightAway
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonHome
@@ -42,9 +46,12 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class HomeScreen(activity: MainActivity, profile: Profile) :
     RowsPage(activity, JellyfinSession(activity, profile), Destination.HOME, headerTop = Tokens.PAGE_HEADER_TOP, rowsTop = Tokens.PAGE_ROWS_TOP) {
-    private val cache = File(context.cacheDir, "home-${profile.id}.json")
+    private val cache = homeCacheFile(context, profile.id)
 
-    /** The rows last handed to [showHome]: what a failed Rawkoon refresh falls back to. */
+    /**
+     * The rows last handed to [showHome], before the user's arrangement hides or moves any: what a
+     * failed Rawkoon refresh falls back to, and what is saved for the home rows setting to list.
+     */
     private var shown = emptyList<HomeRow>()
 
     private val opener = TitleOpener(this)
@@ -78,7 +85,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             // Rawkoon is asked at the same time but never waited for: Jellyfin's rows show as soon as they arrive
             val rawkoon = if (rawkoonIsFresh()) null else async { rawkoonOutcome() }
             try {
-                val jellyfin = session.homeRows()
+                val jellyfin = session.homeRows(Prefs.homeFetch(context))
                 app.launcher.syncAfterHome(profile(), jellyfin)
                 val previous = rawkoonRowsOnScreen(cached)
                 showHome(RawkoonHome.merge(jellyfin, previous))
@@ -89,7 +96,14 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 }
                 val fresh = RawkoonHome.merge(jellyfin, outcome?.let { RawkoonHome.rowsFor(it, previous) } ?: previous)
                 showHome(fresh)
-                withContext(Dispatchers.IO) { runCatching { cache.writeText(HomeRow.listToJson(fresh)) } }
+                // Written aside then swapped in, so the home rows setting never reads half a file
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        val partial = File(cache.path + ".tmp")
+                        partial.writeText(HomeRow.listToJson(fresh))
+                        partial.renameTo(cache)
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -148,16 +162,22 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             return
         }
         shown = list
-        show(list)
+        val visible = arrangeRows(list, Prefs.homeOrder(context, session.profile.id), Prefs.homeHidden(context, session.profile.id))
+        if (visible.isEmpty()) showEmpty(string(R.string.home_all_hidden)) else show(visible)
     }
 
     /** A Rawkoon row's card is a TMDB title, which opens its own page, or the library item when it's there. */
-    override fun card(item: MediaItem, landscape: Boolean) =
+    override fun card(item: MediaItem, landscape: Boolean, rowId: String) =
         if (item.tmdb != null) {
             Card(context, item, false, app.images, ::onFocused, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) }, cardCaption(item))
         } else {
-            Card(context, item, landscape, app.images, ::onFocused, { openItem(it.item) })
+            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) })
         }
+
+    /** Opens a library card, or plays it at once when the setting asks for it in this row. */
+    private fun openFromRow(item: MediaItem, rowId: String) {
+        if (playsRightAway(Prefs.continueOpen(context), rowId, item)) activity.push(PlayerScreen(activity, session, item)) else openItem(item)
+    }
 
     /** A TMDB card without a backdrop (a request) looks its title's up once focus rests, so it doesn't cost a call per card. */
     override fun onFocused(card: Card) {
@@ -205,7 +225,11 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Coming back to home (from a page or the player): refresh in place, keeping focus. */
     override fun onShown(first: Boolean) {
         super.onShown(first)
-        if (!first) load()
+        if (!first) {
+            // Row settings changed meanwhile show at once, from the rows already loaded
+            if (shown.isNotEmpty()) showHome(shown)
+            load()
+        }
     }
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
@@ -227,3 +251,6 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         const val BACKDROP_CACHE = 100
     }
 }
+
+/** Where a profile's last home rows are kept: the home reads them first, and the home rows setting lists them. */
+fun homeCacheFile(context: Context, profileId: String) = File(context.cacheDir, "home-$profileId.json")

@@ -4,6 +4,8 @@ import android.content.Context
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Profile
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -58,14 +60,14 @@ class JellyfinSession(context: Context, val profile: Profile) {
      * library, in the user's library order. Rows that come back empty are left out, and a row that
      * fails is dropped on its own; the call only fails when every row did.
      */
-    suspend fun homeRows(): List<HomeRow> = withContext(Dispatchers.Default) { loadHomeRows() }
+    suspend fun homeRows(fetch: HomeFetch = HomeFetch()): List<HomeRow> = withContext(Dispatchers.Default) { loadHomeRows(fetch) }
 
     /** Off the main thread (see [homeRows]): decoding the responses and mapping them is the cost. */
-    private suspend fun loadHomeRows(): List<HomeRow> = coroutineScope {
+    private suspend fun loadHomeRows(fetch: HomeFetch): List<HomeRow> = coroutineScope {
         val resume = async {
             attempt {
                 val items = api.itemsApi.getResumeItems(
-                    GetResumeItemsRequest(userId = userId, limit = ROW_LIMIT, fields = FIELDS, mediaTypes = listOf(MediaType.VIDEO), enableTotalRecordCount = false),
+                    GetResumeItemsRequest(userId = userId, limit = fetch.limit, fields = FIELDS, mediaTypes = listOf(MediaType.VIDEO), enableTotalRecordCount = false),
                 ).content.items
                 HomeRow("resume", strings.getString(R.string.row_resume), items.map { MediaItem.from(it, images) }, landscape = true)
             }
@@ -73,7 +75,10 @@ class JellyfinSession(context: Context, val profile: Profile) {
         val nextUp = async {
             attempt {
                 val items = api.tvShowsApi.getNextUp(
-                    GetNextUpRequest(userId = userId, limit = ROW_LIMIT, fields = FIELDS, enableResumable = false, enableTotalRecordCount = false),
+                    GetNextUpRequest(
+                        userId = userId, limit = fetch.limit, fields = FIELDS, enableResumable = false, enableTotalRecordCount = false,
+                        nextUpDateCutoff = fetch.nextUpCutoff(LocalDateTime.now(ZoneOffset.UTC)), enableRewatching = fetch.nextUpRewatching(),
+                    ),
                 ).content.items
                 HomeRow("nextup", strings.getString(R.string.row_next_up), items.map { MediaItem.from(it, images) }, landscape = true)
             }
@@ -88,7 +93,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
                     async {
                         attempt {
                             val items = api.userLibraryApi.getLatestMedia(
-                                GetLatestMediaRequest(userId = userId, parentId = view.id, limit = ROW_LIMIT, fields = FIELDS),
+                                GetLatestMediaRequest(userId = userId, parentId = view.id, limit = fetch.limit, fields = FIELDS),
                             ).content
                             HomeRow("latest:${view.id}", strings.getString(R.string.row_latest, view.name.orEmpty()), items.map { MediaItem.from(it, images) }, landscape = false)
                         }

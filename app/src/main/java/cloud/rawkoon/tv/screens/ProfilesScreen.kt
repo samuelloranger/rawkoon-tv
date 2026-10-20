@@ -17,6 +17,7 @@ import cloud.rawkoon.tv.ui.Icon
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.ProfileTile
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.applyClockSetting
 import cloud.rawkoon.tv.ui.clock
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
@@ -38,6 +39,7 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
     private val manage = PillButton(context, string(R.string.manage_profiles), Icon.PEN)
     private var managing = false
     private var dialog: ChoiceDialog? = null
+    private val clockView = clock(context).apply { applyClockSetting() }
 
     init {
         val column = LinearLayout(context).apply {
@@ -54,7 +56,7 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
         view.addView(manage, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
             bottomMargin = context.dp(30)
         })
-        view.addView(clock(context), FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {
+        view.addView(clockView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {
             topMargin = context.dp(22)
             marginEnd = context.dp(32)
         })
@@ -62,6 +64,7 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
     }
 
     override fun onShown(first: Boolean) {
+        clockView.applyClockSetting()
         rebuild()
         // Nobody signed in yet: straight to the sign-in, with this screen below for Back
         if (first && app.profiles.all().isEmpty()) {

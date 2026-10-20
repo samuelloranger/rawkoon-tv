@@ -2,6 +2,8 @@ package cloud.rawkoon.tv.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import cloud.rawkoon.tv.jellyfin.HomeFetch
+import org.json.JSONArray
 
 /** What the player does when playback reaches an intro, recap, preview or the credits. */
 enum class SkipMode(val key: String) {
@@ -82,6 +84,20 @@ enum class SubtitleEdge(val key: String) {
     }
 }
 
+/** What OK does on a Continue watching or Next up card. */
+enum class ContinueOpen(val key: String) {
+    /** Opens the title's page (the default). */
+    PAGE("page"),
+
+    /** Starts playing at once. */
+    PLAY("play"),
+    ;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: PAGE
+    }
+}
+
 /** The one preferences file: app-wide settings that don't belong to a profile. */
 object Prefs {
     private const val NAME = "rawkoon"
@@ -122,6 +138,15 @@ object Prefs {
     const val HDR10 = "display:hdr10"
     const val HDR10_PLUS = "display:hdr10_plus"
     const val DOLBY_VISION = "display:dolby_vision"
+
+    // Home (the row order and hidden rows are per profile, see homeOrder)
+    const val HOME_ROW_LIMIT = "home:row_limit"
+    const val NEXT_UP_CUTOFF_DAYS = "home:next_up_cutoff_days"
+    const val NEXT_UP_REWATCHING = "home:next_up_rewatching"
+    const val CONTINUE_OPEN = "home:continue_open"
+    const val SHOW_CLOCK = "home:show_clock"
+    private const val HOME_ORDER = "home:order:"
+    private const val HOME_HIDDEN = "home:hidden:"
 
     const val DEFAULT_SKIP_BACK_S = 10
     const val DEFAULT_SKIP_FORWARD_S = 30
@@ -190,4 +215,38 @@ object Prefs {
 
     /** The override for an HDR format, by the key of its setting ([HDR10] and the like). */
     fun hdrOverride(context: Context, key: String): HdrOverride = HdrOverride.of(of(context).getString(key, null))
+
+    // Home
+
+    /** How the next home load asks for its Jellyfin rows. */
+    fun homeFetch(context: Context): HomeFetch {
+        val prefs = of(context)
+        return HomeFetch(
+            limit = prefs.getInt(HOME_ROW_LIMIT, HomeFetch.DEFAULT_LIMIT),
+            nextUpDays = prefs.getInt(NEXT_UP_CUTOFF_DAYS, 0),
+            rewatching = prefs.getBoolean(NEXT_UP_REWATCHING, false),
+        )
+    }
+
+    fun continueOpen(context: Context): ContinueOpen = ContinueOpen.of(of(context).getString(CONTINUE_OPEN, null))
+
+    /** Whether the clock shows on the home and the pages around it. */
+    fun showClock(context: Context): Boolean = of(context).getBoolean(SHOW_CLOCK, true)
+
+    /** The ids of a profile's home rows in the order they were arranged to; empty is the natural order. */
+    fun homeOrder(context: Context, profileId: String): List<String> = readIds(of(context).getString(HOME_ORDER + profileId, null))
+
+    fun setHomeOrder(context: Context, profileId: String, ids: List<String>) =
+        of(context).edit().putString(HOME_ORDER + profileId, JSONArray(ids).toString()).apply()
+
+    /** The ids of the rows a profile hid. */
+    fun homeHidden(context: Context, profileId: String): Set<String> = readIds(of(context).getString(HOME_HIDDEN + profileId, null)).toSet()
+
+    fun setHomeHidden(context: Context, profileId: String, ids: Set<String>) =
+        of(context).edit().putString(HOME_HIDDEN + profileId, JSONArray(ids.toList()).toString()).apply()
+
+    private fun readIds(json: String?): List<String> = runCatching {
+        val array = JSONArray(json ?: return emptyList())
+        (0 until array.length()).map { array.getString(it) }
+    }.getOrDefault(emptyList())
 }

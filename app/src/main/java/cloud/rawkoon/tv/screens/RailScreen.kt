@@ -16,6 +16,7 @@ import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FlatView
 import cloud.rawkoon.tv.ui.NavRail
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.applyClockSetting
 import cloud.rawkoon.tv.ui.clock
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.fill
@@ -46,13 +47,14 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     )
 
     private var lastContent: View? = null
+    private val clockView = clock(context).apply { applyClockSetting() }
 
     init {
         view.addView(backdrop, fill())
         view.addView(content, fill())
         view.addView(dim, fill())
         view.addView(rail, FrameLayout.LayoutParams(context.dp(Tokens.RAIL_OPEN_W), ViewGroup.LayoutParams.MATCH_PARENT))
-        view.addView(clock(context), FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {
+        view.addView(clockView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {
             topMargin = context.dp(22)
             marginEnd = context.dp(32)
         })
@@ -75,7 +77,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         when (destination) {
             Destination.PROFILE -> activity.popTo { it is ProfilesScreen }
             Destination.HOME -> if (this is HomeScreen) contentFocus()?.requestFocus() else activity.popTo { it is HomeScreen }
-            Destination.SETTINGS -> activity.push(SettingsScreen(activity))
+            Destination.SETTINGS -> activity.push(SettingsScreen(activity, session.profile.id))
             Destination.SEARCH -> open(destination) { SearchScreen(activity, session) }
             Destination.FAVORITES -> open(destination) { FavoritesScreen(activity, session) }
             Destination.DISCOVER -> open(destination) { DiscoverScreen(activity, session) }
@@ -106,6 +108,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
 
     override fun onShown(first: Boolean) {
         super.onShown(first)
+        clockView.applyClockSetting()
         if (!first) rail.refreshAvatar()
     }
 

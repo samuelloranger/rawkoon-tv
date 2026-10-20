@@ -181,4 +181,27 @@
     <string name="hdr_auto">Auto (what the TV reports)</string>
     <string name="hdr_always">Always allow</string>
     <string name="hdr_never">Never allow</string>
+
+    <!-- Home -->
+    <string name="settings_home">Home</string>
+    <string name="setting_home_rows">Home rows</string>
+    <string name="setting_home_row_limit">Items per row</string>
+    <string name="setting_next_up_cutoff">Next up: skip shows not watched in</string>
+    <string name="days">%1$d days</string>
+    <string name="setting_next_up_rewatching">Rewatching in Next up</string>
+    <string name="setting_continue_open">Continue watching: OK</string>
+    <string name="continue_open_page">Opens the title page</string>
+    <string name="continue_open_play">Plays right away</string>
+    <string name="setting_clock">Clock</string>
+    <string name="clock_shown">Shown</string>
+    <string name="clock_hidden">Hidden</string>
+    <string name="home_rows_hint">Press OK on a row to move it or hide it.</string>
+    <string name="home_rows_empty">Open Home once and its rows will be listed here.</string>
+    <string name="home_row_up">Move up</string>
+    <string name="home_row_down">Move down</string>
+    <string name="home_row_show">Show</string>
+    <string name="home_row_hide">Hide</string>
+    <string name="home_row_shown">Shown</string>
+    <string name="home_row_hidden">Hidden</string>
+    <string name="home_all_hidden">Every row on Home is hidden. Show some again in Settings, under Home rows.</string>
 </resources>

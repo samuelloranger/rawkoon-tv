@@ -14,6 +14,7 @@ import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
+import cloud.rawkoon.tv.data.ContinueOpen
 import cloud.rawkoon.tv.data.Fetcher
 import cloud.rawkoon.tv.data.HdrOverride
 import cloud.rawkoon.tv.data.MatchDisplay
@@ -36,11 +37,11 @@ import cloud.rawkoon.tv.update.UpdateCheck
 import kotlinx.coroutines.isActive
 
 /**
- * App settings, as a scrolling list of sections: playback, skipping, display, language and
+ * App settings, as a scrolling list of sections: home, playback, skipping, display, language and
  * updates, then the version. Each setting is a row with its current value; OK opens the choices.
  * Changes are saved at once and apply the next time the player opens.
  */
-class SettingsScreen(activity: MainActivity) : Screen(activity) {
+class SettingsScreen(activity: MainActivity, private val profileId: String? = null) : Screen(activity) {
     override val view = FrameLayout(context)
     private val rows = mutableListOf<SettingRow>()
     private var dialog: ChoiceDialog? = null
@@ -66,6 +67,8 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
             setPadding(0, 0, 0, context.dp(40))
         }.noClip()
         scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        addHomeSection(column)
 
         header(column, R.string.settings_playback)
         choice(column, R.string.setting_skip_back, SKIP_BACK_SECONDS.map { it to seconds(it) },
@@ -144,6 +147,32 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         // Pulled back by its inner room, so the rows still line up with the title
         page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { marginStart = -context.dp(SCROLL_ROOM) })
         view.addView(page, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
+    }
+
+    // Home
+
+    private fun addHomeSection(column: LinearLayout) {
+        header(column, R.string.settings_home)
+        // The row order is per profile, so it needs to know whose settings were opened
+        profileId?.let { id ->
+            val row = SettingRow(context, string(R.string.setting_home_rows))
+            row.setValue("›")
+            row.setOnClickListener { activity.push(HomeRowsScreen(activity, id)) }
+            rows += row
+            column.addView(row, LinearLayout.LayoutParams(context.dp(ROW_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        choice(column, R.string.setting_home_row_limit, HOME_ROW_LIMITS.map { it to it.toString() },
+            { Prefs.homeFetch(context).limit }) { put(Prefs.HOME_ROW_LIMIT, it) }
+        choice(column, R.string.setting_next_up_cutoff, NEXT_UP_CUTOFF_DAYS.map { it to if (it == 0) string(R.string.setting_off) else string(R.string.days, it) },
+            { Prefs.homeFetch(context).nextUpDays }) { put(Prefs.NEXT_UP_CUTOFF_DAYS, it) }
+        choice(column, R.string.setting_next_up_rewatching, listOf(false to string(R.string.setting_off), true to string(R.string.setting_on)),
+            { Prefs.homeFetch(context).rewatching }) { put(Prefs.NEXT_UP_REWATCHING, it) }
+        choice(column, R.string.setting_continue_open, listOf(
+            ContinueOpen.PAGE to string(R.string.continue_open_page),
+            ContinueOpen.PLAY to string(R.string.continue_open_play),
+        ), { Prefs.continueOpen(context) }) { put(Prefs.CONTINUE_OPEN, it.key) }
+        choice(column, R.string.setting_clock, listOf(true to string(R.string.clock_shown), false to string(R.string.clock_hidden)),
+            { Prefs.showClock(context) }) { put(Prefs.SHOW_CLOCK, it) }
     }
 
     // Subtitles, audio and HDR formats
@@ -307,7 +336,7 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
 }
 
 /** Scrolls a focused row into view with some room around it, so its ring and the rows beside it show. */
-private class SettingsScroll(context: Context) : ScrollView(context) {
+internal class SettingsScroll(context: Context) : ScrollView(context) {
     private val margin = context.dp(60)
 
     override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect): Int {
@@ -317,10 +346,12 @@ private class SettingsScroll(context: Context) : ScrollView(context) {
     }
 }
 
-private const val ROW_WIDTH = 640
+internal const val ROW_WIDTH = 640
 
 /** Room inside the clipped list for a focused row's ring and lift. */
-private const val SCROLL_ROOM = 16
+internal const val SCROLL_ROOM = 16
+private val HOME_ROW_LIMITS = listOf(10, 20, 30, 50)
+private val NEXT_UP_CUTOFF_DAYS = listOf(0, 30, 60, 90, 180, 365)
 private val SKIP_BACK_SECONDS = listOf(5, 10, 15, 30)
 private val SKIP_FORWARD_SECONDS = listOf(10, 15, 30, 60)
 private val RESUME_REWIND_SECONDS = listOf(0, 3, 5, 10, 15)
