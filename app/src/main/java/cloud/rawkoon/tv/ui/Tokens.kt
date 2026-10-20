@@ -40,6 +40,9 @@ object Tokens {
     const val PAGE_ROWS_TOP = ROWS_TOP - 6
     const val SEARCH_BAR_OFFSET = 58
 
+    /** Room under a poster's art for its title and subtitle. */
+    const val CAPTION_H = 38
+
     const val POSTER_W = 102
     const val POSTER_H = 153
     const val LAND_W = 192
