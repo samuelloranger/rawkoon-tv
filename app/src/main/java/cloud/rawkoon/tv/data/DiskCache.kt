@@ -52,17 +52,7 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
         val now = System.currentTimeMillis()
         if (now - lastTrim < TRIM_EVERY_MS) return
         lastTrim = now
-        val files = dir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
-        var total = 0L
-        for (file in files) {
-            if (file.name.endsWith(".tmp")) {
-                // A download in progress is recent; only leftovers of a killed process are old
-                if (now - file.lastModified() > STALE_TMP_MS) file.delete()
-                continue
-            }
-            total += file.length()
-            if (total > BUDGET) file.delete()
-        }
+        trimDir(dir, now, BUDGET, STALE_TMP_MS)
     }
 
     private fun sha1(text: String) =
@@ -72,5 +62,22 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
         const val BUDGET = 60L * 1024 * 1024
         const val TRIM_EVERY_MS = 60_000L
         const val STALE_TMP_MS = 60 * 60_000L
+    }
+}
+
+/**
+ * Deletes the least recently modified files of [dir] until the rest fit [budget] bytes. A `.tmp`
+ * file is a download in progress: it is left alone unless older than [staleTmpMs], and never counts.
+ */
+internal fun trimDir(dir: File, now: Long, budget: Long, staleTmpMs: Long) {
+    val files = dir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
+    var total = 0L
+    for (file in files) {
+        if (file.name.endsWith(".tmp")) {
+            if (now - file.lastModified() > staleTmpMs) file.delete()
+            continue
+        }
+        total += file.length()
+        if (total > budget) file.delete()
     }
 }

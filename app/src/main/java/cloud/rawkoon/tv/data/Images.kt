@@ -40,7 +40,7 @@ class Images(context: Context, fetcher: Fetcher) {
     private val inflight = HashMap<String, Job>()
 
     /** URLs that failed lately and when, so a bad one is not retried on every bind. */
-    private val failed = Collections.synchronizedMap(HashMap<String, Long>())
+    private val failed = FailureMemory(FAILURE_MEMORY_MS, MAX_FAILURES)
     private val warming = Collections.synchronizedSet(HashSet<String>())
 
     /** Visible loads run before background ones (prefetch); each lane is first come, first served. */
@@ -56,14 +56,7 @@ class Images(context: Context, fetcher: Fetcher) {
     )
     private val sequence = AtomicLong()
 
-    private class Task(val background: Boolean, val order: Long, val body: () -> Unit) : Runnable, Comparable<Task> {
-        override fun run() = body()
-
-        override fun compareTo(other: Task) =
-            compareValuesBy(this, other, { it.background }, { it.order })
-    }
-
-    private fun submit(background: Boolean, body: () -> Unit) = pool.execute(Task(background, sequence.getAndIncrement(), body))
+    private fun submit(background: Boolean, body: () -> Unit) = pool.execute(PriorityTask(background, sequence.getAndIncrement(), body))
 
     private class Waiter(val isCurrent: () -> Boolean, val onReady: (Bitmap) -> Unit)
 
@@ -122,17 +115,9 @@ class Images(context: Context, fetcher: Fetcher) {
         submit(background) { run(job) }
     }
 
-    private fun recentlyFailed(url: String): Boolean {
-        val at = failed[url] ?: return false
-        if (System.currentTimeMillis() - at < FAILURE_MEMORY_MS) return true
-        failed.remove(url)
-        return false
-    }
+    private fun recentlyFailed(url: String) = failed.recent(url)
 
-    private fun fail(url: String) {
-        if (failed.size > MAX_FAILURES) failed.clear()
-        failed[url] = System.currentTimeMillis()
-    }
+    private fun fail(url: String) = failed.add(url)
 
     /** Worker side of a job: download, then decode, giving up between the two if nobody wants it any more. */
     private fun run(job: Job) {
@@ -148,12 +133,19 @@ class Images(context: Context, fetcher: Fetcher) {
                     if (!job.anyCurrent()) abandoned = true else bitmap = decode(file, job.w, job.h, job.radius, job.opaque, job.contain)
                 }
             }
+        } catch (e: OutOfMemoryError) {
+            // Free what can be freed and count this as a failed decode: the pool thread must survive
+            memory.evictAll()
+            bitmap = null
         } catch (e: Exception) {
             bitmap = null
+        } finally {
+            // Always settle the job: a job left in the map would swallow every later load of its key
+            if (bitmap != null) memory.put(job.key, bitmap)
+            else if (!abandoned) fail(job.url)
+            val result = bitmap
+            main.post { finish(job, result, abandoned) }
         }
-        if (bitmap != null) memory.put(job.key, bitmap)
-        else if (!abandoned) fail(job.url)
-        main.post { finish(job, bitmap, abandoned) }
     }
 
     private fun finish(job: Job, bitmap: Bitmap?, abandoned: Boolean) {
@@ -229,5 +221,31 @@ class Images(context: Context, fetcher: Fetcher) {
         const val THREADS = 3
         const val FAILURE_MEMORY_MS = 30_000L
         const val MAX_FAILURES = 256
+    }
+}
+
+/** Visible work runs before background work; within each, first come, first served. */
+internal class PriorityTask(val background: Boolean, val order: Long, val body: () -> Unit) : Runnable, Comparable<PriorityTask> {
+    override fun run() = body()
+
+    override fun compareTo(other: PriorityTask) = compareValuesBy(this, other, { it.background }, { it.order })
+}
+
+/** URLs that failed, remembered for [ttlMs] so a bad one is not retried on every bind. */
+internal class FailureMemory(private val ttlMs: Long, private val max: Int, private val clock: () -> Long = System::currentTimeMillis) {
+    private val failed = HashMap<String, Long>()
+
+    @Synchronized
+    fun recent(url: String): Boolean {
+        val at = failed[url] ?: return false
+        if (clock() - at < ttlMs) return true
+        failed.remove(url)
+        return false
+    }
+
+    @Synchronized
+    fun add(url: String) {
+        if (failed.size > max) failed.clear()
+        failed[url] = clock()
     }
 }

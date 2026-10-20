@@ -107,10 +107,9 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
     override fun onDetachedFromWindow() {
         main.removeCallbacks(settle)
         animate().cancel()
-        // A fade cut short never ran its end action: show the item it was heading for
+        // A fade cut short never ran its end action: restore the view, without starting any load
         alpha = 1f
         translationY = 0f
-        shown?.let(::fill)
         super.onDetachedFromWindow()
     }
 
