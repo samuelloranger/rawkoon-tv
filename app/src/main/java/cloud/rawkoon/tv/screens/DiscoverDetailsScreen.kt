@@ -79,6 +79,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private var inLibrary: MediaItem? = null
     private var modal: TitleModal? = null
     private var busy = false
+    private var withdrawing = false
     private var loadJob: Job? = null
 
     /** The status fetch and the library lookup that follows it: the latest one wins. */
@@ -206,7 +207,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     }
 
     private fun onRequest() {
-        if (busy) return
+        if (busy || withdrawing) return
         if (!titleState.canRequest) {
             refreshStatus()
             return
@@ -239,7 +240,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
 
     /** Asks first: a remote has no undo. Withdrawing a declined request clears it, and the title can be asked for again. */
     private fun onWithdraw() {
-        if (busy) return
+        if (busy || withdrawing) return
         val own = TitleState.withdrawable(titleState, status?.request) ?: return
         val refused = titleState is TitleState.Refused
         dialog = ChoiceDialog(
@@ -247,15 +248,16 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
             string(if (refused) R.string.rk_clear_confirm else R.string.rk_withdraw_confirm),
             listOf(
                 string(if (refused) R.string.rk_clear else R.string.rk_withdraw) to { withdraw(own.id) },
-                string(R.string.cancel) to {},
+                // A refresh may have hidden the button the dialog hands focus back to
+                string(R.string.cancel) to { if (withdraw.visibility != View.VISIBLE) focusDefault() },
             ),
         ).also { it.open(view) }
     }
 
     private fun withdraw(requestId: Int) {
         val api = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return reconnect()
-        busy = true
-        bindActions()
+        withdrawing = true
+        withdraw.isEnabled = false
         scope.launch {
             try {
                 api.withdraw(requestId)
@@ -263,13 +265,14 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
             } catch (e: CancellationException) {
                 throw e
             } catch (e: RawkoonException.Unauthorized) {
-                busy = false
-                bindActions()
+                withdrawing = false
+                withdraw.isEnabled = true
                 return@launch reconnect()
             } catch (e: Exception) {
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
-            busy = false
+            withdrawing = false
+            withdraw.isEnabled = true
             refreshStatus()
         }
     }
