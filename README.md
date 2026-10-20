@@ -22,6 +22,21 @@ for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop ch
 
 The version comes from the latest `vX.Y.Z` tag.
 
+## Releasing
+
+Tag the commit on `main` and push the tag: `git tag -a v3.1.0 -m "RawkoonTV v3.1.0" && git push origin v3.1.0`.
+Only strict `vX.Y.Z` tags release: both updaters fail to parse anything else. The release workflow
+is the only publisher: it tests, builds the signed APKs from the `SIGNING_KEY`, `KEY_ALIAS`,
+`KEY_PASSWORD` and `KEY_STORE_PASSWORD` secrets, checks they carry the first RawkoonTV's
+certificate, and publishes `RawkoonTV-<abi>.apk`, `RawkoonTV.apk` and a `.sha256` for each.
+`RAWKOONTV_SIGNING_DIR=<dir> scripts/release.sh v3.1.0` builds and verifies locally, then pushes
+the same annotated tag (`--dry-run` stops before that). The release title is the bare tag and
+the signing key must be the first RawkoonTV's: installed copies of both generations update from
+these releases.
+
+The app checks the latest release once a day and offers it in Settings, verifying the APK against
+its `.sha256` before handing it to Android's installer.
+
 ## Credits
 
 The device profile and codec checks in `app/src/main/java/cloud/rawkoon/tv/playback/profile/`

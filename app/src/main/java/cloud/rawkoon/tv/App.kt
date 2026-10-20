@@ -9,6 +9,7 @@ import cloud.rawkoon.tv.data.LegacyImport
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.ProfileStore
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.update.UpdateCheck
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,8 @@ class App : Application() {
         profiles = ProfileStore(this)
         images = Images(this, Fetcher(this))
         LegacyImport.run(this, profiles)
+        // Once a day at most, off the main thread; settings offer what it finds.
+        UpdateCheck(this, Fetcher(this)).refreshAsync()
     }
 }
 

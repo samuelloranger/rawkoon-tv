@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_title">Mises à jour</string>
+    <string name="update_disabled">Les versions de test ne se mettent pas à jour toutes seules.</string>
+    <string name="update_never_checked">Pas encore vérifié.</string>
+    <string name="update_up_to_date">Tu es à jour. Dernière vérification : %1$s.</string>
+    <string name="update_available">La version %1$s est disponible.</string>
+    <string name="update_check_failed">Impossible de vérifier les mises à jour. Dernier essai : %1$s.</string>
+    <string name="update_check_now">Vérifier maintenant</string>
+    <string name="update_checking">Vérification…</string>
+    <string name="update_install">Installer la version %1$s</string>
+    <string name="update_downloading">Téléchargement… %1$d %%</string>
+    <string name="update_confirm">Confirme l\'installation sur la TV.</string>
+    <string name="update_failed">La mise à jour a échoué.</string>
+    <string name="update_corrupt">Le téléchargement est abîmé. Réessaie.</string>
+    <string name="update_signature">Cette version est signée avec une autre clé et ne peut pas être mise à jour sur place.</string>
+    <string name="update_no_space">Pas assez d\'espace pour installer la mise à jour.</string>
+</resources>

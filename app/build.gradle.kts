@@ -1,5 +1,8 @@
+import com.android.build.api.variant.FilterConfiguration
+import com.android.build.api.variant.impl.VariantOutputImpl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.File
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -23,26 +26,33 @@ val gitTag: String = providers.exec {
 val semver = gitTag.removePrefix("v").split('.', '-').take(3).map { it.toIntOrNull() ?: 0 }
 
 /**
- * Release signing, from environment variables (CI) or a directory named by the
- * `rawkoontv.signingDir` Gradle property (local) holding release.jks and signing.env. Without
- * either, release builds fall back to the debug key so a fresh checkout still builds.
+ * Release signing, from a directory named by the `rawkoontv.signingDir` Gradle property (local)
+ * holding release.jks and signing.env, else from the CI secrets (SIGNING_KEY is the base64
+ * keystore, written next to the build outputs). The property wins so a stray SIGNING_KEY in a
+ * shell can't swap the key of a local release. Without either, release builds fall back to the
+ * debug key so a fresh checkout still builds; the release workflow refuses to publish such a build.
  */
 val signing: Map<String, String> = run {
-    val fromEnv = System.getenv("RAWKOONTV_KEYSTORE")?.let {
-        mapOf(
-            "store" to it,
-            "storePassword" to System.getenv("KEY_STORE_PASSWORD").orEmpty(),
-            "alias" to System.getenv("KEY_ALIAS").orEmpty(),
-            "keyPassword" to System.getenv("KEY_PASSWORD").orEmpty(),
-        )
-    }
-    fromEnv ?: providers.gradleProperty("rawkoontv.signingDir").orNull?.let { dir ->
+    val fromDir = providers.gradleProperty("rawkoontv.signingDir").orNull?.let { dir ->
         val props = Properties().apply { File(dir, "signing.env").inputStream().use { load(it) } }
         mapOf(
             "store" to File(dir, "release.jks").path,
             "storePassword" to props.getProperty("KEY_STORE_PASSWORD").orEmpty().trim('"'),
             "alias" to props.getProperty("KEY_ALIAS").orEmpty().trim('"'),
             "keyPassword" to props.getProperty("KEY_PASSWORD").orEmpty().trim('"'),
+        )
+    }
+    // The keystore is only written when a release is being built, not on every configuration.
+    val releasing = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+    fromDir ?: System.getenv("SIGNING_KEY")?.takeIf { releasing && it.isNotBlank() }?.let { encoded ->
+        val keystore = layout.buildDirectory.file("ci.keystore").get().asFile
+        keystore.parentFile.mkdirs()
+        keystore.writeBytes(Base64.getMimeDecoder().decode(encoded))
+        mapOf(
+            "store" to keystore.path,
+            "storePassword" to System.getenv("KEY_STORE_PASSWORD").orEmpty(),
+            "alias" to System.getenv("KEY_ALIAS").orEmpty(),
+            "keyPassword" to System.getenv("KEY_PASSWORD").orEmpty(),
         )
     } ?: emptyMap()
 }
@@ -139,4 +149,21 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
+}
+
+/**
+ * Names the APKs for the updaters: RawkoonTV-<abi>.apk per ABI and RawkoonTV.apk for the universal
+ * one, the names the first RawkoonTV's updater looks for and this one's too. Preview and debug
+ * builds carry their build type so they never pass for a release.
+ */
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val prefix = if (variant.buildType == "release") "RawkoonTV" else "RawkoonTV-${variant.buildType}"
+        // The public API has no way to rename an APK output; VariantOutputImpl is AGP-internal, so this
+        // cast may need updating when AGP is upgraded. The release names are part of the updater's contract.
+        variant.outputs.map { it as VariantOutputImpl }.forEach { output ->
+            val abi = output.getFilter(FilterConfiguration.FilterType.ABI)?.let { "-${it.identifier}" }.orEmpty()
+            output.outputFileName = "$prefix$abi.apk"
+        }
+    }
 }

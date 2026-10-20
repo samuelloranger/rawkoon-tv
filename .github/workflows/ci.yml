@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [next, main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, test, lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Tags drive the version name.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Build, unit tests and lint
+        run: ./gradlew --no-daemon assemblePreview testDebugUnitTest lintRelease
+      - name: Upload APKs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: rawkoontv-preview-${{ github.sha }}
+          path: app/build/outputs/apk/preview/*.apk
+          retention-days: 14
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: reports-${{ github.sha }}
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 7
