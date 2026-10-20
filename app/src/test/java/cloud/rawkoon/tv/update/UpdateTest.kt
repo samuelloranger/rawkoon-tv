@@ -119,6 +119,23 @@ class UpdateTest {
         assertEquals(hash, Checksum.expected("$other  RawkoonTV.apk\n$hash  $name\n", name))
     }
 
+    @Test
+    fun checksumIsComputedWhileCopying() {
+        val bytes = ByteArray(200_000) { (it % 251).toByte() }
+        val out = java.io.ByteArrayOutputStream()
+        val seen = mutableListOf<Long>()
+        val (count, hash) = Checksum.copy(bytes.inputStream(), out) { seen += it }
+        assertEquals(bytes.size.toLong(), count)
+        assertEquals(bytes.size.toLong(), seen.last())
+        assertTrue(bytes.contentEquals(out.toByteArray()))
+        val expected = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        assertEquals(expected, hash)
+        assertEquals(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            Checksum.copy("abc".toByteArray().inputStream(), java.io.ByteArrayOutputStream()).second,
+        )
+    }
+
     private companion object {
         val ALL_ASSETS = listOf("RawkoonTV.apk", "RawkoonTV-arm64-v8a.apk", "RawkoonTV-armeabi-v7a.apk", "RawkoonTV-x86_64.apk")
             .flatMap { listOf(it, "$it.sha256") }

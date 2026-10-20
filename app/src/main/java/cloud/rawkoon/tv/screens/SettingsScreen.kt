@@ -20,6 +20,7 @@ import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
+import cloud.rawkoon.tv.update.InstallState
 import cloud.rawkoon.tv.update.Installer
 import cloud.rawkoon.tv.update.UpdateCheck
 import kotlinx.coroutines.isActive
@@ -69,20 +70,40 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
     /** What the last check found, and the install button when a newer release is waiting. */
     private fun showUpdate() {
         val pending = updateCheck.pending()
+        val state = Installer.state
         updateStatus.text = when {
             !updateCheck.enabled -> string(R.string.update_disabled)
-            Installer.running -> string(R.string.update_in_progress)
+            state is InstallState.Downloading -> string(R.string.update_downloading, state.percent)
+            state is InstallState.Ready -> string(R.string.update_confirm)
+            state is InstallState.Failed -> string(state.messageRes)
             pending != null -> string(R.string.update_available, pending.version)
             updateCheck.checkedAt == 0L -> string(R.string.update_never_checked)
             updateCheck.failed -> string(R.string.update_check_failed, checkedAtText())
             else -> string(R.string.update_up_to_date, checkedAtText())
         }
-        install.visibility = if (pending != null && !Installer.running) View.VISIBLE else View.GONE
+        install.visibility = if (pending != null && !Installer.running && state !is InstallState.Ready) View.VISIBLE else View.GONE
         pending?.let { install.label.text = string(R.string.update_install, it.version) }
     }
 
     /** Back from the installer's confirmation (declined or not), the status says what is true now. */
-    override fun onResume() = showUpdate()
+    override fun onResume() {
+        Installer.acknowledge()
+        showUpdate()
+    }
+
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        Installer.listen(this) { state ->
+            if (state is InstallState.Failed) Toast.makeText(context, state.messageRes, Toast.LENGTH_LONG).show()
+            showUpdate()
+        }
+        showUpdate()
+    }
+
+    override fun destroy() {
+        Installer.unlisten(this)
+        super.destroy()
+    }
 
     private fun checkedAtText() = DateFormat.getMediumDateFormat(context).format(updateCheck.checkedAt)
 
@@ -96,15 +117,8 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         install.visibility = View.GONE
         // Focus would otherwise fall to whatever Android finds once the button is gone.
         checkNow.requestFocus()
-        updateStatus.text = string(R.string.update_downloading, 0)
-        installer.install(release, onProgress = { percent ->
-            if (scope.isActive) updateStatus.text = string(R.string.update_downloading, percent)
-        }, onDone = { error ->
-            if (error != null) Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            if (scope.isActive) {
-                if (error == null) updateStatus.text = string(R.string.update_confirm) else showUpdate()
-            }
-        })
+        installer.install(release)
+        showUpdate()
     }
 
     private fun languageLabel() = when (Prefs.language(context)) {

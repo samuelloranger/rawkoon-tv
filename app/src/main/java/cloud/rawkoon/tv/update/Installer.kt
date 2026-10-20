@@ -13,69 +13,75 @@ import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
+/** Where the app's install stands; what a screen shows when it attaches to [Installer]. */
+sealed interface InstallState {
+    data object Idle : InstallState
+
+    /** [percent] is 0 until the size is known. */
+    data class Downloading(val percent: Int) : InstallState
+
+    /** Failed with this message string resource. */
+    data class Failed(val messageRes: Int) : InstallState
+
+    /** Android has the update and asks the user next. */
+    data object Ready : InstallState
+}
+
 /**
  * Downloads a release's APK, checks it against the published SHA-256 and hands it to Android's
  * package installer. Android then asks the user to confirm (and, the first time, to let the app
- * install apps); [InstallResult] receives the outcome. One install runs at a time, app-wide.
+ * install apps); [InstallResult] receives the outcome. One install runs at a time, app-wide, and
+ * keeps going when the screen that started it closes: the latest [InstallState] and a single
+ * listener live in the companion, so any screen can pick up where it stands.
  */
 class Installer(context: Context, private val fetcher: Fetcher) {
     private val context = context.applicationContext
 
-    /**
-     * [onProgress] gets the percent downloaded, on the main thread. [onDone] runs on the main thread
-     * with null once Android has the update (it asks the user next), or with a message string
-     * resource when it failed. Ignored while an install runs.
-     */
-    fun install(release: Release, onProgress: (Int) -> Unit, onDone: (Int?) -> Unit) {
+    /** Starts downloading [release]. Ignored while an install runs. Main thread. */
+    fun install(release: Release) {
         if (!busy.compareAndSet(false, true)) return
+        publish(InstallState.Downloading(0))
         executor.execute {
             val apk = File(context.cacheDir, Release.UNIVERSAL_APK)
-            val error = try {
-                download(release, apk, onProgress)
-                verify(apk, release)
+            val result = try {
+                val expected = Checksum.expected(fetcher.text(release.checksumUrl).orEmpty(), release.apkName)
+                    ?: throw Failure(R.string.update_failed)
+                download(release, apk, expected)
                 commit(apk)
-                null
+                InstallState.Ready
             } catch (e: Failure) {
-                e.messageRes
+                InstallState.Failed(e.messageRes)
             } catch (e: Exception) {
-                R.string.update_failed
+                InstallState.Failed(R.string.update_failed)
             } finally {
                 apk.delete()
-                busy.set(false)
             }
-            main.post { onDone(error) }
+            main.post {
+                busy.set(false)
+                publish(result)
+            }
         }
     }
 
-    private fun download(release: Release, apk: File, onProgress: (Int) -> Unit) {
+    /**
+     * Streams the APK to [apk], hashing as it goes. A byte count other than the published size, or a
+     * hash other than [expected], is a damaged download. This catches a broken transfer; Android's
+     * same-signature rule is what keeps a foreign APK out.
+     */
+    private fun download(release: Release, apk: File, expected: String) {
         var shown = -1
-        fetcher.open(release.apkUrl).use { input ->
+        val (copied, hash) = fetcher.open(release.apkUrl).use { input ->
             apk.outputStream().use { output ->
-                val buffer = ByteArray(64 * 1024)
-                var copied = 0L
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    output.write(buffer, 0, read)
-                    copied += read
-                    val percent = if (release.size > 0) (copied * 100 / release.size).toInt().coerceIn(0, 100) else 0
+                Checksum.copy(input, output) { bytes ->
+                    val percent = if (release.size > 0) (bytes * 100 / release.size).toInt().coerceIn(0, 100) else 0
                     if (percent != shown) {
                         shown = percent
-                        main.post { onProgress(percent) }
+                        main.post { if (busy.get()) publish(InstallState.Downloading(percent)) }
                     }
                 }
             }
         }
-    }
-
-    /**
-     * Refuses to install without a matching checksum. It catches a broken download; Android's
-     * same-signature rule is what keeps a foreign APK out.
-     */
-    private fun verify(apk: File, release: Release) {
-        val expected = fetcher.text(release.checksumUrl)?.let { Checksum.expected(it, release.apkName) }
-            ?: throw Failure(R.string.update_failed)
-        if (expected != Checksum.of(apk)) throw Failure(R.string.update_corrupt)
+        if ((release.size > 0 && copied != release.size) || hash != expected) throw Failure(R.string.update_corrupt)
     }
 
     private fun commit(apk: File) {
@@ -88,8 +94,8 @@ class Installer(context: Context, private val fetcher: Fetcher) {
             }
         }
         val id = installer.createSession(params)
-        installer.openSession(id).use { session ->
-            try {
+        try {
+            installer.openSession(id).use { session ->
                 apk.inputStream().use { input ->
                     session.openWrite(Release.UNIVERSAL_APK, 0, apk.length()).use { output ->
                         input.copyTo(output)
@@ -97,10 +103,11 @@ class Installer(context: Context, private val fetcher: Fetcher) {
                     }
                 }
                 session.commit(resultIntent(id).intentSender)
-            } catch (e: Exception) {
-                session.abandon()
-                throw e
             }
+        } catch (e: Exception) {
+            // Any failure after createSession would otherwise leave the session open.
+            runCatching { installer.abandonSession(id) }
+            throw e
         }
     }
 
@@ -115,10 +122,40 @@ class Installer(context: Context, private val fetcher: Fetcher) {
     private class Failure(val messageRes: Int) : Exception()
 
     companion object {
-        private val executor = Executors.newSingleThreadExecutor()
+        private val executor = Executors.newSingleThreadExecutor { Thread(it, "update-install") }
         private val main = Handler(Looper.getMainLooper())
         private val busy = AtomicBoolean(false)
+        private var owner: Any? = null
+        private var listener: ((InstallState) -> Unit)? = null
 
-        val running: Boolean get() = busy.get()
+        /** The latest state; main thread only. */
+        var state: InstallState = InstallState.Idle
+            private set
+
+        val running: Boolean get() = state is InstallState.Downloading
+
+        /** Makes [who] the one screen that follows the install; it is told of each change on the main thread. */
+        fun listen(who: Any, onChange: (InstallState) -> Unit) {
+            owner = who
+            listener = onChange
+        }
+
+        /** Detaches [who], unless another screen has attached since. */
+        fun unlisten(who: Any) {
+            if (owner === who) {
+                owner = null
+                listener = null
+            }
+        }
+
+        /** Forgets a finished outcome (ready or failed) once a screen has shown it. */
+        fun acknowledge() {
+            if (state !is InstallState.Downloading) state = InstallState.Idle
+        }
+
+        private fun publish(next: InstallState) {
+            state = next
+            listener?.invoke(next)
+        }
     }
 }

@@ -10,7 +10,6 @@
     <string name="update_checking">Vérification…</string>
     <string name="update_install">Installer la version %1$s</string>
     <string name="update_downloading">Téléchargement… %1$d %%</string>
-    <string name="update_in_progress">Téléchargement de la mise à jour…</string>
     <string name="update_confirm">Confirme l\'installation sur la TV.</string>
     <string name="update_failed">La mise à jour a échoué.</string>
     <string name="update_corrupt">Le téléchargement est abîmé. Réessaie.</string>

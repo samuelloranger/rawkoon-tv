@@ -39,11 +39,10 @@ class UpdateCheck(context: Context, private val fetcher: Fetcher) {
         // Recorded before the request, so an unreachable GitHub is asked once a day, not on every launch.
         prefs.edit().putLong(CHECKED_AT, now).apply()
         val release = fetcher.text(LATEST)?.let { Release.fromGitHub(it, Build.SUPPORTED_ABIS.toList()) }
-        if (release == null) {
-            prefs.edit().putBoolean(FAILED, true).apply()
-        } else {
-            prefs.edit().putBoolean(FAILED, false).putString(LATEST_RELEASE, release.serialize()).apply()
-        }
+        prefs.edit().apply {
+            putBoolean(FAILED, release == null)
+            if (release != null) putString(LATEST_RELEASE, release.serialize())
+        }.apply()
     }
 
     /** [refresh] off the main thread; [onDone] then runs on the main thread. */
@@ -68,7 +67,7 @@ class UpdateCheck(context: Context, private val fetcher: Fetcher) {
         const val FAILED = "update:failed"
         const val LATEST_RELEASE = "update:latest"
         const val DAY_MS = 24 * 60 * 60_000L
-        val executor = Executors.newSingleThreadExecutor()
+        val executor = Executors.newSingleThreadExecutor { Thread(it, "update-check") }
         val main = Handler(Looper.getMainLooper())
     }
 }

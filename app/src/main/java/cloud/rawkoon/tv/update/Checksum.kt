@@ -1,6 +1,8 @@
 package cloud.rawkoon.tv.update
 
-import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import java.security.DigestInputStream
 import java.security.MessageDigest
 
 /** SHA-256, as `sha256sum` writes and reads it. */
@@ -19,16 +21,23 @@ object Checksum {
         }
         ?.get(0)?.lowercase()
 
-    fun of(file: File): String {
+    /**
+     * Copies [input] to [output], hashing the bytes as they pass: no second read of what was written.
+     * [onBytes] gets the running byte count. Returns the byte count and the lowercase hex SHA-256.
+     */
+    fun copy(input: InputStream, output: OutputStream, onBytes: (Long) -> Unit = {}): Pair<Long, String> {
         val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(64 * 1024)
+        val buffer = ByteArray(64 * 1024)
+        var copied = 0L
+        DigestInputStream(input, digest).use { hashed ->
             while (true) {
-                val read = input.read(buffer)
+                val read = hashed.read(buffer)
                 if (read < 0) break
-                digest.update(buffer, 0, read)
+                output.write(buffer, 0, read)
+                copied += read
+                onBytes(copied)
             }
         }
-        return digest.digest().joinToString("") { "%02x".format(it) }
+        return copied to digest.digest().joinToString("") { "%02x".format(it) }
     }
 }
