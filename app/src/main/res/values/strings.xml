@@ -60,6 +60,7 @@
 
     <string name="row_resume">Continue watching</string>
     <string name="row_next_up">Next up</string>
+    <string name="recently_added">Recently added</string>
     <string name="row_latest">Recently added in %1$s</string>
     <string name="home_empty">Nothing to show yet.</string>
     <string name="home_error">Couldn\'t load the home screen.</string>

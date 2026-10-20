@@ -56,6 +56,7 @@
 
     <string name="row_resume">Continuer à regarder</string>
     <string name="row_next_up">Prochains épisodes</string>
+    <string name="recently_added">Récemment ajouté</string>
     <string name="row_latest">Récemment ajoutés dans %1$s</string>
     <string name="home_empty">Rien à afficher pour l\'instant.</string>
     <string name="home_error">Impossible de charger l\'accueil.</string>

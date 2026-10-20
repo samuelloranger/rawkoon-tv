@@ -10,6 +10,8 @@ import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.ProfileStore
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.MediaWords
+import cloud.rawkoon.tv.launcher.LauncherChannels
+import cloud.rawkoon.tv.launcher.LauncherSyncJob
 import cloud.rawkoon.tv.update.UpdateCheck
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +23,8 @@ class App : Application() {
     lateinit var profiles: ProfileStore
         private set
     lateinit var images: Images
+        private set
+    lateinit var launcher: LauncherChannels
         private set
 
     /** The last item the player played, so the page below can focus it when the player closes. */
@@ -36,7 +40,9 @@ class App : Application() {
         MediaWords.source = resources
         profiles = ProfileStore(this)
         images = Images(this, Fetcher(this))
+        launcher = LauncherChannels(this)
         LegacyImport.run(this, profiles)
+        LauncherSyncJob.schedule(this)
         // Once a day at most, off the main thread; settings offer what it finds.
         UpdateCheck(this, Fetcher(this)).refreshAsync()
     }
