@@ -33,7 +33,9 @@ import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.rounded
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -51,6 +53,8 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     private val info = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val actions = ActionBar(this)
     private var item = start
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
 
     init {
         page.column.setPadding(0, 0, 0, context.dp(200))
@@ -91,7 +95,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         val radius = context.dpf(8f)
         val w = context.dp(POSTER_W)
         val h = context.dp(POSTER_H)
-        item.posterUrl?.let { url -> app.images.load("$url&fillWidth=$w", w, h, radius, isCurrent = { true }) { poster.setImageBitmap(it) } }
+        item.posterUrl?.let { url -> app.images.load("$url&fillWidth=$w", w, h, radius, isCurrent = { alive }) { poster.setImageBitmap(it) } }
         val logoUrl = item.logoUrl
         if (logoUrl == null) {
             title.text = item.title
@@ -99,7 +103,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             title.text = ""
             val lw = context.dp(LOGO_W)
             val lh = context.dp(LOGO_H)
-            app.images.load("$logoUrl&maxWidth=$lw", lw, lh, 0f, contain = true, isCurrent = { true }) { logo.bitmap = it }
+            app.images.load("$logoUrl&maxWidth=$lw", lw, lh, 0f, contain = true, isCurrent = { alive }) { logo.bitmap = it }
         }
         while (info.childCount > 1) info.removeViewAt(1)
         info.addView(chipRow(context, metaChips(item, details)), wrapRow(10))
@@ -140,18 +144,23 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     }
 
     private fun load() {
-        scope.launch {
+        loadJob?.cancel()
+        loadJob = scope.launch {
             try {
-                val details = async { session.details(start.id) }
-                val seasons = async { if (start.kind == MediaItem.Kind.SERIES) session.seasons(start.id) else emptyList() }
-                val next = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.nextEpisode(start.id) }.getOrNull() else null }
-                val similar = async { runCatching { session.similar(start.id) }.getOrDefault(emptyList()) }
-                val d = details.await()
-                showItem(d.item, d)
-                actions.next = next.await()
-                actions.bind(d.item)
-                backdrop.show(d.item.backdropUrl?.let { "$it&maxWidth=1920" })
-                addRows(d, seasons.await(), similar.await())
+                // coroutineScope keeps a failing child here, to be caught below, instead of
+                // cancelling the screen's scope and reaching the uncaught handler
+                coroutineScope {
+                    val details = async { session.details(start.id) }
+                    val seasons = async { if (start.kind == MediaItem.Kind.SERIES) session.seasons(start.id) else emptyList() }
+                    val next = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.nextEpisode(start.id) }.getOrNull() else null }
+                    val similar = async { runCatching { session.similar(start.id) }.getOrDefault(emptyList()) }
+                    val d = details.await()
+                    showItem(d.item, d)
+                    actions.next = next.await()
+                    actions.bind(d.item)
+                    backdrop.show(d.item.backdropUrl?.let { "$it&maxWidth=1920" })
+                    addRows(d, seasons.await(), similar.await())
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -196,7 +205,8 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     override fun onShown(first: Boolean) {
         super.onShown(first)
         if (first) return
-        scope.launch {
+        refreshJob?.cancel()
+        refreshJob = scope.launch {
             runCatching {
                 val d = session.details(start.id)
                 actions.next = if (start.kind == MediaItem.Kind.SERIES) session.nextEpisode(start.id) else null
@@ -291,7 +301,10 @@ class ActionBar(private val screen: RailScreen) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (item?.id == current.id) bind(current)
+                // Put back only this field: another toggle may have changed the item meanwhile
+                item?.takeIf { it.id == current.id }?.let { now ->
+                    bind(if (watched) now.copy(played = current.played) else now.copy(favorite = current.favorite))
+                }
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
         }

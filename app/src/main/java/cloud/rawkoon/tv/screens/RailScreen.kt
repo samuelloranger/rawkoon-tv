@@ -42,6 +42,8 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         ::navigate,
     )
 
+    private var lastContent: View? = null
+
     init {
         view.addView(backdrop, fill())
         view.addView(content, fill())
@@ -55,8 +57,6 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         content.whileAttachedOnFocusChange { now -> if (now != null && isInContent(now)) lastContent = now }
         rail.onOpenChanged = { open -> dim.animate().alpha(if (open) 1f else 0f).setDuration(Tokens.DRAWER_MS).start() }
     }
-
-    private var lastContent: View? = null
 
     /** Where focus goes when it leaves the rail: what the page had focused last. */
     open fun contentFocus(): View? = lastContent?.takeIf { it.isAttachedToWindow && it.isShown }

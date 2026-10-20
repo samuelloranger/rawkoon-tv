@@ -6,8 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
-import android.os.Handler
-import android.os.Looper
 import android.text.format.DateFormat
 import android.util.TypedValue
 import android.view.Gravity
@@ -41,6 +39,7 @@ import cloud.rawkoon.tv.ui.noClip
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -56,7 +55,6 @@ class SeasonScreen(
     private val startSeason: String?,
     private val startEpisode: String?,
 ) : RailScreen(activity, session, Destination.SHOWS) {
-    private val main = Handler(Looper.getMainLooper())
     private val tabs = TabsRow(context)
     private val logo = LogoView(context)
     // Long names shrink and wrap instead of being cut
@@ -76,6 +74,10 @@ class SeasonScreen(
     private var loadJob: Job? = null
     private var pendingTab: MediaItem? = null
     private val settleTab = Runnable { pendingTab?.let { select(it, null, focus = false) } }
+    private var pendingEpisode: MediaItem? = null
+    private val settleEpisode = Runnable { describePending() }
+    private val timeFormat by lazy { DateFormat.getTimeFormat(context) }
+    private val endTime = Date()
 
     init {
         val start = Tokens.CONTENT_START
@@ -108,30 +110,34 @@ class SeasonScreen(
     private fun load() {
         scope.launch {
             try {
-                val details = async { session.details(seriesId) }
-                seasons = session.seasons(seriesId)
-                // A tab only switches the season if focus stays on it; leaving it cancels the switch
-                tabs.set(seasons, onLeave = { main.removeCallbacks(settleTab) }) { season, focused ->
-                    main.removeCallbacks(settleTab)
-                    if (focused) {
-                        // Moving along the tabs only switches once focus rests on one
-                        pendingTab = season
-                        main.postDelayed(settleTab, TAB_SETTLE_MS)
-                    } else {
-                        select(season, null, focus = true)
+                // coroutineScope keeps a failing child here, to be caught below, instead of
+                // cancelling the screen's scope and reaching the uncaught handler
+                coroutineScope {
+                    val details = async { session.details(seriesId) }
+                    seasons = session.seasons(seriesId)
+                    // A tab only switches the season if focus stays on it; leaving it cancels the switch
+                    tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab) }) { season, focused ->
+                        mainHandler.removeCallbacks(settleTab)
+                        if (focused) {
+                            // Moving along the tabs only switches once focus rests on one
+                            pendingTab = season
+                            mainHandler.postDelayed(settleTab, TAB_SETTLE_MS)
+                        } else {
+                            select(season, null, focus = true)
+                        }
                     }
-                }
-                val first = seasons.firstOrNull { it.id == startSeason } ?: seasons.firstOrNull()
-                if (first != null) select(first, startEpisode, focus = true)
-                val show = details.await().item
-                backdrop.show(show.backdropUrl?.let { "$it&maxWidth=1920" })
-                val url = show.logoUrl
-                if (url == null) {
-                    showName.text = show.title
-                } else {
-                    val w = context.dp(240)
-                    val h = context.dp(44)
-                    app.images.load("$url&maxWidth=$w", w, h, 0f, contain = true, isCurrent = { true }) { logo.bitmap = it }
+                    val first = seasons.firstOrNull { it.id == startSeason } ?: seasons.firstOrNull()
+                    if (first != null) select(first, startEpisode, focus = true)
+                    val show = details.await().item
+                    backdrop.show(show.backdropUrl?.let { "$it&maxWidth=1920" })
+                    val url = show.logoUrl
+                    if (url == null) {
+                        showName.text = show.title
+                    } else {
+                        val w = context.dp(240)
+                        val h = context.dp(44)
+                        app.images.load("$url&maxWidth=$w", w, h, 0f, contain = true, isCurrent = { alive }) { logo.bitmap = it }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -158,28 +164,44 @@ class SeasonScreen(
                 if (refocus) parking.requestFocus()
                 episodes.setCards(
                     list.map { e ->
-                        val name = listOfNotNull(e.episodeNumber?.let { "E$it" }, e.title).joinToString(" · ")
-                        Card(context, e, true, app.images, { showEpisode(it.item) }, { actions.primary.performClick() }, caption = name to e.runtimeMinutes?.let { MediaItem.duration(it) })
+                        val name = listOfNotNull(episodeTag(e), e.title).joinToString(" · ")
+                        Card(context, e, true, app.images, { showEpisode(it.item) }, { describePending(); actions.primary.performClick() }, caption = name to e.runtimeMinutes?.let { MediaItem.duration(it) })
                     },
                 )
                 val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull() ?: return@launch
                 episodes.remember(target.id)
-                showEpisode(target)
+                showEpisode(target, settle = false)
                 if (focus) episodes.restoreFocus()
-                parking.isFocusable = false
                 // Glide to the remembered card once the row is laid out
                 episodes.post { episodes.remembered()?.let { episodes.reveal(it) } }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
+            } finally {
+                parking.isFocusable = false
             }
         }
     }
 
-    private fun showEpisode(episode: MediaItem) {
-        number.text = episode.episodeNumber?.let { "E$it" }.orEmpty()
+    private fun episodeTag(e: MediaItem) = e.episodeNumber?.let { "E$it" }
+
+    /**
+     * The number and title follow focus at once; the rest (chips, overview, actions) waits until
+     * focus rests on the episode, so moving along the row doesn't rebuild them for each card.
+     */
+    private fun showEpisode(episode: MediaItem, settle: Boolean = true) {
+        number.text = episodeTag(episode).orEmpty()
         episodeTitle.text = episode.title
+        pendingEpisode = episode
+        mainHandler.removeCallbacks(settleEpisode)
+        if (settle) mainHandler.postDelayed(settleEpisode, Tokens.HEADER_SETTLE_MS) else describePending()
+    }
+
+    private fun describePending() {
+        mainHandler.removeCallbacks(settleEpisode)
+        val episode = pendingEpisode ?: return
+        pendingEpisode = null
         overview.text = episode.overview
         chips.removeAllViews()
         chips.addView(chipRow(context, episodeChips(episode)))
@@ -191,7 +213,8 @@ class SeasonScreen(
         e.episodeLabel?.let { add(Chip.Text(it)) }
         e.runtimeMinutes?.takeIf { it > 0 }?.let { add(Chip.Text(MediaItem.duration(it))) }
         e.minutesLeft()?.let { left ->
-            val end = DateFormat.getTimeFormat(context).format(Date(System.currentTimeMillis() + left * 60_000L))
+            endTime.time = System.currentTimeMillis() + left * 60_000L
+            val end = timeFormat.format(endTime)
             add(Chip.Text(string(R.string.ends_at, end)))
         }
         e.media?.chips()?.forEach { add(Chip.Outline(it)) }
@@ -211,11 +234,6 @@ class SeasonScreen(
         val key = played?.id ?: (episodes.remembered() as? Card)?.item?.id
         shownSeason = null
         select(season, key, focus = episodes.hasFocus() || view.findFocus() == null || played != null)
-    }
-
-    override fun destroy() {
-        main.removeCallbacks(settleTab)
-        super.destroy()
     }
 
     private companion object {
@@ -272,6 +290,13 @@ class Tab(context: Context, val season: MediaItem) : Focusable(context) {
     override val motion = FocusMotion(this, ring)
     private val bar = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.accent }
     private val rect = RectF()
+    private val focusedBackground = GradientDrawable().apply {
+        cornerRadius = context.dpf(15f)
+        setColor(Tokens.surfaceFocused)
+    }
+    private val barInset = context.dpf(Tokens.RING_INSET.toFloat()) + context.dpf(12f)
+    private val barBottom = context.dpf(Tokens.RING_INSET.toFloat()) + context.dpf(2f)
+    private val barHeight = context.dpf(2.5f)
 
     var current = false
         set(value) {
@@ -300,18 +325,14 @@ class Tab(context: Context, val season: MediaItem) : Focusable(context) {
 
     private fun paint() {
         text.setTextColor(if (current || isFocused) Tokens.textPrimary else Tokens.textMuted)
-        text.background = if (isFocused) GradientDrawable().apply {
-            cornerRadius = context.dpf(15f)
-            setColor(Tokens.surfaceFocused)
-        } else null
+        text.background = if (isFocused) focusedBackground else null
     }
 
     override fun dispatchDraw(canvas: Canvas) {
         super.dispatchDraw(canvas)
         if (!current || isFocused) return
-        val inset = context.dpf(Tokens.RING_INSET.toFloat()) + context.dpf(12f)
-        val y = height - context.dpf(Tokens.RING_INSET.toFloat()) - context.dpf(2f)
-        rect.set(inset, y, width - inset, y + context.dpf(2.5f))
+        val y = height - barBottom
+        rect.set(barInset, y, width - barInset, y + barHeight)
         canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, bar)
     }
 }
