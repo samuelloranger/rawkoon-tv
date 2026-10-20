@@ -2,6 +2,7 @@
 package cloud.rawkoon.tv.playback.profile
 
 import android.content.Context
+import android.util.Size
 import androidx.media3.common.MimeTypes
 import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.CodecType
@@ -42,14 +43,20 @@ private val supportedAudioCodecs = arrayOf(
 	Codec.Audio.VORBIS,
 )
 
-/** Rawkoon: the official defaults (100 Mbps, AC3 passthrough, PGS direct play), without its settings screens. */
+/**
+ * Rawkoon: the official defaults (100 Mbps, AC3 passthrough, PGS direct play). [maxBitrate] and
+ * [maxResolution] (a picture height, 0 for no limit) are the user's streaming-quality settings:
+ * anything above them is transcoded down.
+ */
 fun createDeviceProfile(
 	context: Context,
 	serverVersion: ServerVersion,
 	maxBitrate: Int = 100_000_000,
+	maxResolution: Int = 0,
 ) = createDeviceProfile(
 	mediaTest = MediaCodecCapabilitiesTest(context),
 	maxBitrate = maxBitrate,
+	maxResolution = maxResolution,
 	isAC3Enabled = true,
 	downMixAudio = false,
 	assDirectPlay = false,
@@ -57,9 +64,13 @@ fun createDeviceProfile(
 	jellyfinTenEleven = serverVersion >= ServerVersion(10, 11, 0),
 )
 
+/** The picture height a codec can decode, lowered to the user's limit ([limit] 0 is none). */
+private fun Size.cappedTo(limit: Int) = if (limit > 0 && height > limit) Size(width, limit) else this
+
 fun createDeviceProfile(
 	mediaTest: MediaCodecCapabilitiesTest,
 	maxBitrate: Int,
+	maxResolution: Int,
 	isAC3Enabled: Boolean,
 	downMixAudio: Boolean,
 	assDirectPlay: Boolean,
@@ -83,10 +94,10 @@ fun createDeviceProfile(
 	val supportsAV1 = mediaTest.supportsAV1()
 	val supportsAV1Main10 = mediaTest.supportsAV1Main10()
 	val supportsVC1 = mediaTest.supportsVc1()
-	val maxResolutionAVC = mediaTest.getMaxResolution(MimeTypes.VIDEO_H264)
-	val maxResolutionHevc = mediaTest.getMaxResolution(MimeTypes.VIDEO_H265)
-	val maxResolutionAV1 = mediaTest.getMaxResolution(MimeTypes.VIDEO_AV1)
-	val maxResolutionVC1 = mediaTest.getMaxResolution(MimeTypes.VIDEO_VC1)
+	val maxResolutionAVC = mediaTest.getMaxResolution(MimeTypes.VIDEO_H264).cappedTo(maxResolution)
+	val maxResolutionHevc = mediaTest.getMaxResolution(MimeTypes.VIDEO_H265).cappedTo(maxResolution)
+	val maxResolutionAV1 = mediaTest.getMaxResolution(MimeTypes.VIDEO_AV1).cappedTo(maxResolution)
+	val maxResolutionVC1 = mediaTest.getMaxResolution(MimeTypes.VIDEO_VC1).cappedTo(maxResolution)
 
 	/// HDR capabilities
 
@@ -315,6 +326,7 @@ fun createDeviceProfile(
 				!supportsAV1Main10 -> ProfileConditionValue.VIDEO_PROFILE notEquals "main 10"
 				else -> ProfileConditionValue.VIDEO_PROFILE notEquals "none"
 			}
+			if (maxResolution > 0) ProfileConditionValue.HEIGHT lowerThanOrEquals maxResolution
 		}
 	}
 
@@ -373,6 +385,20 @@ fun createDeviceProfile(
 		conditions {
 			ProfileConditionValue.WIDTH lowerThanOrEquals maxResolutionVC1.width
 			ProfileConditionValue.HEIGHT lowerThanOrEquals maxResolutionVC1.height
+		}
+	}
+
+	// The codecs without a limit of their own above still follow the user's
+	if (maxResolution > 0) {
+		listOf(Codec.Video.MPEG, Codec.Video.MPEG2VIDEO, Codec.Video.VP8, Codec.Video.VP9).forEach { name ->
+			codecProfile {
+				type = CodecType.VIDEO
+				codec = name
+
+				conditions {
+					ProfileConditionValue.HEIGHT lowerThanOrEquals maxResolution
+				}
+			}
 		}
 	}
 

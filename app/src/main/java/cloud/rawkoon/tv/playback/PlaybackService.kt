@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.playback
 
 import android.content.Context
 import android.util.Log
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.MediaInfo
@@ -64,12 +65,14 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         direct: Boolean = true,
     ): Stream {
         val itemId = JellyfinSession.parseId(item.id)
+        val quality = Quality(Prefs.maxBitrateMbps(context) * BITS_PER_MBPS, Prefs.maxResolution(context))
         val response = api.mediaInfoApi.getPostedPlaybackInfo(
             itemId = itemId,
             data = PlaybackInfoDto(
                 userId = session.userId,
                 startTimeTicks = startMs * TICKS_PER_MS,
-                deviceProfile = profile(),
+                deviceProfile = profile(quality),
+                maxStreamingBitrate = quality.maxBitrate,
                 enableDirectPlay = direct,
                 enableDirectStream = direct,
                 enableTranscoding = true,
@@ -224,17 +227,24 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     }
 
     /**
-     * The device profile is built once per app run: probing the decoders takes a moment. A profile
-     * built without knowing the server's version is used but not kept, so the next call asks again.
+     * The device profile is built once per streaming-quality setting and app run: probing the
+     * decoders takes a moment. Changing the max bitrate or resolution builds another on the next
+     * play. A profile built without knowing the server's version is used but not kept, so the next
+     * call asks again.
      */
-    private suspend fun profile(): DeviceProfile = profileLock.withLock {
-        cachedProfile ?: run {
+    private suspend fun profile(quality: Quality): DeviceProfile = profileLock.withLock {
+        cachedProfiles[quality] ?: run {
             val version = attempt("server version") { ServerVersion.fromString(api.systemApi.getPublicSystemInfo().content.version.orEmpty()) }
-            val built = withContext(Dispatchers.Default) { createDeviceProfile(context.applicationContext, version ?: FALLBACK_VERSION) }
-            if (version != null) cachedProfile = built
+            val built = withContext(Dispatchers.Default) {
+                createDeviceProfile(context.applicationContext, version ?: FALLBACK_VERSION, quality.maxBitrate, quality.maxHeight)
+            }
+            if (version != null) cachedProfiles[quality] = built
             built
         }
     }
+
+    /** What a cached device profile was built for: the bitrate cap in bits per second, and the height cap (0 for none). */
+    private data class Quality(val maxBitrate: Int, val maxHeight: Int)
 
     companion object {
         const val TICKS_PER_MS = 10_000L
@@ -242,7 +252,8 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         private val FALLBACK_VERSION = ServerVersion(10, 11, 0)
         private val reportLock = Mutex()
         private val profileLock = Mutex()
-        private var cachedProfile: DeviceProfile? = null
+        private val cachedProfiles = mutableMapOf<Quality, DeviceProfile>()
+        private const val BITS_PER_MBPS = 1_000_000
     }
 }
 

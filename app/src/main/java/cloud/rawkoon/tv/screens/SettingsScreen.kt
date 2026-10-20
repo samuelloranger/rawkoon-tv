@@ -1,21 +1,27 @@
 package cloud.rawkoon.tv.screens
 
+import android.content.Context
+import android.graphics.Rect
 import android.text.format.DateFormat
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Toast
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.Fetcher
+import cloud.rawkoon.tv.data.MatchDisplay
 import cloud.rawkoon.tv.data.Prefs
+import cloud.rawkoon.tv.data.SkipMode
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.PillButton
+import cloud.rawkoon.tv.ui.SettingRow
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
@@ -25,10 +31,14 @@ import cloud.rawkoon.tv.update.Installer
 import cloud.rawkoon.tv.update.UpdateCheck
 import kotlinx.coroutines.isActive
 
-/** App settings: the language, updates, and the version. */
+/**
+ * App settings, as a scrolling list of sections: playback, skipping, display, language and
+ * updates, then the version. Each setting is a row with its current value; OK opens the choices.
+ * Changes are saved at once and apply the next time the player opens.
+ */
 class SettingsScreen(activity: MainActivity) : Screen(activity) {
     override val view = FrameLayout(context)
-    private val language = PillButton(context, languageLabel())
+    private val rows = mutableListOf<SettingRow>()
     private var dialog: ChoiceDialog? = null
     private val updateCheck = UpdateCheck(context, Fetcher(context))
     private val installer = Installer(context, Fetcher(context))
@@ -37,18 +47,67 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
     private val install = PillButton(context, "", primary = true)
 
     init {
+        val scroll = SettingsScroll(context).apply {
+            isFocusable = false
+            isVerticalScrollBarEnabled = false
+            clipChildren = false
+            clipToPadding = false
+        }
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(context.dp(Tokens.CONTENT_START), context.dp(40), context.dp(Tokens.OVERSCAN_H), 0)
+            setPadding(0, 0, 0, context.dp(40))
         }.noClip()
-        column.addView(label(context, 34f, Tokens.textPrimary, Fonts.title(context)).apply { text = string(R.string.nav_settings) })
-        column.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(R.string.language).uppercase() }, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-        ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
-        column.addView(language, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        column.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(R.string.update_title).uppercase() }, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-        ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
+        scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        header(column, R.string.settings_playback)
+        choice(column, R.string.setting_skip_back, SKIP_BACK_SECONDS.map { it to seconds(it) },
+            { Prefs.skipBackSeconds(context) }) { put(Prefs.SKIP_BACK_S, it) }
+        choice(column, R.string.setting_skip_forward, SKIP_FORWARD_SECONDS.map { it to seconds(it) },
+            { Prefs.skipForwardSeconds(context) }) { put(Prefs.SKIP_FORWARD_S, it) }
+        choice(column, R.string.setting_resume_rewind, RESUME_REWIND_SECONDS.map { it to if (it == 0) string(R.string.setting_off) else seconds(it) },
+            { Prefs.resumeRewindSeconds(context) }) { put(Prefs.RESUME_REWIND_S, it) }
+        choice(column, R.string.setting_max_bitrate, BITRATES_MBPS.map { it to if (it == Prefs.AUTO_BITRATE_MBPS) string(R.string.setting_auto) else string(R.string.mbps, it) },
+            { Prefs.maxBitrateMbps(context) }) { put(Prefs.MAX_BITRATE_MBPS, it) }
+        choice(column, R.string.setting_max_resolution, RESOLUTIONS.map { it to if (it == 0) string(R.string.setting_auto) else resolutionName(it) },
+            { Prefs.maxResolution(context) }) { put(Prefs.MAX_RESOLUTION, it) }
+
+        header(column, R.string.settings_skipping)
+        val skipModes = listOf(
+            SkipMode.BUTTON to string(R.string.skip_mode_button),
+            SkipMode.AUTO to string(R.string.skip_mode_auto),
+            SkipMode.NONE to string(R.string.skip_mode_none),
+        )
+        for ((title, key) in listOf(
+            R.string.setting_intros to Prefs.SKIP_INTRO,
+            R.string.setting_recaps to Prefs.SKIP_RECAP,
+            R.string.setting_previews to Prefs.SKIP_PREVIEW,
+            R.string.setting_credits to Prefs.SKIP_CREDITS,
+        )) {
+            choice(column, title, skipModes, { Prefs.skipMode(context, key) }) { put(key, it.key) }
+        }
+        choice(column, R.string.setting_autoplay, listOf(true to string(R.string.setting_on), false to string(R.string.setting_off)),
+            { Prefs.autoplayNext(context) }) { put(Prefs.AUTOPLAY_NEXT, it) }
+        choice(column, R.string.setting_countdown, COUNTDOWN_SECONDS.map { it to seconds(it) },
+            { Prefs.autoplayCountdownSeconds(context) }) { put(Prefs.AUTOPLAY_COUNTDOWN_S, it) }
+        choice(column, R.string.setting_still_watching, STILL_WATCHING_EPISODES.map { it to if (it == 0) string(R.string.setting_off) else string(R.string.after_episodes, it) },
+            { Prefs.stillWatchingEpisodes(context) }) { put(Prefs.STILL_WATCHING_EPISODES, it) }
+
+        header(column, R.string.settings_display)
+        choice(column, R.string.setting_match_display, listOf(
+            MatchDisplay.OFF to string(R.string.setting_off),
+            MatchDisplay.FRAME_RATE to string(R.string.match_frame_rate),
+            MatchDisplay.FRAME_RATE_AND_RESOLUTION to string(R.string.match_frame_rate_resolution),
+        ), { Prefs.matchDisplay(context) }) { put(Prefs.MATCH_DISPLAY, it.key) }
+
+        header(column, R.string.language)
+        choice(column, R.string.language, listOf("system" to string(R.string.language_system), "fr" to string(R.string.language_fr), "en" to string(R.string.language_en)),
+            { Prefs.language(context) }) { code ->
+            put(Prefs.LANGUAGE, code)
+            // Every screen is rebuilt in the new language, starting from "Who's watching?"
+            activity.recreate()
+        }
+
+        header(column, R.string.update_title)
         column.addView(updateStatus, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.dp(4) })
         if (updateCheck.enabled) {
             val buttons = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }.noClip()
@@ -62,8 +121,57 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.medium(context)).apply {
             text = string(R.string.version, BuildConfig.VERSION_NAME)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(28) })
-        view.addView(column, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
-        language.setOnClickListener { chooseLanguage() }
+
+        val page = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(context.dp(Tokens.CONTENT_START), context.dp(40), context.dp(Tokens.OVERSCAN_H), 0)
+        }.noClip()
+        page.addView(label(context, 34f, Tokens.textPrimary, Fonts.title(context)).apply { text = string(R.string.nav_settings) })
+        page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        view.addView(page, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
+    }
+
+    /** A section's name, small and muted above its rows. */
+    private fun header(parent: LinearLayout, title: Int) {
+        parent.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(title).uppercase() }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
+    }
+
+    /**
+     * Adds a row for a setting: its title, and its current value from [read]. OK opens a
+     * dialog of [options] (value and label), with the current one marked and focused; a pick is
+     * handed to [write] and shown in the row.
+     */
+    private fun <T> choice(parent: LinearLayout, title: Int, options: List<Pair<T, String>>, read: () -> T, write: (T) -> Unit) {
+        val row = SettingRow(context, string(title))
+        fun show() = row.setValue(options.firstOrNull { it.first == read() }?.second ?: read().toString())
+        show()
+        row.setOnClickListener {
+            val current = options.indexOfFirst { it.first == read() }
+            val choices = options.mapIndexed { i, (value, text) ->
+                (if (i == current) string(R.string.choice_current, text) else text) to {
+                    if (value != read()) write(value)
+                    show()
+                }
+            }
+            dialog = ChoiceDialog(context, string(title), choices, selected = current.coerceAtLeast(0)).also { it.open(view) }
+        }
+        rows += row
+        parent.addView(row, LinearLayout.LayoutParams(context.dp(ROW_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
+    }
+
+    private fun put(key: String, value: Int) = Prefs.of(context).edit().putInt(key, value).apply()
+
+    private fun put(key: String, value: String) = Prefs.of(context).edit().putString(key, value).apply()
+
+    private fun put(key: String, value: Boolean) = Prefs.of(context).edit().putBoolean(key, value).apply()
+
+    private fun seconds(value: Int) = string(R.string.seconds, value)
+
+    private fun resolutionName(height: Int) = when (height) {
+        2160 -> string(R.string.resolution_4k)
+        else -> string(R.string.resolution_p, height)
     }
 
     /** What the last check found, and the install button when a newer release is waiting. */
@@ -120,27 +228,8 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         showUpdate()
     }
 
-    private fun languageLabel() = when (Prefs.language(context)) {
-        "fr" -> string(R.string.language_fr)
-        "en" -> string(R.string.language_en)
-        else -> string(R.string.language_system)
-    }
-
-    private fun chooseLanguage() {
-        val choices = listOf("system" to R.string.language_system, "fr" to R.string.language_fr, "en" to R.string.language_en).map { (code, label) ->
-            string(label) to {
-                if (code != Prefs.language(context)) {
-                    Prefs.of(context).edit().putString(Prefs.LANGUAGE, code).apply()
-                    // Every screen is rebuilt in the new language, starting from "Who's watching?"
-                    activity.recreate()
-                }
-            }
-        }
-        dialog = ChoiceDialog(context, string(R.string.language), choices).also { it.open(view) }
-    }
-
     override fun focusDefault() {
-        language.requestFocus()
+        rows.firstOrNull()?.requestFocus()
     }
 
     override fun onBack(): Boolean {
@@ -151,3 +240,23 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         return false
     }
 }
+
+/** Scrolls a focused row into view with some room around it, so its ring and the rows beside it show. */
+private class SettingsScroll(context: Context) : ScrollView(context) {
+    private val margin = context.dp(60)
+
+    override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect): Int {
+        rect.top -= margin
+        rect.bottom += margin
+        return super.computeScrollDeltaToGetChildRectOnScreen(rect)
+    }
+}
+
+private const val ROW_WIDTH = 640
+private val SKIP_BACK_SECONDS = listOf(5, 10, 15, 30)
+private val SKIP_FORWARD_SECONDS = listOf(10, 15, 30, 60)
+private val RESUME_REWIND_SECONDS = listOf(0, 3, 5, 10, 15)
+private val COUNTDOWN_SECONDS = listOf(5, 8, 10, 15, 30)
+private val STILL_WATCHING_EPISODES = listOf(0, 2, 3, 4, 5)
+private val BITRATES_MBPS = listOf(Prefs.AUTO_BITRATE_MBPS, 120, 80, 60, 40, 20, 10, 8, 4, 2)
+private val RESOLUTIONS = listOf(0, 2160, 1080, 720, 480)

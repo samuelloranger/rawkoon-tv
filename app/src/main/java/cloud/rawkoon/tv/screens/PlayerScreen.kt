@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
@@ -20,11 +21,12 @@ import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.playback.PlaybackService
-import cloud.rawkoon.tv.playback.SEEK_BACK_MS
-import cloud.rawkoon.tv.playback.SEEK_FORWARD_MS
 import cloud.rawkoon.tv.playback.TrickplayLoader
 import cloud.rawkoon.tv.playback.VideoPlayer
+import cloud.rawkoon.tv.screens.player.AutoplayTracker
+import cloud.rawkoon.tv.screens.player.DisplayMatcher
 import cloud.rawkoon.tv.screens.player.PlayerChrome
+import cloud.rawkoon.tv.screens.player.PlayerSettings
 import cloud.rawkoon.tv.screens.player.ProgressReporter
 import cloud.rawkoon.tv.screens.player.ScrubController
 import cloud.rawkoon.tv.screens.player.SegmentSkipper
@@ -51,7 +53,10 @@ import org.jellyfin.sdk.model.api.PlayMethod
 class PlayerScreen(activity: MainActivity, private val session: JellyfinSession, private var item: MediaItem) : Screen(activity) {
     override val view = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
     private val service = PlaybackService(context, session)
-    private val player = VideoPlayer(context, service.authorization)
+    private val settings = PlayerSettings.read(context)
+    private val player = VideoPlayer(context, service.authorization, settings.skipBackMs, settings.skipForwardMs)
+    private val autoplay = AutoplayTracker(settings.stillWatchingAfter)
+    private val displayMatcher = DisplayMatcher(activity, player.exo, mainHandler, settings.matchDisplay)
     private val trickplayLoader = TrickplayLoader(context, service.authorization)
 
     private val surface = PlayerView(context).apply {
@@ -85,19 +90,26 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         dialogOpen = { menus.isOpen },
         onShow = { updateProgress() },
         onSettled = { scheduleTick() },
+        skipBackSeconds = (settings.skipBackMs / 1000).toInt(),
+        skipForwardSeconds = (settings.skipForwardMs / 1000).toInt(),
     )
     private val reporter = ProgressReporter(service, player.exo, mainHandler, scope, app.reportScope)
     private val scrub = ScrubController(context, chrome, player.exo, trickplayLoader, mainHandler, refresh = { updateProgress() })
-    private val skipper = SegmentSkipper(context, chrome, player.exo, mainHandler, hasNext = { next != null }, playNext = { playNext() })
+    private val skipper = SegmentSkipper(
+        context, chrome, player.exo, mainHandler, settings,
+        hasNext = { next != null },
+        playNext = { auto -> playNext(auto) },
+        plan = { autoplay.plan(settings.autoplayNext, settings.countdownSeconds) },
+    )
     private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter) { position, audio, subtitleIndex, previous ->
         start(item, position, audio, subtitleIndex, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
 
     init {
-        chrome.rewind.setOnClickListener { seekBy(-SEEK_BACK_MS) }
-        chrome.forward.setOnClickListener { seekBy(SEEK_FORWARD_MS) }
+        chrome.rewind.setOnClickListener { seekBy(-settings.skipBackMs) }
+        chrome.forward.setOnClickListener { seekBy(settings.skipForwardMs) }
         chrome.playPause.setOnClickListener { togglePause() }
-        chrome.nextButton.setOnClickListener { playNext() }
+        chrome.nextButton.setOnClickListener { playNext(auto = false) }
     }
 
     // --- Loading -------------------------------------------------------------------------------
@@ -109,6 +121,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         chrome.resetProgress()
         chrome.showTitle(target) { item === target }
         skipper.hide()
+        displayMatcher.reset()
         chrome.showSpinner(true)
         loadJob?.cancel()
         loadJob = scope.launch {
@@ -140,6 +153,10 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             if (reporter.stream == null) return
             if (state == Player.STATE_READY && reporter.onReady()) chrome.scheduleHide()
             if (state == Player.STATE_ENDED) ended()
+        }
+
+        override fun onTracksChanged(tracks: Tracks) {
+            displayMatcher.onTracks(tracks)
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -205,18 +222,21 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         if (reporter.stream == null) return close()
         reporter.stop(player.exo.duration.coerceAtLeast(0))
         if (next == null) return close()
-        skipper.showUpNext()
+        // The credits may already have brought the button up, and its countdown is under way
+        if (!skipper.upNextShown) skipper.showUpNext()
     }
 
-    private fun playNext() {
+    /** Plays the next episode. [auto] is true when nobody asked for it (the countdown ran out), which counts toward "Still watching?". */
+    private fun playNext(auto: Boolean) {
         val target = next ?: return
+        if (auto) autoplay.onAutoStarted()
         skipper.stopCountdown()
         reporter.stop(player.exo.currentPosition)
         scrub.reset()
         next = null
         skipper.reset()
         triedTranscode = false
-        start(target, target.resumeMs)
+        start(target, settings.startPosition(target.resumeMs))
     }
 
     private fun togglePause() {
@@ -235,6 +255,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     override fun onKey(event: KeyEvent): Boolean {
         val down = event.action == KeyEvent.ACTION_DOWN
+        // Someone is there: "Still watching?" starts over
+        if (down) autoplay.onKey()
         when (event.keyCode) {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                 if (down && event.repeatCount == 0) {
@@ -248,15 +270,15 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                if (down) seekBy(SEEK_FORWARD_MS)
+                if (down) seekBy(settings.skipForwardMs)
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                if (down) seekBy(-SEEK_BACK_MS)
+                if (down) seekBy(-settings.skipBackMs)
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_NEXT -> {
-                if (down && next != null) playNext()
+                if (down && next != null) playNext(auto = false)
                 return true
             }
         }
@@ -320,6 +342,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     override fun destroy() {
         reporter.stop(player.exo.currentPosition)
+        displayMatcher.restore()
         player.release()
         trickplayLoader.release()
         super.destroy()
@@ -328,7 +351,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     // Last, once every property above is set: the player starts calling back right away
     init {
         player.exo.addListener(listener)
-        start(item, item.resumeMs)
+        start(item, settings.startPosition(item.resumeMs))
     }
 
     private companion object {

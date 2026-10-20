@@ -22,17 +22,14 @@ import androidx.media3.extractor.ts.TsExtractor
 import org.jellyfin.sdk.model.api.PlayMethod
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 
-/** How far the rewind and fast-forward buttons and keys seek. */
-const val SEEK_BACK_MS = 10_000L
-const val SEEK_FORWARD_MS = 30_000L
-
 /**
  * ExoPlayer set up as the official client does it (decoder fallback, the ffmpeg extension for
  * audio the TV can't decode, wider TS timestamp search), with Jellyfin's auth header on every
- * request and Jellyfin's track numbers mapped onto ExoPlayer's tracks.
+ * request and Jellyfin's track numbers mapped onto ExoPlayer's tracks. [seekBackMs] and
+ * [seekForwardMs] are how far the rewind and fast-forward buttons and keys seek.
  */
 @OptIn(UnstableApi::class)
-class VideoPlayer(context: Context, authorization: String) {
+class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, seekForwardMs: Long) {
     private val trackSelector = DefaultTrackSelector(context).apply {
         parameters = buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true).build()
     }
@@ -59,8 +56,8 @@ class VideoPlayer(context: Context, authorization: String) {
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http), extractors))
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
-            .setSeekBackIncrementMs(SEEK_BACK_MS)
-            .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
+            .setSeekBackIncrementMs(seekBackMs)
+            .setSeekForwardIncrementMs(seekForwardMs)
             .build()
         exo.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {

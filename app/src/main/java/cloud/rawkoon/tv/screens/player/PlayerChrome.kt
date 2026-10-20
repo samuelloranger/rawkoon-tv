@@ -40,7 +40,7 @@ import cloud.rawkoon.tv.ui.rounded
  * Shows and hides the controls with a fade, moves the subtitles clear of them, and hides them
  * again after a while of playing. The rest of the player talks to the views through here.
  *
- * [onShow] runs as the controls come up (to refresh what they show) and [onSettled] after every
+ * [skipBackSeconds] and [skipForwardSeconds] label the rewind and forward buttons. [onShow] runs as the controls come up (to refresh what they show) and [onSettled] after every
  * show or hide, whether or not it changed anything.
  */
 @OptIn(UnstableApi::class)
@@ -54,6 +54,8 @@ class PlayerChrome(
     private val dialogOpen: () -> Boolean,
     private val onShow: () -> Unit,
     private val onSettled: () -> Unit,
+    skipBackSeconds: Int,
+    skipForwardSeconds: Int,
 ) {
     /** The controls layer: gradients, title, seek bar, times, buttons. */
     private val overlay = FrameLayout(context).noClip()
@@ -72,9 +74,9 @@ class PlayerChrome(
     val thumbTime = label(context, 12f, Tokens.textPrimary, Fonts.bold(context)).apply { gravity = Gravity.CENTER }
     val subtitlesButton = CircleButton(context, Icon.SUBTITLES, context.getString(R.string.subtitles))
     val audioButton = CircleButton(context, Icon.AUDIO, context.getString(R.string.audio))
-    val rewind = CircleButton(context, Icon.REWIND, context.getString(R.string.rewind))
+    val rewind = CircleButton(context, Icon.REWIND, context.getString(R.string.rewind, skipBackSeconds))
     val playPause = CircleButton(context, Icon.PAUSE, context.getString(R.string.play_pause), filled = true)
-    val forward = CircleButton(context, Icon.FORWARD, context.getString(R.string.forward))
+    val forward = CircleButton(context, Icon.FORWARD, context.getString(R.string.forward, skipForwardSeconds))
     val nextButton = CircleButton(context, Icon.NEXT_TRACK, context.getString(R.string.next_episode))
     val skip = PillButton(context, context.getString(R.string.skip_intro), Icon.SKIP, height = 40)
     val upNext = PillButton(context, context.getString(R.string.play_now), Icon.PLAY, primary = true, height = 40)
