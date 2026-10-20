@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.screens
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
@@ -41,6 +42,7 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
     private val manage = PillButton(context, string(R.string.manage_profiles), Icon.PEN)
     private var managing = false
     private var dialog: ChoiceDialog? = null
+    private var focusWait: ViewTreeObserver.OnWindowFocusChangeListener? = null
     private val clockView = clock(context).apply { applyClockSetting() }
 
     init {
@@ -76,7 +78,7 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
         // A plain launch with one profile without a PIN and the setting on: its home right away, this screen below for Back
         if (first && autoOpen) {
             profileToAutoOpen(app.profiles.all(), Prefs.skipProfilePicker(context))?.let {
-                open(it)
+                openOnceFocused(it)
                 return
             }
         }
@@ -157,6 +159,36 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
         } else {
             open(profile)
         }
+    }
+
+    /**
+     * Opens [profile] once the window has focus. At launch it doesn't yet: a home shown then has
+     * nothing focused when the window gains focus, so Android puts focus on the rail and the rows
+     * never take it.
+     */
+    private fun openOnceFocused(profile: Profile) {
+        if (view.hasWindowFocus()) return open(profile)
+        val listener = object : ViewTreeObserver.OnWindowFocusChangeListener {
+            override fun onWindowFocusChanged(hasFocus: Boolean) {
+                if (!hasFocus) return
+                stopWaitingForFocus()
+                // Not from inside the observer's dispatch, which the screen swap would change under it
+                mainHandler.post { if (alive) open(profile) }
+            }
+        }
+        focusWait = listener
+        view.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+    }
+
+    /** The window observer outlives this screen: a wait still pending (a launcher card came first) must not keep it. */
+    private fun stopWaitingForFocus() {
+        focusWait?.let { view.viewTreeObserver.removeOnWindowFocusChangeListener(it) }
+        focusWait = null
+    }
+
+    override fun destroy() {
+        stopWaitingForFocus()
+        super.destroy()
     }
 
     private fun open(profile: Profile) {

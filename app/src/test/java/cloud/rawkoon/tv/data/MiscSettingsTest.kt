@@ -53,6 +53,13 @@ class FormatBytesTest {
     }
 
     @Test
+    fun `units follow the language`() {
+        val french = listOf("o", "Ko", "Mo", "Go", "To")
+        assertEquals("512 o", formatBytes(512, Locale.FRENCH, french))
+        assertEquals("12,6 Mo", formatBytes(13_212_058, Locale.FRENCH, french))
+    }
+
+    @Test
     fun `the unit rolls over just below the next step`() {
         assertEquals("1023.0 KB", fmt(1023L * 1024))
         assertEquals("1.0 MB", fmt(1024L * 1024))
