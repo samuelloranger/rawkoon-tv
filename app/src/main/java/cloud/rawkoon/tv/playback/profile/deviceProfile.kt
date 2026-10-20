@@ -4,6 +4,7 @@ package cloud.rawkoon.tv.playback.profile
 import android.content.Context
 import android.util.Size
 import androidx.media3.common.MimeTypes
+import cloud.rawkoon.tv.data.HdrOverride
 import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.CodecType
 import org.jellyfin.sdk.model.api.DlnaProfileType
@@ -11,7 +12,6 @@ import org.jellyfin.sdk.model.api.EncodingContext
 import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.ProfileConditionValue
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
-import org.jellyfin.sdk.model.api.VideoRangeType
 import org.jellyfin.sdk.model.deviceprofile.DeviceProfileBuilder
 import org.jellyfin.sdk.model.deviceprofile.buildDeviceProfile
 
@@ -44,23 +44,33 @@ private val supportedAudioCodecs = arrayOf(
 )
 
 /**
- * Rawkoon: the official defaults (100 Mbps, AC3 passthrough, PGS direct play). [maxBitrate] and
- * [maxResolution] (a picture height, 0 for no limit) are the user's streaming-quality settings:
- * anything above them is transcoded down.
+ * Rawkoon: the official defaults (100 Mbps, AC3 passthrough, PGS direct play, HDR as the TV
+ * reports it). [maxBitrate] and [maxResolution] (a picture height, 0 for no limit) are the user's
+ * streaming-quality settings: anything above them is transcoded down. The audio, subtitle and HDR
+ * parameters are the user's overrides.
  */
 fun createDeviceProfile(
 	context: Context,
 	serverVersion: ServerVersion,
 	maxBitrate: Int = 100_000_000,
 	maxResolution: Int = 0,
+	isAC3Enabled: Boolean = true,
+	downMixAudio: Boolean = false,
+	pgsDirectPlay: Boolean = true,
+	hdr10: HdrOverride = HdrOverride.AUTO,
+	hdr10Plus: HdrOverride = HdrOverride.AUTO,
+	dolbyVision: HdrOverride = HdrOverride.AUTO,
 ) = createDeviceProfile(
 	mediaTest = MediaCodecCapabilitiesTest(context),
 	maxBitrate = maxBitrate,
 	maxResolution = maxResolution,
-	isAC3Enabled = true,
-	downMixAudio = false,
+	isAC3Enabled = isAC3Enabled,
+	downMixAudio = downMixAudio,
 	assDirectPlay = false,
-	pgsDirectPlay = true,
+	pgsDirectPlay = pgsDirectPlay,
+	hdr10 = hdr10,
+	hdr10Plus = hdr10Plus,
+	dolbyVision = dolbyVision,
 	jellyfinTenEleven = serverVersion >= ServerVersion(10, 11, 0),
 )
 
@@ -76,6 +86,9 @@ fun createDeviceProfile(
 	assDirectPlay: Boolean,
 	pgsDirectPlay: Boolean,
 	jellyfinTenEleven: Boolean,
+	hdr10: HdrOverride = HdrOverride.AUTO,
+	hdr10Plus: HdrOverride = HdrOverride.AUTO,
+	dolbyVision: HdrOverride = HdrOverride.AUTO,
 ) = buildDeviceProfile {
 	val allowedAudioCodecs = when {
 		downMixAudio -> downmixSupportedAudioCodecs
@@ -101,17 +114,18 @@ fun createDeviceProfile(
 
 	/// HDR capabilities
 
-	// Codecs
+	// Codecs, each format as the TV reports it unless the user's override says otherwise
 	// AV1
-	val supportsAV1DolbyVision = mediaTest.supportsAV1DolbyVision()
-	val supportsAV1HDR10 = mediaTest.supportsAV1HDR10()
-	val supportsAV1HDR10Plus = mediaTest.supportsAV1HDR10Plus()
+	val supportsAV1DolbyVision = dolbyVision.resolve(mediaTest.supportsAV1DolbyVision())
+	val supportsAV1HDR10 = hdr10.resolve(mediaTest.supportsAV1HDR10())
+	val supportsAV1HDR10Plus = hdr10Plus.resolve(mediaTest.supportsAV1HDR10Plus())
 
 	// HEVC
-	val supportsHevcDolbyVision = mediaTest.supportsHevcDolbyVision()
-	val supportsHevcDolbyVisionEL = mediaTest.supportsHevcDolbyVisionEL()
-	val supportsHevcHDR10 = mediaTest.supportsHevcHDR10()
-	val supportsHevcHDR10Plus = mediaTest.supportsHevcHDR10Plus()
+	val supportsHevcDolbyVision = dolbyVision.resolve(mediaTest.supportsHevcDolbyVision())
+	// "Always" vouches for Dolby Vision itself, not its enhancement layer, which few TVs decode
+	val supportsHevcDolbyVisionEL = dolbyVision != HdrOverride.NEVER && mediaTest.supportsHevcDolbyVisionEL()
+	val supportsHevcHDR10 = hdr10.resolve(mediaTest.supportsHevcHDR10())
+	val supportsHevcHDR10Plus = hdr10Plus.resolve(mediaTest.supportsHevcHDR10Plus())
 
 	name = "AndroidTV-Default"
 
@@ -403,50 +417,13 @@ fun createDeviceProfile(
 
 	/// HDR exclude list
 
-	// TODO Use VideoRangeType enum with Jellyfin 10.11 based SDK
-	val unsupportedRangeTypesAv1 = buildSet {
-		if (jellyfinTenEleven) add("DOVIInvalid")
-
-		if (!supportsAV1DolbyVision) {
-			add(VideoRangeType.DOVI.serialName)
-			if (!supportsAV1HDR10) add(VideoRangeType.DOVI_WITH_HDR10.serialName)
-			if (jellyfinTenEleven && !supportsAV1HDR10Plus) add("DOVIWithHDR10Plus")
-		}
-
-		if (!supportsAV1HDR10Plus) {
-			add(VideoRangeType.HDR10_PLUS.serialName)
-
-			if (!mediaTest.supportsAV1HDR10()) add(VideoRangeType.HDR10.serialName)
-		}
-	}
-
-	// TODO Use VideoRangeType enum with Jellyfin 10.11 based SDK
-	val unsupportedRangeTypesHevc = buildSet {
-		if (jellyfinTenEleven) add("DOVIInvalid")
-
-		if (!supportsHevcDolbyVisionEL) {
-			if (jellyfinTenEleven) {
-				add("DOVIWithEL")
-				if (!supportsHevcHDR10Plus && !KnownDefects.hevcDoviHdr10PlusBug) add("DOVIWithELHDR10Plus")
-			}
-
-			if (!supportsHevcDolbyVision) {
-				add(VideoRangeType.DOVI.serialName)
-				if (!supportsHevcHDR10) add(VideoRangeType.DOVI_WITH_HDR10.serialName)
-				if (jellyfinTenEleven && !supportsHevcHDR10Plus && !KnownDefects.hevcDoviHdr10PlusBug) add("DOVIWithHDR10Plus")
-			}
-		}
-
-		if (!supportsHevcHDR10Plus) {
-			add(VideoRangeType.HDR10_PLUS.serialName)
-			if (!supportsHevcHDR10) add(VideoRangeType.HDR10.serialName)
-		}
-
-		if (jellyfinTenEleven && KnownDefects.hevcDoviHdr10PlusBug) {
-			add("DOVIWithHDR10Plus")
-			add("DOVIWithELHDR10Plus")
-		}
-	}
+	val unsupportedRangeTypesAv1 = unsupportedAv1RangeTypes(
+		jellyfinTenEleven, supportsAV1DolbyVision, supportsAV1HDR10, supportsAV1HDR10Plus,
+	)
+	val unsupportedRangeTypesHevc = unsupportedHevcRangeTypes(
+		jellyfinTenEleven, supportsHevcDolbyVision, supportsHevcDolbyVisionEL, supportsHevcHDR10, supportsHevcHDR10Plus,
+		KnownDefects.hevcDoviHdr10PlusBug,
+	)
 
 	// Display
 	// Note: The codec profiles use a workaround to create correct behavior
