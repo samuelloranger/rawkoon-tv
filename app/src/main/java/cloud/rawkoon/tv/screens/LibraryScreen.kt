@@ -103,8 +103,6 @@ class LibraryScreen(
 
     init {
         backdrop.strength = 0.5f
-        // Half the image shows behind the grid: composed at half resolution, its fades cost the GPU a quarter
-        backdrop.resolution = 0.5f
         bar.addView(label(context, 32f, Tokens.textPrimary, Fonts.title(context)).apply {
             text = collectionTitle ?: string(kind.label)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(TITLE_GAP) })
