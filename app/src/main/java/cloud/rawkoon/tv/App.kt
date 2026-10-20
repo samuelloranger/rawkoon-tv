@@ -44,7 +44,7 @@ class App : Application() {
         LegacyImport.run(this, profiles)
         LauncherSyncJob.schedule(this)
         // Once a day at most, off the main thread; settings offer what it finds.
-        UpdateCheck(this, Fetcher(this)).refreshAsync()
+        if (Prefs.autoUpdateCheck(this)) UpdateCheck(this, Fetcher(this)).refreshAsync()
     }
 }
 

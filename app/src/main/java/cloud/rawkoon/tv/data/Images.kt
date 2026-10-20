@@ -41,6 +41,10 @@ class Images(context: Context, fetcher: Fetcher) {
 
     /** URLs that failed lately and when, so a bad one is not retried on every bind. */
     private val failed = FailureMemory(FAILURE_MEMORY_MS, MAX_FAILURES)
+
+    /** Bumped by [clearCache]: a decode that failed because the files went away is not a bad URL. */
+    @Volatile
+    private var generation = 0
     private val warming = Collections.synchronizedSet(HashSet<String>())
 
     /** Visible loads run before background ones (prefetch); each lane is first come, first served. */
@@ -122,6 +126,7 @@ class Images(context: Context, fetcher: Fetcher) {
     /** Worker side of a job: download, then decode, giving up between the two if nobody wants it any more. */
     private fun run(job: Job) {
         if (!job.started.compareAndSet(false, true)) return
+        val startedIn = generation
         var bitmap: Bitmap? = null
         var abandoned = false
         try {
@@ -142,7 +147,7 @@ class Images(context: Context, fetcher: Fetcher) {
         } finally {
             // Always settle the job: a job left in the map would swallow every later load of its key
             if (bitmap != null) memory.put(job.key, bitmap)
-            else if (!abandoned) fail(job.url)
+            else if (!abandoned && startedIn == generation) fail(job.url)
             val result = bitmap
             main.post { finish(job, result, abandoned) }
         }
@@ -158,6 +163,17 @@ class Images(context: Context, fetcher: Fetcher) {
                 if (waiter.isCurrent()) load(job.url, job.w, job.h, job.radius, job.opaque, job.contain, false, waiter.isCurrent, waiter.onReady)
             }
         }
+    }
+
+    /**
+     * Empties the disk cache and the decoded bitmaps. Safe with loads in flight: they finish or
+     * fail quietly, and everything asked for afterwards is fetched again.
+     */
+    fun clearCache() {
+        generation++
+        failed.clear()
+        disk.clear()
+        memory.evictAll()
     }
 
     /** Downloads [url] into the disk cache in the background, so a later load skips the network. */

@@ -16,6 +16,7 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.ContinueOpen
 import cloud.rawkoon.tv.data.Fetcher
+import cloud.rawkoon.tv.data.formatBytes
 import cloud.rawkoon.tv.data.HdrOverride
 import cloud.rawkoon.tv.data.MatchDisplay
 import cloud.rawkoon.tv.data.Prefs
@@ -34,11 +35,14 @@ import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.update.InstallState
 import cloud.rawkoon.tv.update.Installer
 import cloud.rawkoon.tv.update.UpdateCheck
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * App settings, as a scrolling list of sections: home, playback, skipping, display, language and
- * updates, then the version. Each setting is a row with its current value; OK opens the choices.
+ * App settings, as a scrolling list of sections: home, playback, skipping, display, language,
+ * updates, profiles and storage, then about (licences and the version). Each setting is a row with its current value; OK opens the choices.
  * Changes are saved at once and apply the next time the player opens.
  */
 class SettingsScreen(activity: MainActivity, private val profileId: String? = null) : Screen(activity) {
@@ -123,7 +127,12 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         }
 
         header(column, R.string.update_title)
-        column.addView(updateStatus, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.dp(4) })
+        // Previews (and anything else that cannot update) have no check to turn off
+        if (updateCheck.enabled) {
+            choice(column, R.string.setting_auto_update, listOf(true to string(R.string.setting_on), false to string(R.string.setting_off)),
+                { Prefs.autoUpdateCheck(context) }) { put(Prefs.AUTO_UPDATE_CHECK, it) }
+        }
+        column.addView(updateStatus, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(8); bottomMargin = context.dp(4) })
         if (updateCheck.enabled) {
             val buttons = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }.noClip()
             buttons.addView(checkNow)
@@ -133,9 +142,15 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
             install.setOnClickListener { installUpdate() }
         }
         showUpdate()
+
+        addProfilesSection(column)
+        addStorageSection(column)
+
+        header(column, R.string.settings_about)
+        action(column, R.string.setting_licences, "›") { activity.push(LicencesScreen(activity)) }
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.medium(context)).apply {
             text = string(R.string.version, BuildConfig.VERSION_NAME)
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(28) })
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(8) })
 
         val page = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -173,6 +188,43 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         ), { Prefs.continueOpen(context) }) { put(Prefs.CONTINUE_OPEN, it.key) }
         choice(column, R.string.setting_clock, listOf(true to string(R.string.clock_shown), false to string(R.string.clock_hidden)),
             { Prefs.showClock(context) }) { put(Prefs.SHOW_CLOCK, it) }
+    }
+
+    // Profiles and storage
+
+    private fun addProfilesSection(column: LinearLayout) {
+        header(column, R.string.settings_profiles)
+        choice(column, R.string.setting_skip_picker, listOf(false to string(R.string.setting_off), true to string(R.string.setting_on)),
+            { Prefs.skipProfilePicker(context) }) { put(Prefs.SKIP_PROFILE_PICKER, it) }
+    }
+
+    private fun addStorageSection(column: LinearLayout) {
+        header(column, R.string.settings_storage)
+        action(column, R.string.setting_clear_images, "") { row ->
+            dialog = ChoiceDialog(
+                context,
+                string(R.string.clear_images_confirm),
+                listOf(
+                    string(R.string.clear_images_action) to { clearImages(row) },
+                    string(R.string.cancel) to {},
+                ),
+            ).also { it.open(view) }
+        }.also(::showImageCacheSize)
+    }
+
+    /** Reads the disk cache's size off the main thread and shows it in [row]. */
+    private fun showImageCacheSize(row: SettingRow) {
+        scope.launch {
+            val size = withContext(Dispatchers.IO) { app.images.disk.size() }
+            row.setValue(formatBytes(size))
+        }
+    }
+
+    private fun clearImages(row: SettingRow) {
+        scope.launch {
+            withContext(Dispatchers.IO) { app.images.clearCache() }
+            showImageCacheSize(row)
+        }
     }
 
     // Subtitles, audio and HDR formats
@@ -253,6 +305,16 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         }
         rows += row
         parent.addView(row, LinearLayout.LayoutParams(context.dp(ROW_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
+    }
+
+    /** Adds a row that runs [onClick] on OK, showing [value] where a setting shows its choice. */
+    private fun action(parent: LinearLayout, title: Int, value: String, onClick: (SettingRow) -> Unit): SettingRow {
+        val row = SettingRow(context, string(title))
+        row.setValue(value)
+        row.setOnClickListener { onClick(row) }
+        rows += row
+        parent.addView(row, LinearLayout.LayoutParams(context.dp(ROW_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
+        return row
     }
 
     private fun put(key: String, value: Int) = Prefs.of(context).edit().putInt(key, value).apply()

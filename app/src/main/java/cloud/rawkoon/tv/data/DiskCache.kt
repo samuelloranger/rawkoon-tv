@@ -55,6 +55,15 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
         trimDir(dir, now, BUDGET, STALE_TMP_MS)
     }
 
+    /** Bytes the cached files take, downloads in progress included. */
+    fun size(): Long = dirSize(dir)
+
+    /**
+     * Deletes every cached copy. A download in progress keeps its temp file and lands afterwards;
+     * a reader that already opened a deleted file still reads it, and one that did not fetches again.
+     */
+    fun clear() = clearDir(dir)
+
     private companion object {
         const val BUDGET = 60L * 1024 * 1024
         const val TRIM_EVERY_MS = 60_000L
@@ -81,4 +90,25 @@ internal fun trimDir(dir: File, now: Long, budget: Long, staleTmpMs: Long) {
         total += file.length()
         if (total > budget) file.delete()
     }
+}
+
+/** [bytes] for people: "512 B", "3.5 MB". Binary steps, one decimal from KB up. */
+fun formatBytes(bytes: Long, locale: java.util.Locale = java.util.Locale.getDefault()): String {
+    if (bytes < 1024) return "${bytes.coerceAtLeast(0)} B"
+    val units = listOf("KB", "MB", "GB", "TB")
+    var value = bytes / 1024.0
+    var unit = 0
+    while (value >= 1024 && unit < units.lastIndex) {
+        value /= 1024
+        unit++
+    }
+    return String.format(locale, "%.1f %s", value, units[unit])
+}
+
+/** The bytes the files of [dir] take. */
+internal fun dirSize(dir: File): Long = dir.listFiles()?.sumOf { it.length() } ?: 0L
+
+/** Deletes the files of [dir], except `.tmp` ones: those are downloads in progress. */
+internal fun clearDir(dir: File) {
+    dir.listFiles()?.forEach { if (!it.name.endsWith(".tmp")) it.delete() }
 }
