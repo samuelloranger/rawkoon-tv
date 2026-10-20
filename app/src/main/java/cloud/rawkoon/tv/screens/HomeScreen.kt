@@ -21,6 +21,7 @@ import cloud.rawkoon.tv.rawkoon.ResourceText
 import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.Card
+import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.Fonts
@@ -29,11 +30,9 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.RowItem
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
-import cloud.rawkoon.tv.ui.TitleCard
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
-import cloud.rawkoon.tv.ui.shownItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -206,9 +205,9 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         this.row.setCards(row.items.map { item ->
             // A Rawkoon row's card is a TMDB title, which opens its own page, or the library item when it's there
             if (item.tmdb != null) {
-                TitleCard(context, item, app.images, { onFocused(it.item, it) }, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) })
+                Card(context, item, false, app.images, ::onFocused, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) }, cardCaption(item))
             } else {
-                Card(context, item, row.landscape, app.images, { onFocused(it.item, it) }, { openItem(it.item) })
+                Card(context, item, row.landscape, app.images, ::onFocused, { openItem(it.item) })
             }
         })
         this.row.onLeftEdge = { rail.activeItem() }
@@ -224,7 +223,8 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         button.requestFocus()
     }
 
-    private fun onFocused(item: MediaItem, card: View) {
+    private fun onFocused(card: Card) {
+        val item = card.item
         header.show(item)
         backdropUrl = item.backdropUrl?.let { "$it&maxWidth=1920" }
         main.removeCallbacks(settleBackdrop)
@@ -237,7 +237,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         val strip = card.parent as? ViewGroup ?: return
         val index = strip.indexOfChild(card)
         for (i in (index - 1)..(index + 2)) {
-            val near = strip.getChildAt(i)?.shownItem() ?: continue
+            val near = (strip.getChildAt(i) as? Card)?.item ?: continue
             if (near === item) continue
             header.prefetch(near)
             near.backdropUrl?.let { app.images.warm("$it&maxWidth=1920") }

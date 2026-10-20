@@ -29,6 +29,7 @@ import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.rawkoon.tmdbImage
 import cloud.rawkoon.tv.rawkoon.tmdbLogo
 import cloud.rawkoon.tv.rawkoon.toItem
+import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -39,8 +40,8 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
 import cloud.rawkoon.tv.ui.Tokens
-import cloud.rawkoon.tv.ui.TitleCard
 import cloud.rawkoon.tv.ui.badgeColors
+import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.chipRow
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.dpf
@@ -315,7 +316,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         }
         if (similar.isNotEmpty()) {
             val section = Section(context, "similar", string(R.string.row_similar))
-            section.row.setCards(similar.map { s -> TitleCard(context, s, app.images, {}, { opener.open(it.item) }) })
+            section.row.setCards(similar.map { s -> Card(context, s, false, app.images, {}, { opener.open(it.item) }, cardCaption(s)) })
             addSection(section)
         }
     }

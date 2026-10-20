@@ -30,13 +30,13 @@ import cloud.rawkoon.tv.ui.Header
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
-import cloud.rawkoon.tv.ui.TitleCard
+import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.rounded
-import cloud.rawkoon.tv.ui.shownItem
+import cloud.rawkoon.tv.ui.cardCaption
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -175,7 +175,10 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private fun section(id: String, title: String, titles: List<TmdbTitle>): Section? {
         if (titles.isEmpty()) return null
         return Section(context, id, title).apply {
-            row.setCards(titles.map { TitleCard(context, it.toItem(text), app.images, ::onFocused) { card -> opener.open(card.item) } })
+            row.setCards(titles.map { title ->
+                val item = title.toItem(text)
+                Card(context, item, false, app.images, ::onFocused, { card -> opener.open(card.item) }, cardCaption(item))
+            })
             row.onLeftEdge = { rail.activeItem() }
         }
     }
@@ -209,7 +212,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         sections.forEach { rows.column.addView(it) }
     }
 
-    private fun firstItem(): MediaItem? = rows.sections().firstOrNull()?.row?.cards()?.firstOrNull()?.shownItem()
+    private fun firstItem(): MediaItem? = (rows.sections().firstOrNull()?.row?.cards()?.firstOrNull() as? Card)?.item
 
     private fun showNotice(title: String, hint: String?, buttonLabel: String, action: () -> Unit) {
         // Nothing of the rows or a search that was on screen is left to act on
@@ -276,7 +279,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         firstItem()?.let(header::show)
     }
 
-    private fun onFocused(card: TitleCard) {
+    private fun onFocused(card: Card) {
         header.show(card.item)
         backdropJob?.cancel()
         val api = api ?: return

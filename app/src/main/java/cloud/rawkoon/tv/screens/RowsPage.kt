@@ -22,6 +22,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.RowItem
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
+import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
@@ -194,14 +195,8 @@ abstract class RowsPage(
 
     private fun section(row: HomeRow) = Section(context, row.id, row.title).apply {
         signature = row.signature
-        this.row.setCards(row.items.map { item -> Card(context, item, row.landscape, app.images, ::onFocused, { openItem(it.item) }, caption(item)) })
+        this.row.setCards(row.items.map { item -> Card(context, item, row.landscape, app.images, ::onFocused, { openItem(it.item) }, cardCaption(item)) })
         this.row.onLeftEdge = { rail.activeItem() }
-    }
-
-    /** An episode's still says little on its own: the show above, "S1 · E3 · Title" under it. */
-    private fun caption(item: MediaItem): Pair<String, String?>? {
-        if (item.kind != MediaItem.Kind.EPISODE) return null
-        return item.headerTitle to listOfNotNull(item.episodeLabel, item.title).joinToString(" · ")
     }
 
     private fun preview(item: MediaItem) {
