@@ -33,7 +33,7 @@ class MainActivity : Activity() {
     fun push(screen: Screen) {
         stack.lastOrNull()?.let { it.onHidden(); hide(it.view) }
         stack += screen
-        show(screen.view, fresh = true)
+        show(screen.view)
         screen.onShown(first = true)
     }
 
@@ -50,7 +50,7 @@ class MainActivity : Activity() {
         screens.forEachIndexed { i, s ->
             stack += s
             if (i == screens.lastIndex) {
-                show(s.view, fresh = true)
+                show(s.view)
                 s.onShown(first = true)
             } else {
                 root.addView(s.view, fill())
@@ -62,7 +62,15 @@ class MainActivity : Activity() {
     /** Goes back down the stack to the first screen (from the top) that matches, e.g. home from a details page. */
     fun popTo(match: (Screen) -> Boolean) {
         val target = stack.lastOrNull(match) ?: return
-        while (stack.last() !== target) pop()
+        if (stack.last() === target) return
+        // Only the target is shown again: the screens above it are dropped without a visit, so none
+        // of them reloads on the way out
+        val dropped = ArrayList<Screen>()
+        while (stack.last() !== target) dropped += stack.removeAt(stack.lastIndex)
+        target.view.visibility = View.VISIBLE
+        target.view.alpha = 1f
+        target.onShown(first = false)
+        dropped.forEach { remove(it) }
     }
 
     fun pop() {
@@ -81,13 +89,11 @@ class MainActivity : Activity() {
         remove(top)
     }
 
-    private fun show(view: View, fresh: Boolean) {
+    private fun show(view: View) {
         if (view.parent == null) root.addView(view, fill())
         view.visibility = View.VISIBLE
-        if (fresh) {
-            view.alpha = 0f
-            view.animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).setInterpolator(Tokens.ease).start()
-        }
+        view.alpha = 0f
+        view.animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).setInterpolator(Tokens.ease).start()
     }
 
     private fun hide(view: View) {
