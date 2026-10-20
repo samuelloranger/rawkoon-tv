@@ -68,7 +68,14 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
 
     /** The rows last handed to [show]: what a failed Rawkoon refresh falls back to. */
     private var shown = emptyList<HomeRow>()
-    private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
+
+    /** The focused item and its card, whose neighbours are prefetched once focus rests. */
+    private var prefetchFrom: Pair<MediaItem, View>? = null
+    private val settleBackdrop = Runnable {
+        backdrop.show(backdropUrl)
+        prefetchFrom?.let { (item, card) -> prefetchAround(item, card) }
+        prefetchFrom = null
+    }
     private val opener = TitleOpener(this)
     private val text = ResourceText(context)
     private var loadJob: Job? = null
@@ -222,10 +229,10 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         backdropUrl = item.backdropUrl?.let { "$it&maxWidth=1920" }
         main.removeCallbacks(settleBackdrop)
         main.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
-        prefetchAround(item, card)
+        prefetchFrom = item to card
     }
 
-    /** Fetches the logos and backdrops of the cards next to [card], so they are ready when focus gets there. */
+    /** Fetches, behind visible loads, the logos and backdrops of the cards next to [card], so they are ready when focus gets there. */
     private fun prefetchAround(item: MediaItem, card: View) {
         val strip = card.parent as? ViewGroup ?: return
         val index = strip.indexOfChild(card)

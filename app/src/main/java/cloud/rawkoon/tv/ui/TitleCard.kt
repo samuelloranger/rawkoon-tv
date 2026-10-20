@@ -5,7 +5,6 @@ import android.content.Context
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.jellyfin.Badge
@@ -20,28 +19,31 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 class TitleCard(
     context: Context,
     val item: MediaItem,
-    images: Images,
+    private val images: Images,
     private val onFocused: (TitleCard) -> Unit,
     private val onClick: (TitleCard) -> Unit,
 ) : Focusable(context), RowItem {
     override val key: String get() = item.id
-    private val art = ImageView(context)
+    private val art = BitmapView(context)
     private val frame = FrameLayout(context).noClip()
     private val ring = FlatView(context)
-    override val motion = FocusMotion(frame, ring)
+    override val motion = FocusMotion(frame, ring, raise = false)
+    private val artW = context.dp(Tokens.POSTER_W)
+    private val artH = context.dp(Tokens.POSTER_H)
+    private val artRadius = context.dpf(Tokens.CARD_RADIUS)
 
     @Volatile
-    private var alive = true
+    private var alive = false
 
     init {
         contentDescription = item.title
         val inset = context.dp(Tokens.RING_INSET)
-        val w = context.dp(Tokens.POSTER_W)
-        val h = context.dp(Tokens.POSTER_H)
-        val radius = context.dpf(Tokens.CARD_RADIUS)
+        val w = artW
+        val h = artH
+        val radius = artRadius
         val captionH = context.dp(CAPTION_DP)
         layoutParams = LinearLayout.LayoutParams(w + inset * 2, h + inset * 2 + captionH)
-        art.background = rounded(Tokens.surfaceHigh, radius)
+        art.placeholder = rounded(Tokens.surfaceHigh, radius)
         frame.addView(art, FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) })
         item.tmdb?.badge?.let { badge ->
             frame.addView(badgeLabel(badge, w - context.dp(12)), FrameLayout.LayoutParams(
@@ -59,7 +61,6 @@ class TitleCard(
         }
         addView(caption, LayoutParams(w, captionH, Gravity.BOTTOM).apply { leftMargin = inset })
 
-        item.posterUrl?.let { url -> images.load(url, w, h, radius, opaque = false, isCurrent = { alive }) { art.setImageBitmap(it) } }
         listenForFocus { onFocused(this) }
         setOnClickListener { onClick(this) }
     }
@@ -74,9 +75,17 @@ class TitleCard(
         }
     }
 
+    /** Requested on attach, like [Card]'s art. */
+    private fun requestArt() {
+        if (art.bitmap != null) return
+        val url = item.posterUrl ?: return
+        images.load(url, artW, artH, artRadius, opaque = false, isCurrent = { alive }) { art.bitmap = it }
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         alive = true
+        requestArt()
     }
 
     override fun onDetachedFromWindow() {

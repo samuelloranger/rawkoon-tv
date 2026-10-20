@@ -52,7 +52,14 @@ abstract class RowsPage(
     }
     private val parking = FocusParking(context)
     private var backdropUrl: String? = null
-    private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
+
+    /** The focused card, whose neighbours are prefetched once focus rests. */
+    private var prefetchFrom: Card? = null
+    private val settleBackdrop = Runnable {
+        backdrop.show(backdropUrl)
+        prefetchFrom?.let(::prefetchAround)
+        prefetchFrom = null
+    }
     private var retryButton: PillButton? = null
 
     init {
@@ -206,10 +213,10 @@ abstract class RowsPage(
 
     private fun onFocused(card: Card) {
         preview(card.item)
-        prefetchAround(card)
+        prefetchFrom = card
     }
 
-    /** Fetches the logos and backdrops of the cards next to [card], so they are ready when focus gets there. */
+    /** Fetches, behind visible loads, the logos and backdrops of the cards next to [card], so they are ready when focus gets there. */
     private fun prefetchAround(card: Card) {
         val strip = card.parent as? ViewGroup ?: return
         val index = strip.indexOfChild(card)

@@ -10,7 +10,6 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import cloud.rawkoon.tv.data.Images
@@ -23,15 +22,27 @@ fun ringDrawable(context: Context, radius: Float) = GradientDrawable().apply {
     setStroke(context.dp(2), Tokens.ring)
 }
 
-/** Scales a focusable view up and fades its ring in; both are render properties, so focus never redraws content. */
-class FocusMotion(private val target: View, private val ring: View?, private val scale: Float = Tokens.FOCUS_SCALE) {
+/** An oval ring stroke, the round counterpart of [ringDrawable]. */
+fun ovalRing(context: Context) = oval(0).apply { setStroke(context.dp(2), Tokens.ring) }
+
+/**
+ * Scales a focusable view up and fades its ring in; both are render properties, so focus never
+ * redraws content. [raise] lifts the target above its siblings while focused: for views that
+ * overlap their neighbours directly. Cards in a [FocusRow] leave it off, as the row orders its own drawing.
+ */
+class FocusMotion(
+    private val target: View,
+    private val ring: View?,
+    private val scale: Float = Tokens.FOCUS_SCALE,
+    private val raise: Boolean = true,
+) {
     fun focus(focused: Boolean) {
         val duration = if (focused) Tokens.FOCUS_IN_MS else Tokens.FOCUS_OUT_MS
         val to = if (focused) scale else 1f
         target.animate().scaleX(to).scaleY(to).setDuration(duration).setInterpolator(Tokens.ease).start()
         ring?.animate()?.alpha(if (focused) 1f else 0f)?.setDuration(duration)?.setInterpolator(Tokens.ease)?.start()
         // The focused view draws above its neighbours (no outline, so no shadow)
-        target.translationZ = if (focused) 1f else 0f
+        if (raise) target.translationZ = if (focused) 1f else 0f
     }
 
     fun press(down: Boolean) {
@@ -76,7 +87,6 @@ abstract class Focusable(context: Context) : FrameLayout(context) {
     protected fun listenForFocus(onFocused: () -> Unit = {}) {
         setOnFocusChangeListener { _, focused ->
             motion.focus(focused)
-            (parent as? View)?.invalidate()
             if (focused) onFocused()
         }
     }
@@ -102,29 +112,32 @@ class Card(
     context: Context,
     val item: MediaItem,
     val landscape: Boolean,
-    images: Images,
+    private val images: Images,
     private val onFocused: (Card) -> Unit,
     private val onClick: (Card) -> Unit,
     caption: Pair<String, String?>? = null,
 ) : Focusable(context), RowItem {
     override val key: String get() = item.id
-    private val art = ImageView(context)
+    private val art = BitmapView(context)
     private val frame = FrameLayout(context).noClip()
     private val ring = FlatView(context)
-    override val motion = FocusMotion(frame, ring)
+    override val motion = FocusMotion(frame, ring, raise = false)
+    private val artW = context.dp(if (landscape) Tokens.LAND_W else Tokens.POSTER_W)
+    private val artH = context.dp(if (landscape) Tokens.LAND_H else Tokens.POSTER_H)
+    private val artRadius = context.dpf(Tokens.CARD_RADIUS)
 
     @Volatile
-    private var alive = true
+    private var alive = false
 
     init {
         contentDescription = item.headerTitle
         val inset = context.dp(Tokens.RING_INSET)
-        val w = context.dp(if (landscape) Tokens.LAND_W else Tokens.POSTER_W)
-        val h = context.dp(if (landscape) Tokens.LAND_H else Tokens.POSTER_H)
-        val radius = context.dpf(Tokens.CARD_RADIUS)
+        val w = artW
+        val h = artH
+        val radius = artRadius
         val captionH = if (caption != null) context.dp(CAPTION_DP) else 0
         layoutParams = LinearLayout.LayoutParams(w + inset * 2, h + inset * 2 + captionH)
-        art.background = rounded(Tokens.surfaceHigh, radius)
+        art.placeholder = rounded(Tokens.surfaceHigh, radius)
         val inner = { FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) } }
         frame.addView(art, inner())
         if (item.progress != null && (landscape || item.kind == MediaItem.Kind.EPISODE)) frame.addView(CardProgress(context, item.progress), inner())
@@ -141,18 +154,26 @@ class Card(
             }
             addView(column, LayoutParams(w, captionH, Gravity.BOTTOM).apply { leftMargin = inset })
         }
-
-        val url = if (landscape) item.thumbUrl else item.posterUrl
-        if (url != null) {
-            images.load("$url&fillWidth=$w", w, h, radius, opaque = false, isCurrent = { alive }) { art.setImageBitmap(it) }
-        }
         listenForFocus { onFocused(this) }
         setOnClickListener { onClick(this) }
+    }
+
+    /**
+     * The art is requested once the card is on a window, not when the row is built: a page builds
+     * every card up front. A card detached before its art arrives drops the request and asks again
+     * on the next attach. Arrived art is kept on detach: it is already in memory, and dropping it
+     * would only flash the placeholder when the card comes back.
+     */
+    private fun requestArt() {
+        if (art.bitmap != null) return
+        val url = (if (landscape) item.thumbUrl else item.posterUrl) ?: return
+        images.load("$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive }) { art.bitmap = it }
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         alive = true
+        requestArt()
     }
 
     override fun onDetachedFromWindow() {
@@ -167,31 +188,29 @@ class Card(
 
 /** A cast member: a round photo (initials when there is none), the name and the role. */
 @SuppressLint("ViewConstructor")
-class PersonCard(context: Context, val person: Person, images: Images) : Focusable(context), RowItem {
+class PersonCard(context: Context, val person: Person, private val images: Images) : Focusable(context), RowItem {
     override val key: String get() = person.id
     private val photo = FrameLayout(context).noClip()
     private val ring = FlatView(context)
-    override val motion = FocusMotion(photo, ring, 1.08f)
+    override val motion = FocusMotion(photo, ring, 1.08f, raise = false)
+    private val size = context.dp(SIZE)
+    private val initials = label(context, 22f, Tokens.textSoft, Fonts.title(context))
+    private val image = BitmapView(context)
 
     @Volatile
-    private var alive = true
+    private var alive = false
 
     init {
         contentDescription = person.name
-        val size = context.dp(SIZE)
         val gap = context.dp(4)
         layoutParams = LinearLayout.LayoutParams(context.dp(W), size + context.dp(48))
-        photo.addView(label(context, 22f, Tokens.textSoft, Fonts.title(context)).apply {
+        photo.addView(initials.apply {
             text = person.name.take(1)
             gravity = Gravity.CENTER
             background = oval(Tokens.surfaceHigh)
         }, FrameLayout.LayoutParams(size, size))
-        val image = ImageView(context)
         photo.addView(image, FrameLayout.LayoutParams(size, size))
-        person.imageUrl?.let { url ->
-            images.load("$url&fillWidth=$size", size, size, size / 2f, isCurrent = { alive }) { image.setImageBitmap(it) }
-        }
-        ring.background = oval(0).apply { setStroke(context.dp(2), Tokens.ring) }
+        ring.background = ovalRing(context)
         ring.alpha = 0f
         photo.addView(ring, FrameLayout.LayoutParams(size + gap * 2, size + gap * 2).apply { setMargins(-gap, -gap, -gap, -gap) })
         addView(photo, LayoutParams(size, size, Gravity.CENTER_HORIZONTAL))
@@ -205,9 +224,21 @@ class PersonCard(context: Context, val person: Person, images: Images) : Focusab
         listenForFocus()
     }
 
+    /** Requested on attach, like [Card]'s art. */
+    private fun requestPhoto() {
+        if (image.bitmap != null) return
+        val url = person.imageUrl ?: return
+        images.load("$url&fillWidth=$size", size, size, size / 2f, isCurrent = { alive }) {
+            image.bitmap = it
+            // Invisible, not gone: no layout, and nothing draws under the photo
+            initials.visibility = View.INVISIBLE
+        }
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         alive = true
+        requestPhoto()
     }
 
     override fun onDetachedFromWindow() {
@@ -227,10 +258,9 @@ fun oval(color: Int) = GradientDrawable().apply {
 }
 
 /** A round action button with an icon: watched, favorite, more. [setOn] paints the icon apricot. */
-class CircleButton(context: Context, glyph: String, description: String, filled: Boolean = false) : Focusable(context) {
+class CircleButton(context: Context, glyph: String, description: String, private val filled: Boolean = false) : Focusable(context) {
     private val ring = FlatView(context)
     private val icon: TextView = icon(context, glyph, 14f, if (filled) Tokens.background else Tokens.textPrimary)
-    private val filled = filled
     override val motion = FocusMotion(this, ring)
 
     init {
@@ -239,7 +269,7 @@ class CircleButton(context: Context, glyph: String, description: String, filled:
         val size = context.dp(SIZE)
         icon.background = oval(if (filled) Tokens.textPrimary else 0x24FFFFFF)
         addView(icon, LayoutParams(size, size).apply { setMargins(inset, inset, inset, inset) })
-        ring.background = oval(0).apply { setStroke(context.dp(2), Tokens.ring) }
+        ring.background = ovalRing(context)
         ring.alpha = 0f
         addView(ring, LayoutParams(size + inset * 2, size + inset * 2))
         listenForFocus()
@@ -261,14 +291,14 @@ class CircleButton(context: Context, glyph: String, description: String, filled:
 class CardProgress(context: Context, private val progress: Float) : View(context) {
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x40FFFFFF }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.accent }
-    private val height = context.dpf(3.5f)
+    private val barHeight = context.dpf(3.5f)
     private val margin = context.dpf(7f)
     private val rect = RectF()
 
     override fun onDraw(canvas: Canvas) {
-        val r = height / 2
+        val r = barHeight / 2
         val bottom = getHeight() - margin
-        rect.set(margin, bottom - height, width - margin, bottom)
+        rect.set(margin, bottom - barHeight, width - margin, bottom)
         canvas.drawRoundRect(rect, r, r, track)
         rect.right = margin + (width - margin * 2) * progress
         canvas.drawRoundRect(rect, r, r, fill)

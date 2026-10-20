@@ -20,6 +20,12 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     private var lastKey: String? = null
     private var lastIndex = 0
 
+    /** Where the row last drew a focused card, so drawing order needs no search. */
+    private var focusedIndex = -1
+
+    /** Where the strip is gliding to, to tell a repeat of the same move from a new one. */
+    private var glideTarget = 0f
+
     /** Asked when Left is pressed on the first card; returns the view that takes focus, or null to stay. */
     var onLeftEdge: (() -> View?)? = null
 
@@ -30,8 +36,8 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
         /** The focused card draws last, so its scaled-up ring covers its neighbours. */
         override fun getChildDrawingOrder(childCount: Int, drawingPosition: Int): Int {
-            val focused = indexOfChild(focusedChild)
-            if (focused < 0) return drawingPosition
+            val focused = focusedIndex
+            if (focused < 0 || focused >= childCount) return drawingPosition
             return when {
                 drawingPosition == childCount - 1 -> focused
                 drawingPosition >= focused -> drawingPosition + 1
@@ -45,6 +51,11 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
                 lastKey = item.key
                 lastIndex = indexOfChild(child)
                 reveal(child)
+            }
+            // The drawing order only changes here: invalidate once per focus move, not per card
+            if (child != null) {
+                focusedIndex = indexOfChild(child)
+                invalidate()
             }
         }
     }
@@ -71,7 +82,10 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
             (card.layoutParams as LinearLayout.LayoutParams).marginStart = if (i == 0) 0 else gap
             strip.addView(card)
         }
+        strip.animate().cancel()
         strip.translationX = 0f
+        glideTarget = 0f
+        focusedIndex = -1
         lastIndex = 0
         lastKey = null
     }
@@ -98,7 +112,8 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     fun reveal(card: View) {
         val maxShift = (strip.width - width).coerceAtLeast(0)
         val target = -(card.left - strip.paddingStart).coerceIn(0, maxShift).toFloat()
-        if (strip.translationX == target) return
+        if (glideTarget == target) return
+        glideTarget = target
         strip.animate().translationX(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
     }
 

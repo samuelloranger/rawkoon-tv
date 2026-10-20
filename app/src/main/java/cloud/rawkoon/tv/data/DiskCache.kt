@@ -3,34 +3,56 @@ package cloud.rawkoon.tv.data
 import android.content.Context
 import java.io.File
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 
-/** Local copies of remote art, trimmed to a size budget, oldest first. */
+/** Local copies of remote art, trimmed to a size budget, least recently used first. */
 class DiskCache(context: Context, private val fetcher: Fetcher) {
     private val dir = File(context.cacheDir, "img").apply { mkdirs() }
+
+    @Volatile
     private var lastTrim = 0L
+
+    /** One lock per file being downloaded, so two callers asking for a URL fetch it once. */
+    private val locks = ConcurrentHashMap<String, Any>()
 
     /** Local copy of [url]: remote art goes through the cache, local paths are used as they are. */
     fun file(url: String): File? {
         if (url.startsWith("/")) return File(url).takeIf { it.isFile }
         val cached = File(dir, sha1(url))
-        if (cached.isFile && cached.length() > 0) return cached
-        val tmp = File(dir, cached.name + ".tmp")
-        fetcher.open(url).use { input -> tmp.outputStream().use { input.copyTo(it) } }
-        if (!tmp.renameTo(cached)) return null
+        if (hit(cached)) return cached
+        val lock = locks.computeIfAbsent(cached.name) { Any() }
+        try {
+            synchronized(lock) {
+                if (hit(cached)) return cached
+                // A temp file of its own: a half-written download is never visible under the final name
+                val tmp = File.createTempFile(cached.name, ".tmp", dir)
+                try {
+                    fetcher.open(url).use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                    if (!tmp.renameTo(cached)) return null
+                } finally {
+                    tmp.delete()
+                }
+            }
+        } finally {
+            locks.remove(cached.name)
+        }
         trim()
         return cached
     }
 
+    /** A hit counts as a use, so trimming drops what was read least recently. */
+    private fun hit(file: File): Boolean {
+        if (!file.isFile || file.length() == 0L) return false
+        file.setLastModified(System.currentTimeMillis())
+        return true
+    }
+
+    @Synchronized
     private fun trim() {
         val now = System.currentTimeMillis()
         if (now - lastTrim < TRIM_EVERY_MS) return
         lastTrim = now
-        val files = dir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
-        var total = 0L
-        for (file in files) {
-            total += file.length()
-            if (total > BUDGET) file.delete()
-        }
+        trimDir(dir, now, BUDGET, STALE_TMP_MS)
     }
 
     private fun sha1(text: String) =
@@ -39,5 +61,23 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
     private companion object {
         const val BUDGET = 60L * 1024 * 1024
         const val TRIM_EVERY_MS = 60_000L
+        const val STALE_TMP_MS = 60 * 60_000L
+    }
+}
+
+/**
+ * Deletes the least recently modified files of [dir] until the rest fit [budget] bytes. A `.tmp`
+ * file is a download in progress: it is left alone unless older than [staleTmpMs], and never counts.
+ */
+internal fun trimDir(dir: File, now: Long, budget: Long, staleTmpMs: Long) {
+    val files = dir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
+    var total = 0L
+    for (file in files) {
+        if (file.name.endsWith(".tmp")) {
+            if (now - file.lastModified() > staleTmpMs) file.delete()
+            continue
+        }
+        total += file.length()
+        if (total > budget) file.delete()
     }
 }

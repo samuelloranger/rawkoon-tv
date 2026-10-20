@@ -40,11 +40,14 @@ class NavRail(
     private val active: Destination,
     private val onSelect: (Destination) -> Unit,
 ) : FrameLayout(context) {
-    private val background = FlatView(context).apply {
+    private val scrim = FlatView(context).apply {
         setBackgroundColor(Tokens.rail)
         pivotX = 0f
     }
     private val items = LinkedHashMap<Destination, RailItem>()
+
+    /** The entries in order, for Up and Down; built on first use, once all are added. */
+    private val order by lazy { items.values.toList() }
     private val fades = mutableListOf<View>()
     private val closedScale = Tokens.RAIL_W.toFloat() / Tokens.RAIL_OPEN_W
     var isOpen = false
@@ -58,8 +61,8 @@ class NavRail(
 
     init {
         clipChildren = false
-        addView(background, LayoutParams(context.dp(Tokens.RAIL_OPEN_W), LayoutParams.MATCH_PARENT))
-        background.scaleX = closedScale
+        addView(scrim, LayoutParams(context.dp(Tokens.RAIL_OPEN_W), LayoutParams.MATCH_PARENT))
+        scrim.scaleX = closedScale
 
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -77,7 +80,7 @@ class NavRail(
             item.setActive(destination == active)
             item.setOnClickListener { onSelect(destination) }
             items[destination] = item
-            fades += item.label
+            fades += item.labels
             column.addView(item, LinearLayout.LayoutParams(context.dp(190), context.dp(if (item.tall) 46 else 36)).apply {
                 bottomMargin = context.dp(if (destination == Destination.PROFILE) 13 else 3)
             })
@@ -95,7 +98,7 @@ class NavRail(
         val reel = ImageView(context).apply { setImageResource(R.drawable.logo_reel) }
         val size = context.dp(28)
         addView(reel, LinearLayout.LayoutParams(size, size).apply { marginStart = (context.dp(40) - size) / 2; marginEnd = (context.dp(40) - size) / 2 })
-        val name = LinearLayout(context).apply {
+        val name = FlatLinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(label(context, 18f, Tokens.textPrimary, Fonts.bold(context)).apply { text = context.getString(R.string.brand_name) })
             addView(GradientLabel(context, BRAND_TOP, BRAND_BOTTOM).apply {
@@ -120,7 +123,7 @@ class NavRail(
     private fun setOpen(open: Boolean) {
         if (open == isOpen) return
         isOpen = open
-        background.animate().scaleX(if (open) 1f else closedScale).setDuration(Tokens.DRAWER_MS).setInterpolator(Tokens.ease).start()
+        scrim.animate().scaleX(if (open) 1f else closedScale).setDuration(Tokens.DRAWER_MS).setInterpolator(Tokens.ease).start()
         for (view in fades) {
             view.animate().alpha(if (open) 1f else 0f).setStartDelay(if (open) 60 else 0)
                 .setDuration(if (open) 160 else 90).setInterpolator(Tokens.ease).start()
@@ -147,9 +150,8 @@ class NavRail(
         if (direction == View.FOCUS_RIGHT) return onExit?.invoke() ?: focused
         // Up and down walk the entries in order: geometric search can't jump the gap above Settings
         if (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN) {
-            val list = items.values.toList()
-            val i = list.indexOf(focused)
-            if (i >= 0) return list.getOrNull(if (direction == View.FOCUS_DOWN) i + 1 else i - 1) ?: focused
+            val i = order.indexOf(focused)
+            if (i >= 0) return order.getOrNull(if (direction == View.FOCUS_DOWN) i + 1 else i - 1) ?: focused
         }
         val next = super.focusSearch(focused, direction)
         if (next == null || !isInside(next)) return focused
@@ -166,6 +168,11 @@ class NavRail(
     }
 }
 
+/** A row or column of labels that never overlap, so fading it needs no offscreen layer. */
+private class FlatLinearLayout(context: Context) : LinearLayout(context) {
+    override fun hasOverlappingRendering() = false
+}
+
 /** One rail entry: a small pill behind the icon when closed, a wide one when open. */
 @SuppressLint("ViewConstructor")
 class RailItem(
@@ -173,20 +180,36 @@ class RailItem(
     destination: Destination,
     title: String,
     subtitle: String?,
-    avatarUrl: String?,
-    images: Images,
+    private val avatarUrl: String?,
+    private val images: Images,
     val tall: Boolean,
 ) : FrameLayout(context) {
     private val radius = context.dpf(9f)
     private val chip = FlatView(context)
     private val wide = FlatView(context)
     private val glyph: TextView? = if (avatarUrl == null && !tall) icon(context, destination.glyph, 15f, Tokens.textSoft) else null
-    val label: View
+    val labels: View
+    private val avatarArt = BitmapView(context)
+    private val avatarSize = context.dp(30)
     private var active = false
     private var open = false
 
+    // Built once: paint() only picks between them
+    private val idleWide = GradientDrawable().apply {
+        cornerRadius = radius
+        setColor(Tokens.surfaceHigh)
+    }
+    private val focusedWide = GradientDrawable().apply {
+        cornerRadius = radius
+        setColor(Tokens.surfaceFocused)
+        setStroke(context.dp(2), Tokens.ring)
+    }
+    private var wideFocused: Boolean? = null
+    private var wideAlpha = 0f
+    private var chipAlpha = 0f
+
     @Volatile
-    private var alive = true
+    private var alive = false
 
     init {
         isFocusable = true
@@ -196,17 +219,15 @@ class RailItem(
         addView(wide, fill())
         addView(chip, LayoutParams(boxW, ViewGroup.LayoutParams.MATCH_PARENT))
         wide.alpha = 0f
+        chip.alpha = 0f
+        chip.background = rounded(Tokens.surfaceHigh, radius)
         if (glyph != null) {
             addView(glyph, LayoutParams(boxW, ViewGroup.LayoutParams.MATCH_PARENT))
         } else {
-            val size = context.dp(30)
-            val avatar = ImageView(context).apply { background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Tokens.surfaceHigh) } }
-            addView(avatar, LayoutParams(size, size, Gravity.CENTER_VERTICAL).apply { marginStart = (boxW - size) / 2 })
-            if (avatarUrl != null) {
-                images.load("$avatarUrl&fillWidth=$size", size, size, size / 2f, isCurrent = { alive }) { avatar.setImageBitmap(it) }
-            }
+            avatarArt.placeholder = oval(Tokens.surfaceHigh)
+            addView(avatarArt, LayoutParams(avatarSize, avatarSize, Gravity.CENTER_VERTICAL).apply { marginStart = (boxW - avatarSize) / 2 })
         }
-        label = LinearLayout(context).apply {
+        labels = FlatLinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             addView(label(context, 14.5f, Tokens.textPrimary, Fonts.medium(context)).apply { text = title })
@@ -214,7 +235,7 @@ class RailItem(
                 addView(label(context, 10.5f, Tokens.textMuted, Fonts.medium(context)).apply { text = subtitle })
             }
         }
-        addView(label, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { marginStart = boxW + context.dp(12) })
+        addView(labels, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { marginStart = boxW + context.dp(12) })
         setOnFocusChangeListener { _, _ -> paint() }
         paint()
     }
@@ -222,6 +243,9 @@ class RailItem(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         alive = true
+        if (avatarUrl != null && avatarArt.bitmap == null) {
+            images.load("$avatarUrl&fillWidth=$avatarSize", avatarSize, avatarSize, avatarSize / 2f, isCurrent = { alive }) { avatarArt.bitmap = it }
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -242,17 +266,22 @@ class RailItem(
     /** The focused entry gets the ring, the current one a quiet pill and an apricot icon. */
     private fun paint() {
         val focused = isFocused
-        val color = if (focused) Tokens.surfaceFocused else Tokens.surfaceHigh
-        wide.background = GradientDrawable().apply {
-            cornerRadius = radius
-            setColor(color)
-            if (focused) setStroke(context.dp(2), Tokens.ring)
+        if (wideFocused != focused) {
+            wideFocused = focused
+            wide.background = if (focused) focusedWide else idleWide
         }
-        chip.background = rounded(Tokens.surfaceHigh, radius)
-        val showWide = open && (focused || active)
-        val showChip = !open && active
-        wide.animate().alpha(if (showWide) 1f else 0f).setDuration(Tokens.FOCUS_IN_MS).start()
-        chip.animate().alpha(if (showChip) 1f else 0f).setDuration(Tokens.FOCUS_IN_MS).start()
+        val showWide = if (open && (focused || active)) 1f else 0f
+        val showChip = if (!open && active) 1f else 0f
+        fade(wide, showWide, wideAlpha)
+        fade(chip, showChip, chipAlpha)
+        wideAlpha = showWide
+        chipAlpha = showChip
         glyph?.setTextColor(if (active) Tokens.accent else if (focused) Tokens.textPrimary else Tokens.textSoft)
+    }
+
+    /** Animates [view] to [to] only when that is a change; before the first frame it just sets it. */
+    private fun fade(view: View, to: Float, from: Float) {
+        if (to == from) return
+        if (isAttachedToWindow) view.animate().alpha(to).setDuration(Tokens.FOCUS_IN_MS).start() else view.alpha = to
     }
 }

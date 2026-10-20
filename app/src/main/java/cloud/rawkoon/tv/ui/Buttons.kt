@@ -2,7 +2,6 @@ package cloud.rawkoon.tv.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.KeyEvent
 import android.widget.FrameLayout
@@ -38,10 +37,7 @@ class PillButton(context: Context, text: String, glyph: String? = null, primary:
         label = label(context, 13f, fg, Fonts.bold(context)).apply { this.text = text }
         row.addView(label)
         addView(row, LayoutParams(LayoutParams.WRAP_CONTENT, context.dp(height)).apply { setMargins(inset, inset, inset, inset) })
-        ring.background = GradientDrawable().apply {
-            cornerRadius = radius + inset
-            setStroke(context.dp(2), Tokens.ring)
-        }
+        ring.background = ringDrawable(context, radius)
         ring.alpha = 0f
         addView(ring, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         setOnFocusChangeListener { _, focused -> motion.focus(focused) }
