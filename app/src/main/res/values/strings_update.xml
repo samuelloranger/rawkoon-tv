@@ -10,6 +10,7 @@
     <string name="update_checking">Checking…</string>
     <string name="update_install">Install version %1$s</string>
     <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_in_progress">Downloading the update…</string>
     <string name="update_confirm">Confirm the installation on the TV.</string>
     <string name="update_failed">The update failed.</string>
     <string name="update_corrupt">The download is damaged. Try again.</string>

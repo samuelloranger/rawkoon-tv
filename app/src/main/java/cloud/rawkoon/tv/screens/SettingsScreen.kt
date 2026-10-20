@@ -71,6 +71,7 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         val pending = updateCheck.pending()
         updateStatus.text = when {
             !updateCheck.enabled -> string(R.string.update_disabled)
+            Installer.running -> string(R.string.update_in_progress)
             pending != null -> string(R.string.update_available, pending.version)
             updateCheck.checkedAt == 0L -> string(R.string.update_never_checked)
             updateCheck.failed -> string(R.string.update_check_failed, checkedAtText())
@@ -79,6 +80,9 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         install.visibility = if (pending != null && !Installer.running) View.VISIBLE else View.GONE
         pending?.let { install.label.text = string(R.string.update_install, it.version) }
     }
+
+    /** Back from the installer's confirmation (declined or not), the status says what is true now. */
+    override fun onResume() = showUpdate()
 
     private fun checkedAtText() = DateFormat.getMediumDateFormat(context).format(updateCheck.checkedAt)
 

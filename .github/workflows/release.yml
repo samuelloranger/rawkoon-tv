@@ -1,12 +1,13 @@
 name: Release
 
-# Push a vX.Y.Z tag to publish. The APKs are signed with the key the first RawkoonTV used, so
+# Push a vX.Y.Z tag to publish; this workflow is the only thing that creates releases. The APKs are signed with the key the first RawkoonTV used, so
 # installed copies update in place, and attached under the names both updaters look for:
 # RawkoonTV-<abi>.apk, RawkoonTV.apk (universal) and a .sha256 next to each.
 
 on:
   push:
-    tags: ['v*']
+    # Strictly X.Y.Z: both updaters fail to parse anything else (v3.1.0-rc1) and stop offering updates.
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
 
 permissions:
   contents: write
@@ -21,6 +22,11 @@ jobs:
         with:
           # The tag is the version.
           fetch-depth: 0
+      - name: Check the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must look like v1.2.3" >&2; exit 1; }
       - uses: ./.github/actions/setup
       - name: Build, test and sign
         env:
@@ -33,11 +39,15 @@ jobs:
           test -n "$SIGNING_KEY" || { echo "SIGNING_KEY secret is missing" >&2; exit 1; }
           ./gradlew --no-daemon testDebugUnitTest assembleRelease
       - name: Verify signatures
+        env:
+          # The first RawkoonTV's release certificate (public): any other key can't update installed copies.
+          EXPECTED_CERT_SHA256: a2719edc5c9d1a7551b0a41d027d40551e14daf12f359ff5fa1ae38aa983ad8b
         run: |
           apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           for apk in app/build/outputs/apk/release/*.apk; do
-            "$apksigner" verify --print-certs "$apk" | tee certs.txt
-            ! grep -q "Android Debug" certs.txt || { echo "$apk is signed with the debug key" >&2; exit 1; }
+            "$apksigner" verify --print-certs "$apk" > certs.txt
+            cat certs.txt
+            grep -q "certificate SHA-256 digest: $EXPECTED_CERT_SHA256" certs.txt || { echo "$apk is not signed with the RawkoonTV key" >&2; exit 1; }
           done
       - name: Publish release
         env:
@@ -50,3 +60,6 @@ jobs:
           (cd out && for apk in *.apk; do sha256sum "$apk" > "$apk.sha256"; done)
           # The title must be the bare tag: the first RawkoonTV reads the release's name as its version.
           gh release create "$TAG" out/* --title "$TAG" --generate-notes --verify-tag
+      - name: Remove signing key
+        if: always()
+        run: rm -f app/build/ci.keystore

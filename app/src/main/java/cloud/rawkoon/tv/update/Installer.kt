@@ -41,8 +41,8 @@ class Installer(context: Context, private val fetcher: Fetcher) {
                 R.string.update_failed
             } finally {
                 apk.delete()
+                busy.set(false)
             }
-            busy.set(false)
             main.post { onDone(error) }
         }
     }

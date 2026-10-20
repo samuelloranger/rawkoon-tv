@@ -26,13 +26,25 @@ val gitTag: String = providers.exec {
 val semver = gitTag.removePrefix("v").split('.', '-').take(3).map { it.toIntOrNull() ?: 0 }
 
 /**
- * Release signing, from the CI secrets (SIGNING_KEY is the base64 keystore, written next to the
- * build outputs) or a directory named by the `rawkoontv.signingDir` Gradle property (local)
- * holding release.jks and signing.env. Without either, release builds fall back to the debug key
- * so a fresh checkout still builds; the release workflow refuses to publish such a build.
+ * Release signing, from a directory named by the `rawkoontv.signingDir` Gradle property (local)
+ * holding release.jks and signing.env, else from the CI secrets (SIGNING_KEY is the base64
+ * keystore, written next to the build outputs). The property wins so a stray SIGNING_KEY in a
+ * shell can't swap the key of a local release. Without either, release builds fall back to the
+ * debug key so a fresh checkout still builds; the release workflow refuses to publish such a build.
  */
 val signing: Map<String, String> = run {
-    val fromEnv = System.getenv("SIGNING_KEY")?.takeIf { it.isNotBlank() }?.let { encoded ->
+    val fromDir = providers.gradleProperty("rawkoontv.signingDir").orNull?.let { dir ->
+        val props = Properties().apply { File(dir, "signing.env").inputStream().use { load(it) } }
+        mapOf(
+            "store" to File(dir, "release.jks").path,
+            "storePassword" to props.getProperty("KEY_STORE_PASSWORD").orEmpty().trim('"'),
+            "alias" to props.getProperty("KEY_ALIAS").orEmpty().trim('"'),
+            "keyPassword" to props.getProperty("KEY_PASSWORD").orEmpty().trim('"'),
+        )
+    }
+    // The keystore is only written when a release is being built, not on every configuration.
+    val releasing = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+    fromDir ?: System.getenv("SIGNING_KEY")?.takeIf { releasing && it.isNotBlank() }?.let { encoded ->
         val keystore = layout.buildDirectory.file("ci.keystore").get().asFile
         keystore.parentFile.mkdirs()
         keystore.writeBytes(Base64.getMimeDecoder().decode(encoded))
@@ -41,15 +53,6 @@ val signing: Map<String, String> = run {
             "storePassword" to System.getenv("KEY_STORE_PASSWORD").orEmpty(),
             "alias" to System.getenv("KEY_ALIAS").orEmpty(),
             "keyPassword" to System.getenv("KEY_PASSWORD").orEmpty(),
-        )
-    }
-    fromEnv ?: providers.gradleProperty("rawkoontv.signingDir").orNull?.let { dir ->
-        val props = Properties().apply { File(dir, "signing.env").inputStream().use { load(it) } }
-        mapOf(
-            "store" to File(dir, "release.jks").path,
-            "storePassword" to props.getProperty("KEY_STORE_PASSWORD").orEmpty().trim('"'),
-            "alias" to props.getProperty("KEY_ALIAS").orEmpty().trim('"'),
-            "keyPassword" to props.getProperty("KEY_PASSWORD").orEmpty().trim('"'),
         )
     } ?: emptyMap()
 }
