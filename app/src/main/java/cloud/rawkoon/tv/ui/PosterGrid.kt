@@ -39,7 +39,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     /** Set by [jumpTo] until the next layout places that row: the re-anchoring below must not undo it. */
     private var jumpPending = false
 
-    /** Whether the idle pre-building of cells was started: once per grid. */
+    /** Whether the idle pre-building of cells is under way or done: once per grid. */
     private var warmed = false
 
     private val manager = object : GridLayoutManager(context, SPAN) {
@@ -142,7 +142,12 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         warmed = true
         Looper.myQueue().addIdleHandler {
             val pool = recycledViewPool
-            if (!isAttachedToWindow || pool.getRecycledViewCount(0) >= WARM_ROWS * SPAN) return@addIdleHandler false
+            // A grid not on screen yet stops here; the next page to land starts the warm-up again
+            if (!isAttachedToWindow) {
+                warmed = false
+                return@addIdleHandler false
+            }
+            if (pool.getRecycledViewCount(0) >= WARM_ROWS * SPAN) return@addIdleHandler false
             pool.putRecycledView(posters.createViewHolder(this, 0))
             true
         }
