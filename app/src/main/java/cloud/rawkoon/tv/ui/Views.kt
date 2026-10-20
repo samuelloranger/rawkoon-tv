@@ -127,6 +127,16 @@ class GradientLabel(context: Context, private val top: Int, private val bottom: 
     }
 }
 
+/** True when [this] sits somewhere under [ancestor]. */
+fun View.isWithin(ancestor: View): Boolean {
+    var parent = parent
+    while (parent != null) {
+        if (parent === ancestor) return true
+        parent = parent.parent
+    }
+    return false
+}
+
 /**
  * Lets children draw past this view's bounds and padding. Focused things grow by a few percent
  * and draw their ring near their edge; every container that holds them calls this, so no ring

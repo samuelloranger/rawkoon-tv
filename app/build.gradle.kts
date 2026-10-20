@@ -140,6 +140,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("org.jellyfin.sdk:jellyfin-core:1.7.1")
     implementation("com.google.zxing:core:3.5.3")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
 
     // The player: media3 at the version the Jellyfin ffmpeg decoders are built against
     implementation("androidx.media3:media3-exoplayer:1.8.0")

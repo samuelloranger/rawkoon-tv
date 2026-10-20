@@ -36,6 +36,9 @@ object Tokens {
     const val LAND_W = 192
     const val LAND_H = 108
     const val CARD_GAP = 16
+
+    /** Horizontal gap between the rings of neighbouring posters in a grid. */
+    const val POSTER_GAP = 14
     const val CARD_RADIUS = 7f
 
     /** Space around a card's art for the ring: a gap in the page colour, then the stroke. */

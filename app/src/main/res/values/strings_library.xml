@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_sort_button">Sort: %1$s</string>
+    <string name="library_sort_dialog">Sort by</string>
+    <string name="library_sort_added">Date added</string>
+    <string name="library_sort_title">Title A–Z</string>
+    <string name="library_sort_year">Year</string>
+    <string name="library_sort_rating">Rating</string>
+    <string name="library_reverse_off">Reverse order: off</string>
+    <string name="library_reverse_on">Reverse order: on</string>
+    <string name="library_filter_button">Filter: %1$s</string>
+    <string name="library_filter_dialog">Show</string>
+    <string name="library_filter_all">All</string>
+    <string name="library_filter_unwatched">Unwatched only</string>
+    <string name="library_filter_favorites">Favorites only</string>
+    <plurals name="library_count">
+        <item quantity="one">%d title</item>
+        <item quantity="other">%d titles</item>
+    </plurals>
+    <string name="library_empty">Nothing here yet.</string>
+    <string name="library_empty_filtered">Nothing matches this filter.</string>
+    <string name="library_error">Couldn\'t load the library.</string>
+</resources>
