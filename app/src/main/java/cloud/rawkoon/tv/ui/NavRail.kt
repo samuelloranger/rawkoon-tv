@@ -88,15 +88,30 @@ class NavRail(
         viewTreeObserver.addOnGlobalFocusChangeListener { _, now -> setOpen(now != null && isInside(now)) }
     }
 
+    /** The brand as on the TV's home banner: the reel, then "Rawkoon" with "TV" in the apricot gradient. */
     private fun logoRow() = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        addView(icon(context, Icon.LOGO, 21f, Tokens.accent), LinearLayout.LayoutParams(context.dp(40), LayoutParams.MATCH_PARENT))
-        val name = label(context, 17f, Tokens.textPrimary, Fonts.title(context)).apply {
-            text = context.getString(R.string.app_name)
+        val reel = ImageView(context).apply { setImageResource(R.drawable.logo_reel) }
+        val size = context.dp(28)
+        addView(reel, LinearLayout.LayoutParams(size, size).apply { marginStart = (context.dp(40) - size) / 2; marginEnd = (context.dp(40) - size) / 2 })
+        val name = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(label(context, 18f, Tokens.textPrimary, Fonts.bold(context)).apply { text = context.getString(R.string.brand_name) })
+            addView(GradientLabel(context, BRAND_TOP, BRAND_BOTTOM).apply {
+                text = context.getString(R.string.brand_tv)
+                textSize = 18f
+                typeface = Fonts.bold(context)
+            }, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(5) })
         }
         fades += name
         addView(name, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(12) })
+    }
+
+    private companion object {
+        // Sampled from the "TV" of the app banner
+        const val BRAND_TOP = 0xFFEEB27A.toInt()
+        const val BRAND_BOTTOM = 0xFFDF8F5C.toInt()
     }
 
     /** The entry for the current page: where focus lands when it enters the rail. */

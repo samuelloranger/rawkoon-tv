@@ -1,6 +1,8 @@
 package cloud.rawkoon.tv.ui
 
 import android.content.Context
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -79,7 +81,6 @@ object Icon {
     const val TV = "\uf26c"
     const val FOLDER = "\uf07c"
     const val GEAR = "\uf013"
-    const val LOGO = "\uf144"
     const val PLAY = "\uf04b"
     const val PLUS = "\u002b"
     const val LOCK = "\uf023"
@@ -90,4 +91,19 @@ object Icon {
     const val CHECK = "\uf00c"
     const val XMARK = "\uf00d"
     const val TRASH = "\uf1f8"
+}
+
+/** Text filled with a top-to-bottom gradient, like the "TV" of the brand. */
+class GradientLabel(context: Context, private val top: Int, private val bottom: Int) : TextView(context) {
+    init {
+        includeFontPadding = false
+        maxLines = 1
+        // Opaque: the shader is drawn at the paint's alpha, and the theme's text colour is translucent
+        setTextColor(0xFFFFFFFF.toInt())
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        paint.shader = LinearGradient(0f, 0f, 0f, h.toFloat(), top, bottom, Shader.TileMode.CLAMP)
+    }
 }
