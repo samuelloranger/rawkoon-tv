@@ -43,7 +43,7 @@ class TitleCard(
         layoutParams = LinearLayout.LayoutParams(w + inset * 2, h + inset * 2 + captionH)
         art.background = rounded(Tokens.surfaceHigh, radius)
         frame.addView(art, FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) })
-        item.badge?.let { badge ->
+        item.tmdb?.badge?.let { badge ->
             frame.addView(badgeLabel(badge, w - context.dp(12)), FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START,
             ).apply { setMargins(inset + context.dp(6), 0, 0, inset + context.dp(6)) })
@@ -54,7 +54,7 @@ class TitleCard(
         addView(frame, LayoutParams(w + inset * 2, h + inset * 2))
         val caption = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         caption.addView(label(context, 12.5f, Tokens.textPrimary, Fonts.bold(context)).apply { text = item.title })
-        (item.subtitle ?: item.year?.toString())?.let { sub ->
+        (item.tmdb?.subtitle ?: item.year?.toString())?.let { sub ->
             caption.addView(label(context, 11f, Tokens.textMuted, Fonts.medium(context)).apply { text = sub })
         }
         addView(caption, LayoutParams(w, captionH, Gravity.BOTTOM).apply { leftMargin = inset })

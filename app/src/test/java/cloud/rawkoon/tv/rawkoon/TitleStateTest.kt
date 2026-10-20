@@ -75,23 +75,30 @@ class TitleStateTest {
     }
 
     @Test
+    fun `a backdrop is asked for at a screen's size, not as the original`() {
+        assertEquals("https://img.example.com/t/p/w1280/b.jpg?src=tmdb", tmdbBackdrop("https://img.example.com/t/p/original/b.jpg"))
+        assertEquals("https://img.example.com/t/p/w780/b.jpg?src=tmdb", tmdbBackdrop("https://img.example.com/t/p/w780/b.jpg"))
+        assertNull(tmdbBackdrop(null))
+    }
+
+    @Test
     fun `a list entry becomes an item, marked when the library has it`() {
         val title = TmdbTitle(101, true, "Example Movie", 2024, "https://img.example.com/a.jpg", "A movie.", 7.25, libraryId = 12, libraryStatus = null)
         val item = title.toItem(FakeText)
         assertEquals("tmdb-movie-101", item.id)
         assertEquals(MediaItem.Kind.MOVIE, item.kind)
-        assertEquals(101, item.tmdbId)
-        assertTrue(item.inLibrary)
-        assertEquals(Badge("in library", Badge.Tone.READY), item.badge)
+        assertEquals(101, item.tmdb!!.id)
+        assertTrue(item.tmdb!!.inLibrary)
+        assertEquals(Badge("in library", Badge.Tone.READY), item.tmdb!!.badge)
         assertEquals("2024 · in library · ★ 7.3", item.metaLine())
 
         val onItsWay = title.copy(libraryStatus = "wanted").toItem(FakeText)
-        assertEquals(Badge("in progress", Badge.Tone.ACTIVE), onItsWay.badge)
+        assertEquals(Badge("in progress", Badge.Tone.ACTIVE), onItsWay.tmdb!!.badge)
 
         val show = title.copy(isMovie = false, libraryId = null).toItem(FakeText)
         assertEquals("tmdb-tv-101", show.id)
         assertEquals(MediaItem.Kind.SERIES, show.kind)
-        assertNull(show.badge)
-        assertFalse(show.inLibrary)
+        assertNull(show.tmdb!!.badge)
+        assertFalse(show.tmdb!!.inLibrary)
     }
 }

@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The shapes are the ones Rawkoon's routes answer with (explore, tmdb-search, modal, requests, dashboard). */
-class RawkoonDiscoverParsingTest {
+class RawkoonParseTest {
     private val page = JSONObject(
         """
         {"items":[
@@ -25,7 +25,7 @@ class RawkoonDiscoverParsingTest {
 
     @Test
     fun `an explore page keeps movies and shows and drops what is neither`() {
-        val parsed = RawkoonDiscover.parsePage(page)
+        val parsed = parsePage(page)
         assertEquals(2, parsed.page)
         assertEquals(9, parsed.totalPages)
         assertEquals(listOf(101, 202), parsed.items.map { it.tmdbId })
@@ -43,7 +43,7 @@ class RawkoonDiscoverParsingTest {
 
     @Test
     fun `a search answer carries the library state and no paging`() {
-        val parsed = RawkoonDiscover.parsePage(
+        val parsed = parsePage(
             JSONObject("""{"enabled":true,"items":[{"tmdb_id":5,"media_type":"movie","title":"T","library_id":3,"library_status":"wanted"}]}"""),
         )
         assertEquals("wanted", parsed.items.single().libraryStatus)
@@ -53,13 +53,13 @@ class RawkoonDiscoverParsingTest {
 
     @Test
     fun `genres without a name are skipped`() {
-        val genres = RawkoonDiscover.parseGenres(JSONObject("""{"genres":[{"id":28,"name":"Action"},{"id":1,"name":""},{"id":35,"name":"Comedy"}]}"""))
+        val genres = parseGenres(JSONObject("""{"genres":[{"id":28,"name":"Action"},{"id":1,"name":""},{"id":35,"name":"Comedy"}]}"""))
         assertEquals(listOf(Genre(28, "Action"), Genre(35, "Comedy")), genres)
     }
 
     @Test
     fun `a show's modal gives its span, counts, best logo, backdrop and cast`() {
-        val modal = RawkoonDiscover.parseModal(
+        val modal = parseModal(
             JSONObject(
                 """
                 {"watchlist_status":false,"trailer":{"key":null,"name":null},
@@ -90,7 +90,7 @@ class RawkoonDiscoverParsingTest {
 
     @Test
     fun `a movie's modal takes its runtime and year from the details`() {
-        val modal = RawkoonDiscover.parseModal(JSONObject("""{"details":{"runtime":97,"release_date":"2023-03-04","genres":[],"vote_average":0}}"""))
+        val modal = parseModal(JSONObject("""{"details":{"runtime":97,"release_date":"2023-03-04","genres":[],"vote_average":0}}"""))
         assertEquals(97, modal.runtimeMinutes)
         assertEquals(2023, modal.year)
         assertNull(modal.voteAverage)
@@ -100,7 +100,7 @@ class RawkoonDiscoverParsingTest {
 
     @Test
     fun `a status has a library entry, a request or neither`() {
-        val both = RawkoonDiscover.parseStatus(
+        val both = parseStatus(
             JSONObject(
                 """{"library":{"id":12,"status":"downloading","episode_count":10,"downloaded_episode_count":4},
                     "request":{"id":5,"status":"denied","deny_reason":"Not now"}}""",
@@ -108,21 +108,21 @@ class RawkoonDiscoverParsingTest {
         )
         assertEquals(LibraryEntry("downloading", 10, 4), both.library)
         assertEquals(RequestEntry(5, "denied", "Not now"), both.request)
-        val none = RawkoonDiscover.parseStatus(JSONObject("""{"library":null,"request":null}"""))
+        val none = parseStatus(JSONObject("""{"library":null,"request":null}"""))
         assertNull(none.library)
         assertNull(none.request)
-        val movie = RawkoonDiscover.parseStatus(JSONObject("""{"library":{"id":1,"status":"downloaded","episode_count":null,"downloaded_episode_count":null},"request":null}"""))
+        val movie = parseStatus(JSONObject("""{"library":{"id":1,"status":"downloaded","episode_count":null,"downloaded_episode_count":null},"request":null}"""))
         assertNull(movie.library!!.episodeCount)
     }
 
     @Test
     fun `the upcoming list is empty when the server has it disabled`() {
-        assertTrue(RawkoonDiscover.parseUpcoming(JSONObject("""{"enabled":false,"items":[]}""")).isEmpty())
+        assertTrue(parseUpcoming(JSONObject("""{"enabled":false,"items":[]}""")).isEmpty())
     }
 
     @Test
     fun `upcoming entries keep episode ranges and skip other media types`() {
-        val entries = RawkoonDiscover.parseUpcoming(
+        val entries = parseUpcoming(
             JSONObject(
                 """
                 {"enabled":true,"items":[
@@ -143,7 +143,7 @@ class RawkoonDiscoverParsingTest {
 
     @Test
     fun `requests parse with their requester and dates`() {
-        val requests = RawkoonDiscover.parseRequests(
+        val requests = parseRequests(
             JSONObject(
                 """
                 {"requests":[{"id":5,"tmdb_id":101,"type":"movie","title":"Example Movie","author":null,"poster_url":null,"year":2024,

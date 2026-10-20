@@ -30,7 +30,7 @@ class RawkoonHomeTest {
 
     @Test
     fun `upcoming keeps today and later, soonest first, once each`() {
-        val cards = RawkoonHome.upcoming(
+        val cards = UpcomingRows.upcoming(
             listOf(
                 entry("movie-1", "B", "2026-10-30"),
                 entry("movie-2", "A", "2026-10-19"),
@@ -46,15 +46,15 @@ class RawkoonHomeTest {
 
     @Test
     fun `an entry known only to a downloader has no tmdb id and is left out`() {
-        assertNull(RawkoonHome.tmdbIdOf(entry("lib-7")))
-        assertEquals(42, RawkoonHome.tmdbIdOf(entry("tv-42-s1e1")))
-        assertEquals(9, RawkoonHome.tmdbIdOf(entry("x", url = "https://www.themoviedb.org/tv/9")))
-        assertEquals(emptyList<UpcomingCard>(), RawkoonHome.upcoming(listOf(entry("lib-7")), today))
+        assertNull(UpcomingRows.tmdbIdOf(entry("lib-7")))
+        assertEquals(42, UpcomingRows.tmdbIdOf(entry("tv-42-s1e1")))
+        assertEquals(9, UpcomingRows.tmdbIdOf(entry("x", url = "https://www.themoviedb.org/tv/9")))
+        assertEquals(emptyList<UpcomingCard>(), UpcomingRows.upcoming(listOf(entry("lib-7")), today))
     }
 
     @Test
     fun `an episode pill gives numbers, a range, or a count`() {
-        fun pill(e: UpcomingEntry) = RawkoonHome.episodePill(RawkoonHome.upcoming(listOf(e), today).single(), FakeText)
+        fun pill(e: UpcomingEntry) = UpcomingRows.episodePill(UpcomingRows.upcoming(listOf(e), today).single(), FakeText)
         assertEquals("S1 · E7", pill(entry("tv-1", season = 1, episode = 7)))
         assertEquals("S1 · E3–4", pill(entry("tv-1", season = 1, episode = 3, end = 4)))
         assertEquals("S1 · E3", pill(entry("tv-1", season = 1, episode = 3, end = 3)))
@@ -65,7 +65,7 @@ class RawkoonHomeTest {
 
     @Test
     fun `dates read as words close by and as dates further out`() {
-        fun text(days: Long, locale: Locale = Locale.ENGLISH) = RawkoonHome.dateText(today.plusDays(days), today, locale, FakeText)
+        fun text(days: Long, locale: Locale = Locale.ENGLISH) = UpcomingRows.dateText(today.plusDays(days), today, locale, FakeText)
         assertEquals("Today", text(0))
         assertEquals("Tomorrow", text(1))
         assertEquals("Thursday", text(3))
@@ -76,18 +76,18 @@ class RawkoonHomeTest {
 
     @Test
     fun `an upcoming card shows its date and its pill, or that the library has it`() {
-        val card = { e: UpcomingEntry -> RawkoonHome.upcomingItem(RawkoonHome.upcoming(listOf(e), today).single(), FakeText, today, Locale.ENGLISH) }
+        val card = { e: UpcomingEntry -> UpcomingRows.item(UpcomingRows.upcoming(listOf(e), today).single(), FakeText, today, Locale.ENGLISH) }
         val episode = card(entry("tv-1", "Show", "2026-10-20", season = 2, episode = 1))
-        assertEquals("Tomorrow", episode.subtitle)
-        assertEquals(Badge("S2 · E1", Badge.Tone.ACTIVE), episode.badge)
+        assertEquals("Tomorrow", episode.tmdb!!.subtitle)
+        assertEquals(Badge("S2 · E1", Badge.Tone.ACTIVE), episode.tmdb!!.badge)
         assertEquals("Tomorrow · S2 · E1", episode.metaLine())
         assertEquals(MediaItem.Kind.SERIES, episode.kind)
-        assertEquals(1, episode.tmdbId)
+        assertEquals(1, episode.tmdb!!.id)
 
         val movie = card(entry("movie-2", "Movie", "2026-10-30", library = 3))
-        assertEquals(Badge("in library", Badge.Tone.READY), movie.badge)
-        assertEquals(true, movie.inLibrary)
-        assertNull(card(entry("movie-3")).badge)
+        assertEquals(Badge("in library", Badge.Tone.READY), movie.tmdb!!.badge)
+        assertEquals(true, movie.tmdb!!.inLibrary)
+        assertNull(card(entry("movie-3")).tmdb!!.badge)
     }
 
     private fun request(id: Int, status: String, by: String = "me", created: String = "2026-10-10T10:00:00Z", decided: String? = null, type: String = "movie", tmdb: Int? = id) =
@@ -107,31 +107,31 @@ class RawkoonHomeTest {
             request(9, "pending", tmdb = null),
             request(10, "cancelled"),
         )
-        assertEquals(listOf(3, 2, 1, 4), RawkoonHome.requests(all, "me", now).map { it.id })
+        assertEquals(listOf(3, 2, 1, 4), RequestRows.requests(all, "me", now).map { it.id })
     }
 
     @Test
     fun `requests are capped`() {
         val many = (1..30).map { request(it, "pending") }
-        assertEquals(RawkoonHome.MAX_ITEMS, RawkoonHome.requests(many, "me", now).size)
+        assertEquals(RawkoonHome.MAX_ITEMS, RequestRows.requests(many, "me", now).size)
     }
 
     @Test
     fun `a request card carries its state as a badge`() {
-        val item = RawkoonHome.requestItem(request(3, "approved"), TitleState.Processing(true, 40), FakeText)
+        val item = RequestRows.item(request(3, "approved"), TitleState.Processing(true, 40), FakeText)
         assertEquals("request-3", item.id)
-        assertEquals(Badge("downloading 40", Badge.Tone.ACTIVE), item.badge)
+        assertEquals(Badge("downloading 40", Badge.Tone.ACTIVE), item.tmdb!!.badge)
         assertEquals("2024 · downloading 40", item.metaLine())
-        assertEquals(false, item.inLibrary)
-        val ready = RawkoonHome.requestItem(request(4, "available"), TitleState.Available, FakeText)
-        assertEquals(true, ready.inLibrary)
-        assertEquals(Badge.Tone.READY, ready.badge!!.tone)
+        assertEquals(false, item.tmdb!!.inLibrary)
+        val ready = RequestRows.item(request(4, "available"), TitleState.Available, FakeText)
+        assertEquals(true, ready.tmdb!!.inLibrary)
+        assertEquals(Badge.Tone.READY, ready.tmdb!!.badge!!.tone)
     }
 
     @Test
     fun `the upcoming row is left out when nothing is upcoming`() {
-        assertNull(RawkoonHome.upcomingRow(emptyList(), FakeText, today, Locale.ENGLISH))
-        val row = RawkoonHome.upcomingRow(listOf(entry("movie-1")), FakeText, today, Locale.ENGLISH)!!
+        assertNull(UpcomingRows.row(emptyList(), FakeText, today, Locale.ENGLISH))
+        val row = UpcomingRows.row(listOf(entry("movie-1")), FakeText, today, Locale.ENGLISH)!!
         assertEquals(RawkoonHome.UPCOMING_ID, row.id)
         assertEquals("Coming soon", row.title)
         assertEquals(false, row.landscape)
@@ -175,5 +175,39 @@ class RawkoonHomeTest {
         assertEquals(emptyList<HomeRow>(), RawkoonHome.rowsFor(RawkoonOutcome.NoSession, shown))
         val fresh = listOf(row(RawkoonHome.REQUESTS_ID))
         assertEquals(fresh, RawkoonHome.rowsFor(RawkoonOutcome.Loaded(fresh), shown))
+    }
+
+    @Test
+    fun `an entry without an id is never taken for a repeat, one with an id is kept once`() {
+        val cards = UpcomingRows.upcoming(
+            listOf(entry("", "A", url = "https://www.themoviedb.org/movie/1"), entry("", "B", url = "https://www.themoviedb.org/movie/2"), entry("movie-3", "C"), entry("movie-3", "C again")),
+            today,
+        )
+        assertEquals(listOf("A", "B", "C"), cards.map { it.title })
+    }
+
+    @Test
+    fun `a cached upcoming row words its dates again and drops what has passed`() {
+        val cached = UpcomingRows.row(listOf(entry("movie-1", "Soon", "2026-10-20"), entry("movie-2", "Later", "2026-10-30")), FakeText, today, Locale.ENGLISH)!!
+        assertEquals(listOf("Tomorrow", "Oct 30"), cached.items.map { it.tmdb!!.subtitle })
+        val nextDay = RawkoonHome.refreshed(listOf(cached), FakeText, today.plusDays(1), Locale.ENGLISH).single()
+        assertEquals(listOf("Today", "Oct 30"), nextDay.items.map { it.tmdb!!.subtitle })
+        val later = RawkoonHome.refreshed(listOf(cached), FakeText, today.plusDays(2), Locale.ENGLISH).single()
+        assertEquals(listOf("Later"), later.items.map { it.title })
+        assertEquals(emptyList<HomeRow>(), RawkoonHome.refreshed(listOf(cached), FakeText, today.plusDays(20), Locale.ENGLISH))
+    }
+
+    @Test
+    fun `refreshing leaves the requests row alone`() {
+        val requests = row(RawkoonHome.REQUESTS_ID)
+        assertEquals(listOf(requests), RawkoonHome.refreshed(listOf(requests), FakeText, today, Locale.ENGLISH))
+    }
+
+    @Test
+    fun `discover shows the wanted genres only, movies then shows`() {
+        val movies = listOf(Genre(28, "Action"), Genre(99, "Documentary"), Genre(35, "Comedy"))
+        val shows = listOf(Genre(80, "Crime"), Genre(16, "Animation"))
+        val rows = DiscoverRows.genreRows(movies, shows)
+        assertEquals(listOf(true to 28, true to 35, false to 80), rows.map { it.isMovie to it.genre.id })
     }
 }

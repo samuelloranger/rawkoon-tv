@@ -51,7 +51,6 @@ data class Bootstrap(
     val userName: String,
     val jellyfinUrl: String?,
     val jellyfinLinked: Boolean,
-    val tmdbKey: String?,
 )
 
 /**
@@ -114,7 +113,6 @@ class RawkoonClient(baseUrl: String) {
             userName = user?.optString("name").orEmpty(),
             jellyfinUrl = jellyfin?.optString("url")?.takeIf { it.isNotEmpty() },
             jellyfinLinked = jellyfin?.optBoolean("linked") == true,
-            tmdbKey = json.optJSONObject("tmdb")?.optString("key")?.takeIf { it.isNotEmpty() },
         )
     }
 

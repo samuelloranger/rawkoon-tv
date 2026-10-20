@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.rawkoon
 
 import cloud.rawkoon.tv.jellyfin.Badge
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.TmdbRef
 
 /** Where a title stands for this account, from Rawkoon's library entry and the request on it. */
 sealed interface TitleState {
@@ -93,33 +94,60 @@ fun rawTmdbImage(url: String?): String? = url?.removeSuffix("?src=tmdb")
 /** A logo at a size that stays sharp in the title page's logo box; the modal only carries the small one. */
 fun tmdbLogo(url: String?): String? = url?.replace("/w185/", "/w500/")?.let(::tmdbImage)
 
+/** A TMDB image at the size a backdrop needs: a full-size original is several MB for a screen this wide. */
+fun tmdbBackdrop(url: String?): String? = tmdbImage(url?.replace("/original/", "/w1280/"))
+
+/** A TMDB title as the shared UI shows it; what only a TMDB title has goes in [tmdb]. */
+fun MediaItem.Companion.tmdb(
+    id: String,
+    isMovie: Boolean,
+    title: String,
+    tmdb: TmdbRef,
+    overview: String = "",
+    year: Int? = null,
+    communityRating: Float? = null,
+    posterUrl: String? = null,
+    backdropUrl: String? = null,
+) = MediaItem(
+    id = id,
+    kind = if (isMovie) MediaItem.Kind.MOVIE else MediaItem.Kind.SERIES,
+    title = title,
+    seriesName = null,
+    episodeLabel = null,
+    overview = overview,
+    year = year,
+    runtimeMinutes = null,
+    officialRating = null,
+    communityRating = communityRating,
+    posterUrl = tmdbImage(posterUrl),
+    thumbUrl = null,
+    backdropUrl = tmdbBackdrop(backdropUrl),
+    logoUrl = null,
+    progress = null,
+    played = false,
+    tmdb = tmdb,
+)
+
 /**
  * A TMDB list entry as the shared UI shows it: cards, header and the title page all take a
  * [MediaItem]. A title Rawkoon already has is marked; a list answer carries no library state, so
  * it reads as in the library, while a search answer says when the entry is still on its way.
  */
-fun TmdbTitle.toItem(text: RawkoonText): MediaItem = MediaItem(
+fun TmdbTitle.toItem(text: RawkoonText): MediaItem = MediaItem.tmdb(
     id = "tmdb-${if (isMovie) "movie" else "tv"}-$tmdbId",
-    kind = if (isMovie) MediaItem.Kind.MOVIE else MediaItem.Kind.SERIES,
+    isMovie = isMovie,
     title = title,
-    seriesName = null,
-    episodeLabel = null,
+    tmdb = TmdbRef(
+        id = tmdbId,
+        inLibrary = libraryId != null,
+        badge = when {
+            libraryId == null -> null
+            libraryStatus == null || libraryStatus in TitleState.DOWNLOADED -> Badge(text.inLibrary(), Badge.Tone.READY)
+            else -> Badge(text.inProgress(), Badge.Tone.ACTIVE)
+        },
+    ),
     overview = overview.orEmpty(),
     year = year,
-    runtimeMinutes = null,
-    officialRating = null,
     communityRating = voteAverage?.toFloat(),
-    posterUrl = tmdbImage(posterUrl),
-    thumbUrl = null,
-    backdropUrl = null,
-    logoUrl = null,
-    progress = null,
-    played = false,
-    tmdbId = tmdbId,
-    inLibrary = libraryId != null,
-    badge = when {
-        libraryId == null -> null
-        libraryStatus == null || libraryStatus in TitleState.DOWNLOADED -> Badge(text.inLibrary(), Badge.Tone.READY)
-        else -> Badge(text.inProgress(), Badge.Tone.ACTIVE)
-    },
+    posterUrl = posterUrl,
 )
