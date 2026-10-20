@@ -59,6 +59,7 @@ android {
         // Far above the first RawkoonTV's codes (one per tag), so the update always goes forward.
         versionCode = (semver[0] * 10_000 + semver[1] * 100 + semver[2]).coerceAtLeast(1)
         versionName = semver.joinToString(".")
+        manifestPlaceholders["appLabel"] = "@string/app_name"
     }
 
     signingConfigs {
@@ -76,6 +77,7 @@ android {
         debug {
             // Installs next to the release, so testing never touches the profiles in use.
             applicationIdSuffix = ".next"
+            manifestPlaceholders["appLabel"] = "Rawkoon TV · next"
         }
         release {
             isMinifyEnabled = true
@@ -88,6 +90,7 @@ android {
         create("preview") {
             initWith(getByName("release"))
             applicationIdSuffix = ".next"
+            manifestPlaceholders["appLabel"] = "Rawkoon TV · next"
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += "release"
         }

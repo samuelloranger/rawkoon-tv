@@ -31,6 +31,7 @@ import cloud.rawkoon.tv.playback.Stream
 import cloud.rawkoon.tv.playback.Trickplay
 import cloud.rawkoon.tv.playback.TrickplayLoader
 import cloud.rawkoon.tv.playback.VideoPlayer
+import cloud.rawkoon.tv.ui.CenteredRow
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.CircleButton
 import cloud.rawkoon.tv.ui.FlatView
@@ -182,17 +183,23 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             bottomMargin = context.dp(74)
         })
 
-        val controls = LinearLayout(context).apply {
+        // Play/pause sits in the exact middle of the screen, whatever is on either side of it
+        fun group(vararg views: View, gapBefore: Int = -1) = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            views.forEachIndexed { i, v ->
+                if (i == gapBefore) addView(View(context), LinearLayout.LayoutParams(context.dp(36), 1))
+                addView(v)
+            }
         }.noClip()
-        fun gap(dp: Int) = View(context).also { controls.addView(it, LinearLayout.LayoutParams(context.dp(dp), 1)) }
-        for (b in listOf(subtitlesButton, audioButton)) controls.addView(b)
-        gap(36)
-        for (b in listOf(rewind, playPause, forward)) controls.addView(b)
-        gap(36)
-        controls.addView(nextButton)
-        chrome.addView(controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+        val controls = CenteredRow(
+            context,
+            start = group(subtitlesButton, audioButton, rewind, gapBefore = 2),
+            middle = playPause,
+            end = group(forward, nextButton, gapBefore = 1),
+            gap = 0,
+        )
+        chrome.addView(controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply {
             bottomMargin = context.dp(16)
         })
 
