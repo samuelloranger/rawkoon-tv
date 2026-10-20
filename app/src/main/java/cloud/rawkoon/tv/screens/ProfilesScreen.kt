@@ -10,6 +10,7 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
+import cloud.rawkoon.tv.jellyfin.JellyfinSdk
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Icon
@@ -19,6 +20,9 @@ import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.clock
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import org.jellyfin.sdk.api.client.extensions.userApi
 
 /**
  * "Who's watching?", the first screen on every launch. One tile per saved profile, the one used
@@ -65,6 +69,30 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
             return
         }
         super.onShown(first)
+        refreshAvatars()
+    }
+
+    /**
+     * Asks Jellyfin for each profile's picture: profiles imported from the first RawkoonTV came
+     * without one, and a picture changed on the server shows here the next time.
+     */
+    private fun refreshAvatars() {
+        for (profile in app.profiles.all()) {
+            scope.launch {
+                val tag = try {
+                    JellyfinSdk.get(context).createApi(profile.jellyfinUrl, profile.jellyfinToken).userApi.getCurrentUser().content.primaryImageTag
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Offline or signed out: the tile keeps what it has
+                    return@launch
+                }
+                val current = app.profiles.get(profile.id) ?: return@launch
+                if (tag == current.avatarTag) return@launch
+                app.profiles.save(current.copy(avatarTag = tag))
+                refresh()
+            }
+        }
     }
 
     override fun focusDefault() {
