@@ -37,11 +37,17 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
     @Volatile
     private var boundId: String? = null
 
+    /** The title whose art is on its way, so rebinding it does not start a second load. */
+    private var loadingId: String? = null
+
+    private val inset = context.dp(Tokens.RING_INSET)
+    private val posterW = context.dp(Tokens.POSTER_W)
+    private val posterH = context.dp(Tokens.POSTER_H)
+    private val radius = context.dpf(Tokens.CARD_RADIUS)
+
     init {
-        val inset = context.dp(Tokens.RING_INSET)
-        val w = context.dp(Tokens.POSTER_W)
-        val h = context.dp(Tokens.POSTER_H)
-        val radius = context.dpf(Tokens.CARD_RADIUS)
+        val w = posterW
+        val h = posterH
         layoutParams = RecyclerView.LayoutParams(context.dp(CELL_W), context.dp(CELL_H))
         art.background = rounded(Tokens.surfaceHigh, radius)
         val inner = { FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) } }
@@ -70,6 +76,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         this.item = item
         this.position = position
         boundId = item?.id
+        if (boundId != loadingId) loadingId = null
         if (!keepArt) art.setImageDrawable(null)
         contentDescription = item?.title
         title.text = item?.title.orEmpty()
@@ -85,17 +92,22 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
             ring.alpha = 0f
         }
         val url = item?.posterUrl ?: return
-        if (keepArt) return
-        val w = context.dp(Tokens.POSTER_W)
-        images.load("$url&fillWidth=$w", w, context.dp(Tokens.POSTER_H), context.dpf(Tokens.CARD_RADIUS), opaque = false, isCurrent = { boundId == item.id }) {
+        if (keepArt || loadingId == item.id) return
+        loadingId = item.id
+        images.load("$url&fillWidth=$posterW", posterW, posterH, radius, opaque = false, isCurrent = { boundId == item.id }) {
+            loadingId = null
             art.setImageBitmap(it)
         }
     }
 
     companion object {
-        /** Art plus the horizontal gap between posters. */
-        const val CELL_W = Tokens.POSTER_W + 22
+        /** Art, the ring's room on both sides, and the gap to the next poster. */
+        const val CELL_W = Tokens.POSTER_W + Tokens.RING_INSET * 2 + Tokens.POSTER_GAP
+
+        /** Room for the title and the year under the art. */
         private const val CAPTION_H = 38
+
+        /** The vertical gap between the caption and the next row. */
         private const val ROW_GAP = 10
         const val CELL_H = Tokens.POSTER_H + Tokens.RING_INSET * 2 + CAPTION_H + ROW_GAP
     }

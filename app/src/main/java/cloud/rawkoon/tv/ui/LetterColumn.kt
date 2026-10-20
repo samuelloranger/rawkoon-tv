@@ -70,7 +70,7 @@ class LetterColumn(context: Context, private val onLetter: (Char) -> Unit) : Vie
                 box.set(outline.strokeWidth, cy - r, width - outline.strokeWidth, cy + r)
                 canvas.drawRoundRect(box, r, r, outline)
             }
-            canvas.drawText(letter.toString(), width / 2f, cy - (text.descent() + text.ascent()) / 2, text)
+            canvas.drawText(LABELS[i], width / 2f, cy - (text.descent() + text.ascent()) / 2, text)
         }
     }
 
@@ -96,6 +96,9 @@ class LetterColumn(context: Context, private val onLetter: (Char) -> Unit) : Vie
 
     companion object {
         val LETTERS: List<Char> = listOf('#') + ('A'..'Z')
+
+        /** [LETTERS] as strings, so drawing allocates none. */
+        private val LABELS = LETTERS.map { it.toString() }
 
         /** How long the ring rests on a letter before the grid jumps to it. */
         private const val SETTLE_MS = 350L

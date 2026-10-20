@@ -9,16 +9,6 @@ import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.PagedItems
 
-/** True when [this] sits somewhere under [ancestor]. */
-fun View.isWithin(ancestor: View): Boolean {
-    var parent = parent
-    while (parent != null) {
-        if (parent === ancestor) return true
-        parent = parent.parent
-    }
-    return false
-}
-
 /**
  * The poster grid of the library pages: [SPAN] posters per row, backed by a [PagedItems] so only
  * the pages near the focus are ever fetched, and recycling [PosterCell]s.
@@ -53,17 +43,22 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         override fun requestChildRectangleOnScreen(parent: RecyclerView, child: View, rect: Rect, immediate: Boolean, focusedChildVisible: Boolean) = false
 
         /**
-         * With clipToPadding off (the ring's room above the top row), the stock anchor can be the row
-         * laid out above the padding, and every layout (each page of posters that lands is one) then
-         * slides the grid up a row. Pinning the anchor to the first row that reaches below the top
-         * padding keeps the grid where it is.
+         * Top padding with clipToPadding off (the ring's room above the top row) makes the stock
+         * anchor drift: it can be the row laid out above the padding, and every layout (each page of
+         * posters that lands is one) then slides the grid up a row. Pinning the anchor to the first
+         * row that reaches below the top padding keeps the grid where it is.
          */
         override fun onLayoutChildren(recycler: Recycler, state: State) {
             if (jumpPending) {
                 jumpPending = false
             } else if (!state.isPreLayout && childCount > 0) {
-                val first = (0 until childCount).mapNotNull { getChildAt(it) }.firstOrNull { getDecoratedBottom(it) > paddingTop }
-                if (first != null) scrollToPositionWithOffset(getPosition(first), getDecoratedTop(first) - paddingTop)
+                for (i in 0 until childCount) {
+                    val child = getChildAt(i) ?: continue
+                    if (getDecoratedBottom(child) > paddingTop) {
+                        scrollToPositionWithOffset(getPosition(child), getDecoratedTop(child) - paddingTop)
+                        break
+                    }
+                }
             }
             super.onLayoutChildren(recycler, state)
         }
@@ -98,7 +93,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         isFocusable = false
         noClip()
         // The top padding is the ring's room above the anchored row; the bottom lets the last row reach the anchor
-        setPadding(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET), context.dp(8), 0, context.dp(300))
+        setPadding(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET), context.dp(PAD_TOP), 0, context.dp(PAD_BOTTOM))
     }
 
     /** Starts over at the first poster, e.g. after the sort changed. */
@@ -159,12 +154,18 @@ class PosterGrid(context: Context, private val images: Images, private val paged
             FOCUS_DOWN -> if (position / SPAN == last / SPAN) return focused else minOf(position + SPAN, last)
             else -> return super.focusSearch(focused, direction)
         }
-        // A row scrolled out of view is not bound: lay it out first, then let the stock search find it
+        // The target poster when it is bound; a row scrolled out of view is not, and the stock search then picks a neighbour
         return manager.findViewByPosition(target) ?: super.focusSearch(focused, direction)
     }
 
     companion object {
         const val SPAN = 7
+
+        /** Room above the anchored row for the focus ring. */
+        private const val PAD_TOP = 8
+
+        /** Lets the last row reach the anchor. */
+        private const val PAD_BOTTOM = 300
 
         /** Three rows each way are fetched ahead of focus. */
         const val PREFETCH = 3 * SPAN
