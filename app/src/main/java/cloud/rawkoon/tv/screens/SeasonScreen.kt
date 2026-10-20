@@ -1,18 +1,10 @@
 package cloud.rawkoon.tv.screens
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
-import android.graphics.drawable.GradientDrawable
 import android.text.format.DateFormat
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
@@ -20,21 +12,16 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
-import cloud.rawkoon.tv.ui.EntryRow
-import cloud.rawkoon.tv.ui.FlatView
-import cloud.rawkoon.tv.ui.FocusMotion
 import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.FocusRow
-import cloud.rawkoon.tv.ui.Focusable
 import cloud.rawkoon.tv.ui.Fonts
+import cloud.rawkoon.tv.ui.TabsRow
 import cloud.rawkoon.tv.ui.TitleLogo
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.chipRow
 import cloud.rawkoon.tv.ui.dp
-import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.label
-import cloud.rawkoon.tv.ui.noClip
 import java.util.Date
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -206,94 +193,5 @@ class SeasonScreen(
 
     private companion object {
         const val TAB_SETTLE_MS = 300L
-    }
-}
-
-/** The season tabs. Coming from below, focus lands on the selected one. */
-class TabsRow(context: Context) : EntryRow(context) {
-    private val tabs = mutableListOf<Tab>()
-
-    init {
-        orientation = HORIZONTAL
-        noClip()
-    }
-
-    fun set(seasons: List<MediaItem>, onLeave: () -> Unit, onPick: (MediaItem, focused: Boolean) -> Unit) {
-        removeAllViews()
-        tabs.clear()
-        for (season in seasons) {
-            val tab = Tab(context, season)
-            tab.setOnFocusChangeListener { _, focused ->
-                tab.focusChanged(focused)
-                if (focused) onPick(season, true) else onLeave()
-            }
-            tab.setOnClickListener { onPick(season, false) }
-            tabs += tab
-            addView(tab)
-        }
-    }
-
-    fun select(id: String) = tabs.forEach { it.current = it.season.id == id }
-
-    fun focusSelected() = (tabs.firstOrNull { it.current } ?: tabs.firstOrNull())?.requestFocus()
-
-    override fun entry(): View? = tabs.firstOrNull { it.current }
-}
-
-/** One season tab: its name, an apricot underline when it is the one shown, a ring when focused. */
-@SuppressLint("ViewConstructor")
-class Tab(context: Context, val season: MediaItem) : Focusable(context) {
-    private val text: TextView = label(context, 14f, Tokens.textMuted, Fonts.bold(context)).apply {
-        text = season.title
-        gravity = Gravity.CENTER
-    }
-    private val ring = FlatView(context)
-    override val motion = FocusMotion(this, ring)
-    private val bar = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.accent }
-    private val rect = RectF()
-    private val focusedBackground = GradientDrawable().apply {
-        cornerRadius = context.dpf(15f)
-        setColor(Tokens.surfaceFocused)
-    }
-    private val barInset = context.dpf(Tokens.RING_INSET.toFloat()) + context.dpf(12f)
-    private val barBottom = context.dpf(Tokens.RING_INSET.toFloat()) + context.dpf(2f)
-    private val barHeight = context.dpf(2.5f)
-
-    var current = false
-        set(value) {
-            field = value
-            paint()
-            invalidate()
-        }
-
-    init {
-        setWillNotDraw(false)
-        val inset = context.dp(Tokens.RING_INSET)
-        text.setPadding(context.dp(12), 0, context.dp(12), 0)
-        addView(text, LayoutParams(LayoutParams.WRAP_CONTENT, context.dp(30)).apply { setMargins(inset, inset, inset, inset) })
-        ring.background = GradientDrawable().apply {
-            cornerRadius = context.dpf(15f) + inset
-            setStroke(context.dp(2), Tokens.ring)
-        }
-        ring.alpha = 0f
-        addView(ring, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-    }
-
-    fun focusChanged(focused: Boolean) {
-        motion.focus(focused)
-        paint()
-    }
-
-    private fun paint() {
-        text.setTextColor(if (current || isFocused) Tokens.textPrimary else Tokens.textMuted)
-        text.background = if (isFocused) focusedBackground else null
-    }
-
-    override fun dispatchDraw(canvas: Canvas) {
-        super.dispatchDraw(canvas)
-        if (!current || isFocused) return
-        val y = height - barBottom
-        rect.set(barInset, y, width - barInset, y + barHeight)
-        canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, bar)
     }
 }
