@@ -109,8 +109,8 @@
     <string name="choice_current">✓  %1$s</string>
     <string name="time_remaining">−%1$s</string>
     <string name="playback_error">Couldn\'t play this video (%1$s).</string>
-    <string name="rewind">Back 10 seconds</string>
-    <string name="forward">Forward 30 seconds</string>
+    <string name="rewind">Back %1$d seconds</string>
+    <string name="forward">Forward %1$d seconds</string>
     <string name="play_pause">Play or pause</string>
     <string name="media_duration_hours_minutes">%1$d h %2$d min</string>
     <string name="media_duration_minutes">%d min</string>
@@ -118,4 +118,38 @@
     <string name="media_audio_stereo">Stereo</string>
     <string name="media_audio_channels">%d ch</string>
     <string name="media_resolution_sd">SD</string>
+    <string name="settings_playback">Playback</string>
+    <string name="settings_skipping">Skipping</string>
+    <string name="settings_display">Display</string>
+    <string name="setting_skip_back">Skip back</string>
+    <string name="setting_skip_forward">Skip forward</string>
+    <string name="setting_resume_rewind">Rewind when resuming</string>
+    <string name="setting_max_bitrate">Max bitrate</string>
+    <string name="setting_max_resolution">Max resolution</string>
+    <string name="setting_intros">Intros</string>
+    <string name="setting_recaps">Recaps</string>
+    <string name="setting_previews">Previews</string>
+    <string name="setting_credits">Credits</string>
+    <string name="skip_mode_button">Show skip button</string>
+    <string name="skip_mode_auto">Skip automatically</string>
+    <string name="skip_mode_none">Do nothing</string>
+    <string name="setting_autoplay">Play next episode automatically</string>
+    <string name="setting_countdown">Countdown</string>
+    <string name="setting_still_watching">Are you still watching?</string>
+    <string name="after_episodes">After %1$d episodes</string>
+    <string name="setting_match_display">Match display to video</string>
+    <string name="match_frame_rate">Frame rate</string>
+    <string name="match_frame_rate_resolution">Frame rate and resolution</string>
+    <string name="setting_on">On</string>
+    <string name="setting_off">Off</string>
+    <string name="setting_auto" translatable="false">Auto</string>
+    <string name="seconds">%1$d s</string>
+    <string name="mbps">%1$d Mbps</string>
+    <string name="resolution_4k" translatable="false">4K</string>
+    <string name="resolution_p" translatable="false">%1$dp</string>
+    <string name="skipped_intro">Intro skipped</string>
+    <string name="skipped_recap">Recap skipped</string>
+    <string name="skipped_preview">Preview skipped</string>
+    <string name="skipped_credits">Credits skipped</string>
+    <string name="still_watching">Still watching?</string>
 </resources>

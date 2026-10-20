@@ -7,13 +7,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 
 /**
  * A small panel of choices over the page, which dims behind it. Lives inside the screen's own
- * view, so Back and focus stay with the screen: call [close] from its onBack.
+ * view, so Back and focus stay with the screen: call [close] from its onBack. [selected] is the
+ * index of the choice to focus when it opens (the current one, usually); by default the first.
+ * A long list scrolls inside the panel.
  */
 @SuppressLint("ViewConstructor")
-class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, () -> Unit>>) : FrameLayout(context) {
+class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, () -> Unit>>, private val selected: Int = 0) : FrameLayout(context) {
     private val buttons = mutableListOf<PillButton>()
     private var returnFocus: View? = null
 
@@ -31,6 +34,7 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
         panel.addView(label(context, 20f, Tokens.textPrimary, Fonts.title(context)).apply { text = title }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { bottomMargin = context.dp(14) })
+        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }.noClip()
         for ((text, action) in choices) {
             val button = PillButton(context, text)
             button.setOnClickListener {
@@ -38,8 +42,16 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
                 action()
             }
             buttons += button
-            panel.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            list.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
+        val scroll = CappedScrollView(context, context.dp(MAX_LIST_HEIGHT)).apply {
+            isFocusable = false
+            isVerticalScrollBarEnabled = false
+            clipChildren = false
+            clipToPadding = false
+        }
+        scroll.addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(panel, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
     }
 
@@ -48,7 +60,7 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
         parent.addView(this, fill())
         alpha = 0f
         animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).start()
-        buttons.firstOrNull()?.requestFocus()
+        (buttons.getOrNull(selected) ?: buttons.firstOrNull())?.requestFocus()
     }
 
     fun close() {
@@ -60,5 +72,18 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
     override fun focusSearch(focused: View?, direction: Int): View? {
         val next = super.focusSearch(focused, direction)
         return if (next != null && buttons.contains(next)) next else focused
+    }
+
+    /** A scroll view that takes the room its content needs, up to [maxHeight]. */
+    private class CappedScrollView(context: Context, private val maxHeight: Int) : ScrollView(context) {
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val limit = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) maxHeight else minOf(maxHeight, MeasureSpec.getSize(heightMeasureSpec))
+            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(limit, MeasureSpec.AT_MOST))
+        }
+    }
+
+    private companion object {
+        /** About seven choices; the panel and its title fit a 540 dp screen with room around them. */
+        const val MAX_LIST_HEIGHT = 330
     }
 }
