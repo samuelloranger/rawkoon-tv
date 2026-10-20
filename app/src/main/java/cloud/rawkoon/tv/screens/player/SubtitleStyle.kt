@@ -17,13 +17,13 @@ data class SubtitleStyle(
 private const val TRANSPARENT = 0x00000000
 private const val BLACK = 0xFF000000.toInt()
 
-/** The semi-transparent black box behind the text. */
 // CaptionStyleCompat's EDGE_TYPE_* values, which are Android's CaptioningManager ones; kept as
 // plain ints so this stays free of media3's opt-in API (a test checks they match)
 internal const val EDGE_TYPE_NONE = 0
 internal const val EDGE_TYPE_OUTLINE = 1
 internal const val EDGE_TYPE_DROP_SHADOW = 2
 
+/** The semi-transparent black box behind the text. */
 private const val BOX = 0xB3000000.toInt()
 
 fun subtitleStyle(size: SubtitleSize, color: SubtitleColor, box: Boolean, edge: SubtitleEdge) = SubtitleStyle(

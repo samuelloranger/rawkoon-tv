@@ -226,9 +226,10 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     }
 
     /**
-     * The device profile is built once per combination of profile-affecting settings and app run:
-     * probing the decoders takes a moment. Changing any of them builds another on the next play. A profile built without knowing the server's version is used but not kept, so the next
-     * call asks again.
+     * The device profile is built once per combination of the settings it depends on and app run:
+     * probing the decoders takes a moment. Changing any of them builds another on the next play. A
+     * profile built without knowing the server's version is used but not kept, so the next call
+     * asks again.
      */
     private suspend fun profile(quality: ProfileSettings): DeviceProfile = profileLock.withLock {
         cachedProfiles[quality] ?: run {

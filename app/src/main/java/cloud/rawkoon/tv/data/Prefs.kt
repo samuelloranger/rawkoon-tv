@@ -112,11 +112,11 @@ object Prefs {
     const val SUBTITLE_COLOR = "subtitles:color"
     const val SUBTITLE_BACKGROUND = "subtitles:background"
     const val SUBTITLE_EDGE = "subtitles:edge"
+    const val PGS_DIRECT_PLAY = "subtitles:pgs_direct_play"
 
     // Audio
     const val AC3_PASSTHROUGH = "audio:ac3_passthrough"
     const val DOWNMIX_STEREO = "audio:downmix_stereo"
-    const val PGS_DIRECT_PLAY = "audio:pgs_direct_play"
 
     // HDR formats (under Display)
     const val HDR10 = "display:hdr10"

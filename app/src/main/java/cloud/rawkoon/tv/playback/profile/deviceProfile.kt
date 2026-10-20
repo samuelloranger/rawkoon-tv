@@ -122,7 +122,8 @@ fun createDeviceProfile(
 
 	// HEVC
 	val supportsHevcDolbyVision = dolbyVision.resolve(mediaTest.supportsHevcDolbyVision())
-	val supportsHevcDolbyVisionEL = dolbyVision.resolve(mediaTest.supportsHevcDolbyVisionEL())
+	// "Always" vouches for Dolby Vision itself, not its enhancement layer, which few TVs decode
+	val supportsHevcDolbyVisionEL = dolbyVision != HdrOverride.NEVER && mediaTest.supportsHevcDolbyVisionEL()
 	val supportsHevcHDR10 = hdr10.resolve(mediaTest.supportsHevcHDR10())
 	val supportsHevcHDR10Plus = hdr10Plus.resolve(mediaTest.supportsHevcHDR10Plus())
 

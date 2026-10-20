@@ -170,6 +170,8 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
             SubtitleEdge.SHADOW to string(R.string.edge_shadow),
             SubtitleEdge.NONE to string(R.string.edge_none),
         ), { Prefs.subtitleEdge(context) }) { put(Prefs.SUBTITLE_EDGE, it.key) }
+        choice(column, R.string.setting_pgs_direct_play, listOf(true to string(R.string.setting_on), false to string(R.string.setting_off)),
+            { Prefs.pgsDirectPlay(context) }) { put(Prefs.PGS_DIRECT_PLAY, it) }
     }
 
     private fun addAudioSection(column: LinearLayout) {
@@ -177,7 +179,6 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         header(column, R.string.settings_audio)
         choice(column, R.string.setting_ac3_passthrough, onOff, { Prefs.ac3Passthrough(context) }) { put(Prefs.AC3_PASSTHROUGH, it) }
         choice(column, R.string.setting_downmix, onOff, { Prefs.downmixStereo(context) }) { put(Prefs.DOWNMIX_STEREO, it) }
-        choice(column, R.string.setting_pgs_direct_play, onOff, { Prefs.pgsDirectPlay(context) }) { put(Prefs.PGS_DIRECT_PLAY, it) }
     }
 
     private fun addHdrRows(column: LinearLayout) {
