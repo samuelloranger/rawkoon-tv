@@ -12,6 +12,10 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
+import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.rawkoon.RawkoonHome
+import cloud.rawkoon.tv.rawkoon.ResourceText
+import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FocusParking
@@ -21,15 +25,22 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.RowItem
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
+import cloud.rawkoon.tv.ui.TitleCard
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.shownItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.util.Locale
 
 /**
  * A profile's home: the backdrop, the header for the focused item, and the rows under it, with the
@@ -72,7 +83,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
             val cached = withContext(Dispatchers.IO) { runCatching { HomeRow.listFromJson(cache.readText()) }.getOrNull() }
             if (cached != null && rows.column.childCount == 0) show(cached)
             try {
-                val fresh = session.homeRows()
+                val fresh = fetchRows()
                 show(fresh)
                 withContext(Dispatchers.IO) { runCatching { cache.writeText(HomeRow.listToJson(fresh)) } }
             } catch (e: CancellationException) {
@@ -82,6 +93,28 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
                 // With rows already on screen from the cache, a failed refresh stays silent
                 if (expired || rows.column.childCount == 0) showMessage(string(if (expired) R.string.error_session else R.string.home_error), retry = !expired)
             }
+        }
+    }
+
+    /** The Jellyfin rows and, for a profile with a Rawkoon session, the Rawkoon rows, fetched at the same time. */
+    private suspend fun fetchRows(): List<HomeRow> = coroutineScope {
+        val rawkoon = async { rawkoonRows() }
+        val jellyfin = session.homeRows()
+        RawkoonHome.merge(jellyfin, rawkoon.await())
+    }
+
+    /** Coming soon and My requests; both are left out when the profile has no session or Rawkoon doesn't answer. */
+    private suspend fun rawkoonRows(): List<HomeRow> {
+        // Read again: linking the account from Discover changes the saved profile, not this screen's copy
+        val profile = app.profiles.get(session.profile.id) ?: session.profile
+        val api = profile.rawkoonDiscover(context) ?: return emptyList()
+        return try {
+            val userId = suspend { profile.rawkoonUserId ?: api.userId().also { app.profiles.save(profile.copy(rawkoonUserId = it)) } }
+            RawkoonHome.load(api, userId, ResourceText(context), LocalDate.now(), Instant.now(), Locale.getDefault())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 
@@ -117,7 +150,14 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
 
     private fun section(row: HomeRow) = Section(context, row.id, row.title).apply {
         signature = row.signature
-        this.row.setCards(row.items.map { item -> Card(context, item, row.landscape, app.images, ::onFocused, { openItem(it.item) }) })
+        this.row.setCards(row.items.map { item ->
+            // A Rawkoon row's card is a TMDB title, which opens its own page, or the library item when it's there
+            if (item.tmdbId != null) {
+                TitleCard(context, item, app.images, { onFocused(it.item, it) }, { openTitle(it.item, preferLibrary = it.item.inLibrary) })
+            } else {
+                Card(context, item, row.landscape, app.images, { onFocused(it.item, it) }, { openItem(it.item) })
+            }
+        })
         this.row.onLeftEdge = { rail.activeItem() }
     }
 
@@ -131,21 +171,21 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         button.requestFocus()
     }
 
-    private fun onFocused(card: Card) {
-        header.show(card.item)
-        backdropUrl = card.item.backdropUrl?.let { "$it&maxWidth=1920" }
+    private fun onFocused(item: MediaItem, card: View) {
+        header.show(item)
+        backdropUrl = item.backdropUrl?.let { "$it&maxWidth=1920" }
         main.removeCallbacks(settleBackdrop)
         main.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
-        prefetchAround(card)
+        prefetchAround(item, card)
     }
 
     /** Fetches the logos and backdrops of the cards next to [card], so they are ready when focus gets there. */
-    private fun prefetchAround(card: Card) {
+    private fun prefetchAround(item: MediaItem, card: View) {
         val strip = card.parent as? ViewGroup ?: return
         val index = strip.indexOfChild(card)
         for (i in (index - 1)..(index + 2)) {
-            val near = (strip.getChildAt(i) as? Card)?.item ?: continue
-            if (near === card.item) continue
+            val near = strip.getChildAt(i)?.shownItem() ?: continue
+            if (near === item) continue
             header.prefetch(near)
             near.backdropUrl?.let { app.images.warm("$it&maxWidth=1920") }
         }
