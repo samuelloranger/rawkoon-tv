@@ -2,9 +2,6 @@ package cloud.rawkoon.tv.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -16,19 +13,7 @@ import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.jellyfin.MediaItem
 
 /** Draws a logo at the bottom-left of a fixed box, so a new logo never changes any layout. */
-class LogoView(context: Context) : View(context) {
-    private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-    var bitmap: Bitmap? = null
-        set(value) {
-            field = value
-            invalidate()
-        }
-
-    override fun onDraw(canvas: Canvas) {
-        val b = bitmap ?: return
-        canvas.drawBitmap(b, 0f, (height - b.height).toFloat(), paint)
-    }
-}
+class LogoView(context: Context) : BitmapView(context, Mode.CONTAIN_BOTTOM_START)
 
 /**
  * The top-left of the home screen: the focused item's logo (its title in Fraunces when there is
@@ -113,10 +98,20 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
         }
     }
 
-    /** Loads [item]'s logo into the memory cache ahead of time, exactly as [fill] will ask for it. */
+    /** Loads [item]'s logo into the memory cache ahead of time, exactly as [fill] will ask for it, behind visible loads. */
     fun prefetch(item: MediaItem) {
         val url = item.logoUrl ?: return
-        images.load(logoRequest(url), logoW, logoH, 0f, contain = true, isCurrent = { true }) {}
+        images.load(logoRequest(url), logoW, logoH, 0f, contain = true, background = true, isCurrent = { true }) {}
+    }
+
+    override fun onDetachedFromWindow() {
+        main.removeCallbacks(settle)
+        animate().cancel()
+        // A fade cut short never ran its end action: show the item it was heading for
+        alpha = 1f
+        translationY = 0f
+        shown?.let(::fill)
+        super.onDetachedFromWindow()
     }
 
     private fun logoRequest(url: String) = "$url&maxWidth=$logoW"

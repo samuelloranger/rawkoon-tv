@@ -57,6 +57,12 @@ class Section(context: Context, val id: String, title: String) : LinearLayout(co
  * focused section always sits at the top of the rows area, just under the header.
  */
 class Rows(context: Context) : ScrollView(context) {
+    /** Room kept above the focused row once it glides up, e.g. for its title under the screen edge. */
+    var anchor = 0
+
+    /** Where the column is gliding to, to tell a repeat of the same move from a new one. */
+    private var glideTarget = 0f
+
     val column: LinearLayout = object : LinearLayout(context) {
         override fun requestChildFocus(child: View?, focused: View?) {
             super.requestChildFocus(child, focused)
@@ -79,16 +85,14 @@ class Rows(context: Context) : ScrollView(context) {
         addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
-    /** Room kept above the focused row once it glides up, e.g. for its title under the screen edge. */
-    var anchor = 0
-
     fun sections(): List<Section> = (0 until column.childCount).map { column.getChildAt(it) as Section }
 
     /** Glides so [section] (a row, or any block in the column) sits at the top of this view. */
     fun reveal(section: View) {
         val maxShift = (column.height - height).coerceAtLeast(0)
         val target = -(section.top - column.paddingTop - anchor).coerceIn(0, maxShift).toFloat()
-        if (column.translationY == target) return
+        if (glideTarget == target) return
+        glideTarget = target
         column.animate().translationY(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
     }
 
@@ -98,6 +102,7 @@ class Rows(context: Context) : ScrollView(context) {
     fun reset() {
         column.animate().cancel()
         column.translationY = 0f
+        glideTarget = 0f
     }
 
     override fun executeKeyEvent(event: KeyEvent) = false

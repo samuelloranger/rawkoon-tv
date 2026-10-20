@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import cloud.rawkoon.tv.data.Images
@@ -17,13 +16,13 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
  */
 @SuppressLint("ViewConstructor")
 class PosterCell(context: Context, private val images: Images) : Focusable(context) {
-    private val art = ImageView(context)
+    private val art = BitmapView(context)
     private val frame = FrameLayout(context).noClip()
     private val ring = FlatView(context)
     private val badge = WatchedBadge(context)
     private val title = label(context, 12.5f, Tokens.textPrimary, Fonts.bold(context))
     private val subtitle = label(context, 11f, Tokens.textMuted, Fonts.medium(context))
-    override val motion = FocusMotion(frame, ring)
+    override val motion = FocusMotion(frame, ring, raise = false)
 
     /** The title shown, or null while its page loads. */
     var item: MediaItem? = null
@@ -49,7 +48,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         val w = posterW
         val h = posterH
         layoutParams = RecyclerView.LayoutParams(context.dp(CELL_W), context.dp(CELL_H))
-        art.background = rounded(Tokens.surfaceHigh, radius)
+        art.placeholder = rounded(Tokens.surfaceHigh, radius)
         val inner = { FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) } }
         frame.addView(art, inner())
         badge.visibility = View.GONE
@@ -72,12 +71,12 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
     /** Shows [item] at grid [position], or an empty poster when it is not loaded yet. */
     fun bind(item: MediaItem?, position: Int) {
         // Rebinding the same title (its page was refreshed) keeps its art: clearing it would flash the poster empty
-        val keepArt = item != null && item.id == this.item?.id && art.drawable != null
+        val keepArt = item != null && item.id == this.item?.id && art.bitmap != null
         this.item = item
         this.position = position
         boundId = item?.id
         if (boundId != loadingId) loadingId = null
-        if (!keepArt) art.setImageDrawable(null)
+        if (!keepArt) art.bitmap = null
         contentDescription = item?.title
         title.text = item?.title.orEmpty()
         subtitle.text = item?.year?.toString().orEmpty()
@@ -88,7 +87,6 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
             ring.animate().cancel()
             frame.scaleX = 1f
             frame.scaleY = 1f
-            frame.translationZ = 0f
             ring.alpha = 0f
         }
         val url = item?.posterUrl ?: return
@@ -96,7 +94,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         loadingId = item.id
         images.load("$url&fillWidth=$posterW", posterW, posterH, radius, opaque = false, isCurrent = { boundId == item.id }) {
             loadingId = null
-            art.setImageBitmap(it)
+            art.bitmap = it
         }
     }
 
