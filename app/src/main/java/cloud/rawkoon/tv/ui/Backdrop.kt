@@ -16,6 +16,9 @@ import android.widget.FrameLayout
 import cloud.rawkoon.tv.data.DiskCache
 import java.util.concurrent.Executors
 
+/** The request for a Jellyfin backdrop at the width the page draws it. */
+fun backdropRequest(url: String?): String? = url?.let { "$it&maxWidth=${Tokens.BACKDROP_W}" }
+
 /**
  * The page background. Instead of drawing the image, the tint and the scrims as separate layers on
  * every frame, it blends them once, off the main thread, into a single screen-sized hardware

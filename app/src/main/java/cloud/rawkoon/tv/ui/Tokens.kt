@@ -72,6 +72,9 @@ object Tokens {
     const val BACKDROP_SETTLE_MS = 300L
     const val BACKDROP_FADE_MS = 600L
 
+    /** The width a backdrop is requested at, in px. */
+    const val BACKDROP_W = 1920
+
     /** How much every backdrop is darkened before the scrims, for readable text over any image. */
     const val BACKDROP_DIM = 0.35f
 

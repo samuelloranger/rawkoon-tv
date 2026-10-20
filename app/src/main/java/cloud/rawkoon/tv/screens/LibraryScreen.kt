@@ -27,6 +27,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.PosterCell
 import cloud.rawkoon.tv.ui.PosterGrid
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.label
@@ -269,7 +270,7 @@ class LibraryScreen(
     }
 
     private fun showBackdropOf(position: Int) {
-        val url = paged[position]?.backdropUrl?.let { "$it&maxWidth=1920" }
+        val url = backdropRequest(paged[position]?.backdropUrl)
         if (url == backdropUrl) return
         backdropUrl = url
         mainHandler.removeCallbacks(settleBackdrop)
@@ -356,6 +357,8 @@ class LibraryScreen(
     override fun contentFocus(): View? = grid.focusTarget()
 
     /** The first page may still be on its way: focus goes to the grid as soon as it has posters. */
+    override val isRailPage get() = true
+
     override fun focusDefault() {
         val target = grid.focusTarget()
         if (target != null) target.requestFocus() else focusWhenLoaded = true

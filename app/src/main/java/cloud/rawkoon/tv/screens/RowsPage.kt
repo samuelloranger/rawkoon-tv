@@ -19,6 +19,7 @@ import cloud.rawkoon.tv.ui.RowItem
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
@@ -185,7 +186,7 @@ abstract class RowsPage(
 
     private fun preview(item: MediaItem) {
         header.show(item)
-        backdropUrl = item.backdropUrl?.let { "$it&maxWidth=1920" }
+        backdropUrl = backdropRequest(item.backdropUrl)
         mainHandler.removeCallbacks(settleBackdrop)
         mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
     }
@@ -203,7 +204,7 @@ abstract class RowsPage(
             val near = (strip.getChildAt(i) as? Card)?.item ?: continue
             if (near === card.item) continue
             header.prefetch(near)
-            near.backdropUrl?.let { app.images.warm("$it&maxWidth=1920") }
+            backdropRequest(near.backdropUrl)?.let(app.images::warm)
         }
     }
 

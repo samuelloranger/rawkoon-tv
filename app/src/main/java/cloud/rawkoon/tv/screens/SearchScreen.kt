@@ -99,6 +99,8 @@ class SearchScreen private constructor(activity: MainActivity, session: Jellyfin
 
     override fun contentFocus(): View? = super.contentFocus() ?: field
 
+    override val isRailPage get() = true
+
     override fun focusDefault() {
         field.requestFocus()
     }

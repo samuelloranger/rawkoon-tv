@@ -29,6 +29,7 @@ import cloud.rawkoon.tv.ui.Focusable
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.TitleLogo
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.chipRow
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.dpf
@@ -55,7 +56,7 @@ class SeasonScreen(
     private val number = label(context, 17f, Tokens.accent, Fonts.title(context))
     private val episodeTitle = label(context, 26f, Tokens.textPrimary, Fonts.title(context))
     private val chips = FrameLayout(context)
-    private val overview = label(context, 14f, 0xE6ECE3DB.toInt(), Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
+    private val overview = label(context, 14f, Tokens.textBody, Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
     private val episodes = FocusRow(context)
     private val actions = ActionBar(this)
     private val parking = FocusParking(context)
@@ -113,7 +114,7 @@ class SeasonScreen(
             val first = seasons.firstOrNull { it.id == startSeason } ?: seasons.firstOrNull()
             if (first != null) select(first, startEpisode, focus = true)
             val show = details.await().item
-            backdrop.show(show.backdropUrl?.let { "$it&maxWidth=1920" })
+            backdrop.show(backdropRequest(show.backdropUrl))
             showName.bind(show.logoUrl, show.title)
         }
     }

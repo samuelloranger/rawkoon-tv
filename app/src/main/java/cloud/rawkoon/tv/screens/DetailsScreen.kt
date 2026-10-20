@@ -21,6 +21,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
 import cloud.rawkoon.tv.ui.TitleBlock
+import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.fill
 import cloud.rawkoon.tv.ui.kindChip
@@ -54,7 +55,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         block.setActions(actions.view)
         page.column.addView(block, TitleBlock.params(context))
         showItem(start, null)
-        backdrop.show(start.backdropUrl?.let { "$it&maxWidth=1920" })
+        backdrop.show(backdropRequest(start.backdropUrl))
         load()
     }
 
@@ -91,7 +92,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             showItem(d.item, d)
             actions.next = next.await()
             actions.bind(d.item)
-            backdrop.show(d.item.backdropUrl?.let { "$it&maxWidth=1920" })
+            backdrop.show(backdropRequest(d.item.backdropUrl))
             addRows(d, seasons.await(), similar.await())
         }
     }

@@ -289,6 +289,8 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         }
     }
 
+    override val isRailPage get() = true
+
     override fun focusDefault() {
         val notice = message.button?.takeIf { message.visibility == View.VISIBLE }
         (notice ?: search).requestFocus()

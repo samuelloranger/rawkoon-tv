@@ -8,6 +8,8 @@ fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null els
 
 fun JSONObject.optIntOrNull(key: String): Int? = if (isNull(key) || !has(key)) null else optInt(key)
 
+fun JSONObject.optFloatOrNull(key: String): Float? = optDoubleOrNull(key)?.toFloat()
+
 fun JSONObject.optDoubleOrNull(key: String): Double? = if (isNull(key) || !has(key)) null else optDouble(key).takeUnless { it.isNaN() }
 
 /** The objects of the array at [key], skipping anything else in it; empty when there is no array. */
