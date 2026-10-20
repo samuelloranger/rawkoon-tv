@@ -205,10 +205,12 @@ class SeasonScreen(
     override fun onShown(first: Boolean) {
         super.onShown(first)
         if (first) return
-        val season = seasons.firstOrNull { it.id == shownSeason } ?: return
-        val key = (episodes.remembered() as? Card)?.item?.id
+        // The player may have moved on to the next episode, even into the next season: focus that one
+        val played = app.lastPlayed?.takeIf { it.seriesId == seriesId }
+        val season = seasons.firstOrNull { it.id == played?.seasonId } ?: seasons.firstOrNull { it.id == shownSeason } ?: return
+        val key = played?.id ?: (episodes.remembered() as? Card)?.item?.id
         shownSeason = null
-        select(season, key, focus = episodes.hasFocus() || view.findFocus() == null)
+        select(season, key, focus = episodes.hasFocus() || view.findFocus() == null || played != null)
     }
 
     override fun destroy() {

@@ -238,6 +238,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     private fun start(target: MediaItem, startMs: Long, audio: Int? = null, subtitleIndex: Int? = null, direct: Boolean = true) {
         item = target
+        app.lastPlayed = target
         started = false
         showTitle(target)
         skip.visibility = View.GONE

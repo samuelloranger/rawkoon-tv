@@ -8,6 +8,7 @@ import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.data.LegacyImport
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.ProfileStore
+import cloud.rawkoon.tv.jellyfin.MediaItem
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,9 @@ class App : Application() {
         private set
     lateinit var images: Images
         private set
+
+    /** The last item the player played, so the page below can focus it when the player closes. */
+    var lastPlayed: MediaItem? = null
 
     /** For calls that must finish after their screen is gone, like reporting where playback stopped. */
     val reportScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
