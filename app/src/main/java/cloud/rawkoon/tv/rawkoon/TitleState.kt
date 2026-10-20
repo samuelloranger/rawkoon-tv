@@ -44,7 +44,7 @@ sealed interface TitleState {
                     library.status == "skipped" -> Skipped
                     isShow && done > 0 && (total <= 0 || done < total) -> Partial
                     library.status in DOWNLOADED || (isShow && total > 0 && done >= total) -> Available
-                    else -> Processing(library.status == "downloading", if (isShow && total > 0) (100 * done / total).coerceIn(0, 99) else null)
+                    else -> Processing(library.status == "downloading", percent(library, isShow))
                 }
             }
             val request = status?.request ?: return Requestable
@@ -57,15 +57,25 @@ sealed interface TitleState {
             }
         }
 
+        private fun percent(library: LibraryEntry, isShow: Boolean): Int? {
+            val total = library.episodeCount ?: 0
+            return if (isShow && total > 0) (100 * (library.downloadedEpisodeCount ?: 0) / total).coerceIn(0, 99) else null
+        }
+
         /**
          * The state of one of the account's own requests on the home row. Only an approved request is
-         * worth the live [library] look: the others' state is the request's own.
+         * worth the [live] look at the library: the others' state is the request's own.
          */
         fun ofRequest(request: RequestSummary, live: TitleStatus?): TitleState = when (request.status) {
             "pending" -> Pending
             "denied" -> Refused(null)
             "available" -> Available
-            else -> of(TitleStatus(live?.library, RequestEntry(request.id, "approved", null)), !request.isMovie)
+            else -> {
+                val library = live?.library
+                // The row shows the download's progress, even once some episodes are in
+                if (library?.status == "downloading") Processing(true, percent(library, !request.isMovie))
+                else of(TitleStatus(library, RequestEntry(request.id, "approved", null)), !request.isMovie)
+            }
         }
     }
 }

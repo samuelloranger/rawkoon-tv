@@ -129,6 +129,9 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
         }
     }
 
+    /** The Rawkoon user id of the token, to tell the account's own requests apart. */
+    suspend fun userId(): String = client.bootstrap(token).userId
+
     suspend fun upcoming(): List<UpcomingEntry> = parseUpcoming(get("api/dashboard/upcoming"))
 
     /** The requests of this account (an admin's account gets everyone's). */
