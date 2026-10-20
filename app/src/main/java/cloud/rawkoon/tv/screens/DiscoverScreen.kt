@@ -1,18 +1,16 @@
 package cloud.rawkoon.tv.screens
 
-import android.text.InputType
 import android.util.LruCache
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.jellyfin.Find
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.rawkoon.DiscoverRows
@@ -24,19 +22,18 @@ import cloud.rawkoon.tv.rawkoon.TmdbTitle
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.rawkoon.toItem
+import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Header
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Rows
+import cloud.rawkoon.tv.ui.SearchField
 import cloud.rawkoon.tv.ui.Section
-import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Tokens
-import cloud.rawkoon.tv.ui.dp
-import cloud.rawkoon.tv.ui.dpf
-import cloud.rawkoon.tv.ui.label
-import cloud.rawkoon.tv.ui.rounded
 import cloud.rawkoon.tv.ui.cardCaption
+import cloud.rawkoon.tv.ui.dp
+import cloud.rawkoon.tv.ui.label
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -60,23 +57,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         gravity = Gravity.CENTER_HORIZONTAL
         visibility = View.GONE
     }
-    private val search = EditText(context).apply {
-        hint = context.getString(R.string.discover_search_hint)
-        inputType = InputType.TYPE_CLASS_TEXT
-        imeOptions = EditorInfo.IME_ACTION_SEARCH
-        textSize = 14f
-        typeface = Fonts.medium(context)
-        setTextColor(Tokens.textPrimary)
-        setHintTextColor(Tokens.textMuted)
-        isSingleLine = true
-        background = rounded(Tokens.surfaceHigh, context.dpf(SEARCH_RADIUS))
-        setPadding(context.dp(14), 0, context.dp(14), 0)
-        setOnFocusChangeListener { v, focused ->
-            v.background = rounded(if (focused) Tokens.surfaceFocused else Tokens.surfaceHigh, context.dpf(SEARCH_RADIUS)).apply {
-                if (focused) setStroke(context.dp(2), Tokens.ring)
-            }
-        }
-    }
+    private val search = SearchField(context, hint = string(R.string.discover_search_hint), onChanged = ::onTyped, onSearch = ::onSearchAction)
     private var api: RawkoonDiscover? = null
 
     /** The token the rows were loaded with: coming back from linking reloads only when it changed. */
@@ -114,10 +95,6 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         // The rows are clipped to their area, so rows gliding up never pass over the header
         content.clipChildren = true
-        search.setOnEditorActionListener { _, _, _ ->
-            runSearch()
-            true
-        }
         load()
     }
 
@@ -236,16 +213,33 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
 
     private fun link() = activity.push(RawkoonLinkScreen(activity, session.profile.id))
 
-    private fun runSearch() {
-        val query = search.text.toString().trim()
+    private fun onTyped(typed: CharSequence) {
+        if (typed.isBlank()) {
+            searchJob?.cancel()
+            if (searching) clearSearch()
+            return
+        }
+        // Too short to ask Rawkoon: the rows on screen stay
+        Find.term(typed)?.let { runSearch(it, debounce = true) }
+    }
+
+    /** The keyboard's search action searches now, without waiting for typing to pause. */
+    private fun onSearchAction() {
+        if (search.text.isBlank()) return clearSearch()
+        Find.term(search.text)?.let { runSearch(it, debounce = false) }
+    }
+
+    private fun runSearch(query: String, debounce: Boolean) {
         val api = api ?: return
-        if (query.isEmpty()) return clearSearch()
-        // Rawkoon answers nothing for fewer than two letters
-        if (query.length < 2) return
-        searching = true
         // A slow earlier search must not land after a newer one
         searchJob?.cancel()
         searchJob = scope.launch {
+            if (debounce) {
+                delay(SearchField.DEBOUNCE_MS)
+                // Typed on since: a term that is now too short is not searched
+                if (Find.term(search.text) != query) return@launch
+            }
+            searching = true
             try {
                 val found = api.search(query)
                 val results = section("search", string(R.string.discover_results, query), found)
@@ -347,7 +341,6 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         const val SEARCH_H = 36
         const val SEARCH_TOP = 20
         const val SEARCH_END = 120
-        const val SEARCH_RADIUS = 10f
         const val HEADER_TOP = 26
 
         /** How far the rows start above [Tokens.ROWS_TOP]. */

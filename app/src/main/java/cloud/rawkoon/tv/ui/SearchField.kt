@@ -48,10 +48,13 @@ class SearchField(
         }
     }
 
-    private companion object {
-        const val TEXT_SP = 16f
-        const val RADIUS = 10f
-        const val RING_W = 2
-        const val PAD_H = 16
+    companion object {
+        /** How long typing must pause before a search starts. */
+        const val DEBOUNCE_MS = 350L
+
+        private const val TEXT_SP = 16f
+        private const val RADIUS = 10f
+        private const val RING_W = 2
+        private const val PAD_H = 16
     }
 }
