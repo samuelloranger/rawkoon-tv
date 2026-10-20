@@ -32,6 +32,15 @@ class TmdbItemTest {
     }
 
     @Test
+    fun `a library item keeps its chips and counts through the home cache`() {
+        val item = title.copy(tmdb = null, childCount = 4, media = MediaInfo("1080p", "HEVC", null))
+        val back = MediaItem.fromJson(item.toJson())
+        assertEquals(item, back)
+        assertEquals(listOf("1080p", "HEVC"), back.media!!.chips())
+        assertEquals(4, back.childCount)
+    }
+
+    @Test
     fun `a title's meta line is its date or year, its badge and its score`() {
         assertEquals("Tomorrow · Available · ★ 8.4", title.metaLine())
         assertEquals("2024 · Available · ★ 8.4", title.copy(tmdb = title.tmdb!!.copy(subtitle = null)).metaLine())

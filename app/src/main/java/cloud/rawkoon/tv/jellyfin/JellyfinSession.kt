@@ -4,7 +4,9 @@ import android.content.Context
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Profile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.Jellyfin
@@ -80,36 +82,57 @@ class JellyfinSession(context: Context, val profile: Profile) {
 
     /**
      * The home rows: continue watching, next up, then the latest additions of each movie and show
-     * library, in the user's library order. Rows that come back empty are left out.
+     * library, in the user's library order. Rows that come back empty are left out, and a row that
+     * fails is dropped on its own; the call only fails when every row did.
      */
     suspend fun homeRows(): List<HomeRow> = coroutineScope {
         val resume = async {
-            api.itemsApi.getResumeItems(
-                GetResumeItemsRequest(userId = userId, limit = ROW_LIMIT, fields = FIELDS, mediaTypes = listOf(MediaType.VIDEO), enableTotalRecordCount = false),
-            ).content.items
+            attempt {
+                val items = api.itemsApi.getResumeItems(
+                    GetResumeItemsRequest(userId = userId, limit = ROW_LIMIT, fields = FIELDS, mediaTypes = listOf(MediaType.VIDEO), enableTotalRecordCount = false),
+                ).content.items
+                HomeRow("resume", strings.getString(R.string.row_resume), items.map { MediaItem.from(it, images) }, landscape = true)
+            }
         }
         val nextUp = async {
-            api.tvShowsApi.getNextUp(
-                GetNextUpRequest(userId = userId, limit = ROW_LIMIT, fields = FIELDS, enableResumable = false, enableTotalRecordCount = false),
-            ).content.items
-        }
-        val views = api.userViewsApi.getUserViews(userId = userId).content.items
-            .filter { it.collectionType == CollectionType.MOVIES || it.collectionType == CollectionType.TVSHOWS }
-        val latest = views.map { view ->
-            async {
-                view to api.userLibraryApi.getLatestMedia(
-                    GetLatestMediaRequest(userId = userId, parentId = view.id, limit = ROW_LIMIT, fields = FIELDS),
-                ).content
+            attempt {
+                val items = api.tvShowsApi.getNextUp(
+                    GetNextUpRequest(userId = userId, limit = ROW_LIMIT, fields = FIELDS, enableResumable = false, enableTotalRecordCount = false),
+                ).content.items
+                HomeRow("nextup", strings.getString(R.string.row_next_up), items.map { MediaItem.from(it, images) }, landscape = true)
             }
         }
-        buildList {
-            add(HomeRow("resume", strings.getString(R.string.row_resume), resume.await().map { MediaItem.from(it, images) }, landscape = true))
-            add(HomeRow("nextup", strings.getString(R.string.row_next_up), nextUp.await().map { MediaItem.from(it, images) }, landscape = true))
-            for (pending in latest) {
-                val (view, items) = pending.await()
-                add(HomeRow("latest:${view.id}", strings.getString(R.string.row_latest, view.name.orEmpty()), items.map { MediaItem.from(it, images) }, landscape = false))
+        val latest = async {
+            val views = attempt {
+                api.userViewsApi.getUserViews(userId = userId).content.items
+                    .filter { it.collectionType == CollectionType.MOVIES || it.collectionType == CollectionType.TVSHOWS }
+            }.getOrElse { return@async listOf(Result.failure(it)) }
+            coroutineScope {
+                views.map { view ->
+                    async {
+                        attempt {
+                            val items = api.userLibraryApi.getLatestMedia(
+                                GetLatestMediaRequest(userId = userId, parentId = view.id, limit = ROW_LIMIT, fields = FIELDS),
+                            ).content
+                            HomeRow("latest:${view.id}", strings.getString(R.string.row_latest, view.name.orEmpty()), items.map { MediaItem.from(it, images) }, landscape = false)
+                        }
+                    }
+                }.awaitAll()
             }
-        }.filter { it.items.isNotEmpty() }
+        }
+        val results = listOf(resume.await(), nextUp.await()) + latest.await()
+        val rows = results.mapNotNull { it.getOrNull() }
+        if (rows.isEmpty()) results.firstNotNullOfOrNull { it.exceptionOrNull() }?.let { throw it }
+        rows.filter { it.items.isNotEmpty() }
+    }
+
+    /** Runs [block], keeping a failure as a value so one row can fail alone; cancellation still propagates. */
+    private inline fun <T> attempt(block: () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     /** A movie's or show's page: the item with its genres, studio, cast, and a show's span and counts. */

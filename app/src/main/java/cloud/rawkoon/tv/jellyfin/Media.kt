@@ -87,7 +87,8 @@ data class MediaItem(
         .putOpt("thumbUrl", thumbUrl).putOpt("backdropUrl", backdropUrl).putOpt("logoUrl", logoUrl)
         .putOpt("progress", progress?.toDouble()).put("played", played).putOpt("seriesId", seriesId)
         .putOpt("seasonId", seasonId).putOpt("seasonNumber", seasonNumber).putOpt("episodeNumber", episodeNumber)
-        .put("favorite", favorite).put("resumeMs", resumeMs).putOpt("tmdb", tmdb?.toJson())
+        .put("favorite", favorite).putOpt("media", media?.toJson()).putOpt("childCount", childCount)
+        .put("resumeMs", resumeMs).putOpt("tmdb", tmdb?.toJson())
 
     companion object {
         fun duration(minutes: Int) = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} min" else "$minutes min"
@@ -118,6 +119,8 @@ data class MediaItem(
                 seasonNumber = int("seasonNumber"),
                 episodeNumber = int("episodeNumber"),
                 favorite = json.optBoolean("favorite"),
+                media = json.optJSONObject("media")?.let(MediaInfo::fromJson),
+                childCount = int("childCount"),
                 resumeMs = json.optLong("resumeMs"),
                 tmdb = json.optJSONObject("tmdb")?.let(TmdbRef::fromJson),
             )
@@ -222,7 +225,14 @@ data class Badge(val text: String, val tone: Tone) {
 data class MediaInfo(val resolution: String?, val codec: String?, val audio: String?) {
     fun chips(): List<String> = listOfNotNull(resolution, codec, audio)
 
+    fun toJson(): JSONObject = JSONObject().putOpt("resolution", resolution).putOpt("codec", codec).putOpt("audio", audio)
+
     companion object {
+        fun fromJson(json: JSONObject): MediaInfo {
+            fun str(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getString(key)
+            return MediaInfo(str("resolution"), str("codec"), str("audio"))
+        }
+
         fun from(streams: List<MediaStream>?): MediaInfo? {
             if (streams.isNullOrEmpty()) return null
             val video = streams.firstOrNull { it.type == MediaStreamType.VIDEO }

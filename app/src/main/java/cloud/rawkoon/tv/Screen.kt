@@ -1,6 +1,8 @@
 package cloud.rawkoon.tv
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +21,14 @@ abstract class Screen(val activity: MainActivity) {
     /** Cancelled when the screen leaves the stack. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    /** Delayed work for the screen; dropped in [destroy]. */
+    protected val mainHandler = Handler(Looper.getMainLooper())
+
+    /** False once the screen is destroyed: image loads use it to skip work for a page that is gone. */
+    @Volatile
+    protected var alive = true
+        private set
+
     abstract val view: View
 
     private var lastFocus: View? = null
@@ -34,8 +44,12 @@ abstract class Screen(val activity: MainActivity) {
     open fun focusDefault() {}
 
     fun onHidden() {
-        lastFocus = view.findFocus()
+        // A screen already hidden (replaced while below another) has no focus left to remember
+        view.findFocus()?.let { lastFocus = focusToRemember(it) }
     }
+
+    /** What to give focus back to when the screen returns, given what had it as the screen left. */
+    protected open fun focusToRemember(focused: View): View = focused
 
     /** True when the screen handled Back itself; otherwise the stack pops it. */
     open fun onBack(): Boolean = false
@@ -48,7 +62,11 @@ abstract class Screen(val activity: MainActivity) {
 
     open fun onResume() {}
 
-    open fun destroy() = scope.cancel()
+    open fun destroy() {
+        alive = false
+        mainHandler.removeCallbacksAndMessages(null)
+        scope.cancel()
+    }
 
     fun string(id: Int, vararg args: Any): String = activity.getString(id, *args)
 }

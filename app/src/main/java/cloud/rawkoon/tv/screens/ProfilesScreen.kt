@@ -26,6 +26,7 @@ import cloud.rawkoon.tv.ui.Icon
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
+import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
 import cloud.rawkoon.tv.ui.icon
 import cloud.rawkoon.tv.ui.isConfirmKey
@@ -80,8 +81,17 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
 
     override fun focusDefault() {
         val last = app.profiles.lastUsed()?.id
-        val tile = (0 until tiles.childCount).map { tiles.getChildAt(it) }.firstOrNull { (it as? ProfileTile)?.profile?.id == last }
-        (tile ?: tiles.getChildAt(0))?.requestFocus()
+        (tileFor(last) ?: tiles.getChildAt(0))?.requestFocus()
+    }
+
+    private fun tileFor(id: String?): View? =
+        (0 until tiles.childCount).map { tiles.getChildAt(it) }.firstOrNull { (it as? ProfileTile)?.profile?.id == id }
+
+    /** Rebuilds the tiles, keeping focus on the same profile when it is still there. */
+    private fun refresh() {
+        val focusedId = (view.findFocus() as? ProfileTile)?.profile?.id
+        rebuild()
+        if (focusedId != null) tileFor(focusedId)?.requestFocus()
     }
 
     private fun rebuild() {
@@ -103,7 +113,7 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
         val focusedId = (view.findFocus() as? ProfileTile)?.profile?.id
         rebuild()
         if (focusedId != null) {
-            (0 until tiles.childCount).map { tiles.getChildAt(it) }.firstOrNull { (it as? ProfileTile)?.profile?.id == focusedId }?.requestFocus()
+            tileFor(focusedId)?.requestFocus()
         } else {
             manage.requestFocus()
         }
@@ -136,7 +146,11 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
             string(R.string.remove_pin) to { app.profiles.save(profile.withPin(null)); rebuild() }
         } else {
             string(R.string.set_pin) to {
-                activity.push(PinScreen(activity, PinScreen.Mode.Create(profile)) { pin -> app.profiles.save(profile.withPin(pin)) })
+                activity.push(PinScreen(activity, PinScreen.Mode.Create(profile)) { pin ->
+                    // The screen pops before this runs, so it has already rebuilt with the old tile
+                    app.profiles.save(profile.withPin(pin))
+                    refresh()
+                })
             }
         }
         dialog = ChoiceDialog(
@@ -243,8 +257,6 @@ class ProfileTile(context: Context, val profile: Profile?, images: Images, manag
         shape = GradientDrawable.OVAL
         setColor(color)
     }
-
-    private fun Context.dpf(v: Float) = v * resources.displayMetrics.density
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
