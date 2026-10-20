@@ -74,11 +74,16 @@ data class Profile(
     }
 }
 
-/** The saved profiles, in the order they were added. Main-thread reads and writes; the file is tiny. */
-class ProfileStore(context: Context) {
-    private val file = File(context.filesDir, "profiles.json")
+/**
+ * The saved profiles, in the order they were added. Used from the main thread; the file is tiny.
+ * An unreadable file is moved aside to `<name>.bad` rather than overwritten by the next save.
+ */
+class ProfileStore(private val file: File) {
+    constructor(context: Context) : this(File(context.filesDir, "profiles.json"))
+
     private var cache: List<Profile>? = null
 
+    @Synchronized
     fun all(): List<Profile> = cache ?: read().also { cache = it }
 
     fun get(id: String): Profile? = all().firstOrNull { it.id == id }
@@ -87,6 +92,7 @@ class ProfileStore(context: Context) {
     fun lastUsed(): Profile? = all().maxByOrNull { it.lastUsed }?.takeIf { it.lastUsed > 0 }
 
     /** Adds [profile], or updates the profile for the same account, keeping its id, place and PIN. */
+    @Synchronized
     fun save(profile: Profile): Profile {
         val list = all()
         val existing = list.firstOrNull { it.id == profile.id || it.sameAccount(profile) }
@@ -95,21 +101,33 @@ class ProfileStore(context: Context) {
         return saved
     }
 
+    @Synchronized
     fun markUsed(id: String) = write(all().map { if (it.id == id) it.copy(lastUsed = System.currentTimeMillis()) else it })
 
+    @Synchronized
     fun remove(id: String) = write(all().filterNot { it.id == id })
 
-    private fun read(): List<Profile> = try {
-        decode(file.readText())
-    } catch (e: Exception) {
-        emptyList()
+    private fun read(): List<Profile> {
+        if (!file.exists()) return emptyList()
+        return try {
+            decode(file.readText())
+        } catch (e: Exception) {
+            val bad = File(file.path + ".bad")
+            bad.delete()
+            file.renameTo(bad)
+            emptyList()
+        }
     }
 
     private fun write(list: List<Profile>) {
         cache = list
+        val text = encode(list)
         val tmp = File(file.path + ".tmp")
-        tmp.writeText(encode(list))
-        tmp.renameTo(file)
+        tmp.writeText(text)
+        if (!tmp.renameTo(file)) {
+            file.writeText(text)
+            tmp.delete()
+        }
     }
 
     companion object {

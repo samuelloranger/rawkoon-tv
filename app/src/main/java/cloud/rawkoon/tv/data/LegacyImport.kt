@@ -25,10 +25,19 @@ object LegacyImport {
     /** The fields of the old Rawkoon settings that matter here. */
     data class OldRawkoon(val url: String, val token: String, val userName: String, val userId: String)
 
+    /**
+     * Marked done once the attempt ends, whether or not it worked: a damaged old file would
+     * otherwise be retried (and could fail) on every launch, and signing in again is the fallback.
+     */
     fun run(context: Context, store: ProfileStore): Int {
         val prefs = Prefs.of(context)
         if (prefs.getBoolean(DONE, false)) return 0
+        val imported = runCatching { import(context, store) }.getOrDefault(0)
         prefs.edit().putBoolean(DONE, true).apply()
+        return imported
+    }
+
+    private fun import(context: Context, store: ProfileStore): Int {
         val database = context.getDatabasePath("wholphin")
         val users = if (database.isFile) readUsers(database) else emptyList()
         val rawkoon = File(context.filesDir, "datastore/rawkoon_settings.pb").takeIf { it.isFile }

@@ -6,6 +6,8 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import kotlin.io.path.createTempDirectory
 
 class ProfilesTest {
     private fun profile(id: String = "p1", userId: String = "abc", url: String = "https://jf.example") =
@@ -30,6 +32,33 @@ class ProfilesTest {
     fun `a broken entry is skipped, not fatal`() {
         val text = "[{\"id\":\"x\"}," + profile().toJson() + "]"
         assertEquals(1, ProfileStore.decode(text).size)
+    }
+
+    @Test
+    fun `an unreadable file is moved aside, not overwritten by the next save`() {
+        val dir = createTempDirectory().toFile()
+        try {
+            val file = File(dir, "profiles.json").apply { writeText("{not json") }
+            val store = ProfileStore(file)
+            assertTrue(store.all().isEmpty())
+            assertEquals("{not json", File(dir, "profiles.json.bad").readText())
+            store.save(profile())
+            assertEquals(listOf(profile()), ProfileStore(file).all())
+            assertEquals("{not json", File(dir, "profiles.json.bad").readText())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `a missing file is an empty store, with nothing set aside`() {
+        val dir = createTempDirectory().toFile()
+        try {
+            assertTrue(ProfileStore(File(dir, "profiles.json")).all().isEmpty())
+            assertFalse(File(dir, "profiles.json.bad").exists())
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     @Test
