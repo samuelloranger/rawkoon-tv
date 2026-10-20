@@ -53,6 +53,7 @@ class SearchScreen private constructor(activity: MainActivity, session: Jellyfin
         field.setOnKeyListener { _, keyCode, event ->
             keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.action == KeyEvent.ACTION_DOWN && firstFocus()?.requestFocus() == true
         }
+        field.onLeftEdge = { rail.activeItem() }
         showMessage(string(R.string.search_hint))
     }
 
