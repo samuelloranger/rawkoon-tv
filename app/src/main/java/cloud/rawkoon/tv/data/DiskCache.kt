@@ -92,12 +92,18 @@ internal fun trimDir(dir: File, now: Long, budget: Long, staleTmpMs: Long) {
     }
 }
 
-/** [bytes] for people: "512 B", "3.5 MB". Binary steps, one decimal from KB up. */
-fun formatBytes(bytes: Long, locale: java.util.Locale = java.util.Locale.getDefault()): String {
-    if (bytes < 1024) return "${bytes.coerceAtLeast(0)} B"
-    val units = listOf("KB", "MB", "GB", "TB")
+/**
+ * [bytes] for people: "512 B", "3.5 MB". Binary steps, one decimal from KB up. [units] names
+ * bytes, then KB to TB, in the language shown (French writes "o", "Ko", "Mo").
+ */
+fun formatBytes(
+    bytes: Long,
+    locale: java.util.Locale = java.util.Locale.getDefault(),
+    units: List<String> = listOf("B", "KB", "MB", "GB", "TB"),
+): String {
+    if (bytes < 1024) return "${bytes.coerceAtLeast(0)} ${units[0]}"
     var value = bytes / 1024.0
-    var unit = 0
+    var unit = 1
     while (value >= 1024 && unit < units.lastIndex) {
         value /= 1024
         unit++

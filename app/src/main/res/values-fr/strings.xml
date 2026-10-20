@@ -199,6 +199,7 @@
     <string name="settings_storage">Stockage</string>
     <string name="setting_clear_images">Vider le cache d\'images</string>
     <string name="clear_images_confirm">Vider le cache d\'images ?</string>
+    <string name="byte_units">o Ko Mo Go To</string>
     <string name="clear_images_action">Vider</string>
     <string name="setting_auto_update">Vérifier les mises à jour automatiquement</string>
     <string name="settings_about">À propos</string>

@@ -211,6 +211,7 @@
     <string name="settings_storage">Storage</string>
     <string name="setting_clear_images">Clear image cache</string>
     <string name="clear_images_confirm">Clear the image cache?</string>
+    <string name="byte_units">B KB MB GB TB</string>
     <string name="clear_images_action">Clear</string>
     <string name="setting_auto_update">Check for updates automatically</string>
     <string name="settings_about">About</string>
