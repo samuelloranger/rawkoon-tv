@@ -19,6 +19,9 @@ object Tokens {
     const val ring = 0xFFF0A35E.toInt()
     const val rail = 0xF0141010.toInt()
 
+    // Body copy on a page (a title's overview).
+    const val textBody = 0xE6ECE3DB.toInt()
+
     // TV title-safe area.
     const val OVERSCAN_H = 48
     const val OVERSCAN_V = 27

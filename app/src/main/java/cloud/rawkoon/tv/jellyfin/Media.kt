@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.jellyfin
 
+import cloud.rawkoon.tv.data.optStringOrNull
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
@@ -7,6 +8,7 @@ import org.jellyfin.sdk.model.api.MediaStream
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 import java.util.Locale
 import java.util.UUID
 
@@ -46,6 +48,8 @@ data class MediaItem(
     val childCount: Int? = null,
     /** Where playback resumes, 0 to start over. */
     val resumeMs: Long = 0L,
+    /** Set on a title that comes from TMDB through Rawkoon instead of from the library: [id] is then not a Jellyfin id. */
+    val tmdb: TmdbRef? = null,
 ) {
     enum class Kind { MOVIE, SERIES, SEASON, EPISODE, OTHER }
 
@@ -54,6 +58,7 @@ data class MediaItem(
 
     /** "2026 · 1 h 37 min · CA-14A · ★ 7.3", or "S1 · E3 · Title · 52 min" for an episode. */
     fun metaLine(): String {
+        tmdb?.let { return listOfNotNull(it.subtitle ?: year?.toString(), it.badge?.text, score()).joinToString(" · ") }
         val parts = mutableListOf<String>()
         if (kind == Kind.EPISODE) {
             episodeLabel?.let { parts += it }
@@ -82,7 +87,7 @@ data class MediaItem(
         .putOpt("thumbUrl", thumbUrl).putOpt("backdropUrl", backdropUrl).putOpt("logoUrl", logoUrl)
         .putOpt("progress", progress?.toDouble()).put("played", played).putOpt("seriesId", seriesId)
         .putOpt("seasonId", seasonId).putOpt("seasonNumber", seasonNumber).putOpt("episodeNumber", episodeNumber)
-        .put("favorite", favorite).put("resumeMs", resumeMs)
+        .put("favorite", favorite).put("resumeMs", resumeMs).putOpt("tmdb", tmdb?.toJson())
 
     companion object {
         fun duration(minutes: Int) = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} min" else "$minutes min"
@@ -114,6 +119,7 @@ data class MediaItem(
                 episodeNumber = int("episodeNumber"),
                 favorite = json.optBoolean("favorite"),
                 resumeMs = json.optLong("resumeMs"),
+                tmdb = json.optJSONObject("tmdb")?.let(TmdbRef::fromJson),
             )
         }
 
@@ -168,6 +174,47 @@ data class MediaItem(
                 resumeMs = (dto.userData?.playbackPositionTicks ?: 0L) / 10_000L,
             )
         }
+    }
+}
+
+/**
+ * What a TMDB title carries beyond a library item: its [id], whether Rawkoon has it ([inLibrary]),
+ * a status [badge] painted on the poster (a request's state, an episode range, "in your library") and
+ * the [subtitle] under a card's title instead of its year. An air date is kept raw in [airDate], so
+ * a cached card's "Tomorrow" is worded again when it is shown.
+ */
+data class TmdbRef(
+    val id: Int,
+    val inLibrary: Boolean = false,
+    val badge: Badge? = null,
+    val subtitle: String? = null,
+    val airDate: LocalDate? = null,
+) {
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("inLibrary", inLibrary).putOpt("badge", badge?.toJson())
+        .putOpt("subtitle", subtitle).putOpt("airDate", airDate?.toString())
+
+    companion object {
+        fun fromJson(json: JSONObject) = TmdbRef(
+            id = json.getInt("id"),
+            inLibrary = json.optBoolean("inLibrary"),
+            badge = json.optJSONObject("badge")?.let(Badge::fromJson),
+            subtitle = json.optStringOrNull("subtitle"),
+            airDate = json.optStringOrNull("airDate")?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+        )
+    }
+}
+
+/** A short status on a poster, in one of a few tones. */
+data class Badge(val text: String, val tone: Tone) {
+    enum class Tone { NEUTRAL, WAITING, ACTIVE, READY, REFUSED }
+
+    fun toJson(): JSONObject = JSONObject().put("text", text).put("tone", tone.name)
+
+    companion object {
+        fun fromJson(json: JSONObject) = Badge(
+            json.getString("text"),
+            runCatching { Tone.valueOf(json.getString("tone")) }.getOrDefault(Tone.NEUTRAL),
+        )
     }
 }
 
@@ -259,7 +306,8 @@ class ImageUrls(private val base: String) {
 /** A titled row of items on the home screen. [landscape] rows show stills with progress. */
 data class HomeRow(val id: String, val title: String, val items: List<MediaItem>, val landscape: Boolean) {
     /** Changes whenever anything a card shows changes. */
-    val signature: String get() = items.joinToString("|") { "${it.id}:${it.progress}:${it.played}:${it.thumbUrl}:${it.posterUrl}" }
+    val signature: String
+        get() = items.joinToString("|") { "${it.id}:${it.progress}:${it.played}:${it.thumbUrl}:${it.posterUrl}:${it.tmdb}" }
 
     fun toJson(): JSONObject = JSONObject().put("id", id).put("title", title).put("landscape", landscape)
         .put("items", JSONArray().apply { items.forEach { put(it.toJson()) } })

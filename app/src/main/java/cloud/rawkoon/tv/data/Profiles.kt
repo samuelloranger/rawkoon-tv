@@ -74,8 +74,6 @@ data class Profile(
     }
 }
 
-fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotEmpty() }
-
 /** The saved profiles, in the order they were added. Main-thread reads and writes; the file is tiny. */
 class ProfileStore(context: Context) {
     private val file = File(context.filesDir, "profiles.json")

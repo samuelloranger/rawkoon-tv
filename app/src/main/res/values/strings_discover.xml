@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rk_row_upcoming">Coming soon</string>
+    <string name="rk_row_requests">My requests</string>
+    <string name="rk_today">Today</string>
+    <string name="rk_tomorrow">Tomorrow</string>
+    <string name="rk_in_library">In your library</string>
+    <string name="rk_in_progress">On its way</string>
+
+    <string name="rk_state_pending">Pending</string>
+    <string name="rk_state_approved">Approved</string>
+    <string name="rk_state_downloading">Downloading</string>
+    <string name="rk_state_downloading_percent">Downloading %1$d%%</string>
+    <string name="rk_state_partial">Partly available</string>
+    <string name="rk_state_available">Available</string>
+    <string name="rk_state_refused">Declined</string>
+    <string name="rk_state_skipped">Not available</string>
+
+    <string name="discover_search_hint">Search movies and shows</string>
+    <string name="discover_results">Results for \"%1$s\"</string>
+    <string name="discover_no_results">Nothing found for \"%1$s\".</string>
+    <string name="discover_error">Couldn\'t load Discover.</string>
+    <string name="discover_trending">Trending</string>
+    <string name="discover_popular_movies">Popular movies</string>
+    <string name="discover_popular_shows">Popular shows</string>
+    <string name="discover_upcoming_movies">Movies coming soon</string>
+    <string name="discover_on_the_air">Shows on the air</string>
+    <string name="discover_genre_movies">Movies · %1$s</string>
+    <string name="discover_genre_shows">Shows · %1$s</string>
+
+    <string name="rk_connect_title">Connect your Rawkoon account</string>
+    <string name="rk_connect_hint">Browse movies and shows, and request the ones you want.</string>
+    <string name="rk_connect_button">Connect</string>
+    <string name="rk_reconnect_hint">Your Rawkoon session ended. Connect again to keep going.</string>
+    <string name="rk_reconnect_button">Reconnect</string>
+    <string name="rk_linked">Rawkoon account connected</string>
+
+    <string name="rk_request">Request</string>
+    <string name="rk_requesting">Sending…</string>
+    <string name="rk_open">Open</string>
+    <string name="rk_request_sent">Request sent</string>
+    <string name="rk_already_requested">Already requested</string>
+    <string name="rk_already_in_library">Already in the library</string>
+    <string name="rk_refused_reason">Reason: %1$s</string>
+</resources>
