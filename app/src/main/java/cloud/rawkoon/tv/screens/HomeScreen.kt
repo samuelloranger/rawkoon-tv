@@ -79,6 +79,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             val rawkoon = if (rawkoonIsFresh()) null else async { rawkoonOutcome() }
             try {
                 val jellyfin = session.homeRows()
+                app.launcher.syncAfterHome(profile(), jellyfin)
                 val previous = rawkoonRowsOnScreen(cached)
                 showHome(RawkoonHome.merge(jellyfin, previous))
                 val outcome = rawkoon?.await()
