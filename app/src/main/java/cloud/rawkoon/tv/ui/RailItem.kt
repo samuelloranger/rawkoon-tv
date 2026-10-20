@@ -18,7 +18,7 @@ class RailItem(
     destination: Destination,
     title: String,
     subtitle: String?,
-    private val avatarUrl: String?,
+    private val avatarUrl: (() -> String?)?,
     private val images: Images,
     val tall: Boolean,
 ) : FrameLayout(context) {
@@ -48,6 +48,9 @@ class RailItem(
 
     @Volatile
     private var alive = false
+
+    /** The URL the avatar shows, once loaded: a later call loads it again only when the picture changed. */
+    private var avatarShown: String? = null
 
     init {
         isFocusable = true
@@ -81,8 +84,19 @@ class RailItem(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         alive = true
-        if (avatarUrl != null && avatarArt.bitmap == null) {
-            images.load("$avatarUrl&fillWidth=$avatarSize", avatarSize, avatarSize, avatarSize / 2f, isCurrent = { alive }) { avatarArt.bitmap = it }
+        loadAvatar()
+    }
+
+    /**
+     * Loads the avatar, unless the current one is already shown: called when attached and each time
+     * the page comes back, so a picture that failed to load or changed since gets another try.
+     */
+    fun loadAvatar() {
+        val url = avatarUrl?.invoke()?.let { "$it&fillWidth=$avatarSize" } ?: return
+        if (url == avatarShown && avatarArt.bitmap != null) return
+        images.load(url, avatarSize, avatarSize, avatarSize / 2f, isCurrent = { alive }) {
+            avatarArt.bitmap = it
+            avatarShown = url
         }
     }
 

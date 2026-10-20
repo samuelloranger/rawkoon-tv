@@ -20,7 +20,7 @@ import cloud.rawkoon.tv.data.Images
 class NavRail(
     context: Context,
     profileName: String,
-    avatarUrl: String?,
+    avatarUrl: () -> String?,
     images: Images,
     private val active: Destination,
     private val onSelect: (Destination) -> Unit,
@@ -104,6 +104,11 @@ class NavRail(
 
     /** The entry for the current page: where focus lands when it enters the rail. */
     fun activeItem(): View? = items[active]
+
+    /** Gives the profile picture another try (or shows a new one), e.g. when the page comes back. */
+    fun refreshAvatar() {
+        items[Destination.PROFILE]?.loadAvatar()
+    }
 
     private fun setOpen(open: Boolean) {
         if (open == isOpen) return
