@@ -63,7 +63,6 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
             text = string(R.string.version, BuildConfig.VERSION_NAME)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(28) })
         view.addView(column, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
-        view.setBackgroundColor(Tokens.background)
         language.setOnClickListener { chooseLanguage() }
     }
 

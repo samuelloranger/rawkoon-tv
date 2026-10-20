@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.ui
 
 import android.content.Context
 import android.graphics.Rect
+import android.os.Looper
 import android.view.View
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -37,6 +38,9 @@ class PosterGrid(context: Context, private val images: Images, private val paged
 
     /** Set by [jumpTo] until the next layout places that row: the re-anchoring below must not undo it. */
     private var jumpPending = false
+
+    /** Whether the idle pre-building of cells is under way or done: once per grid. */
+    private var warmed = false
 
     private val manager = object : GridLayoutManager(context, SPAN) {
         // The glide below keeps the focused row in place; the stock scroll would fight it
@@ -88,6 +92,9 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         setHasFixedSize(true)
         // Two rows kept bound beyond the screen: scrolling back costs no rebinding
         setItemViewCacheSize(2 * SPAN)
+        // The default pool keeps five views: a row scrolling off hands over seven, so every row
+        // scrolled past threw two away and built two new ones
+        recycledViewPool.setMaxRecycledViews(0, POOL_ROWS * SPAN)
         isVerticalScrollBarEnabled = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusable = false
@@ -118,10 +125,32 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     fun pageLoaded(page: Int, firstLoad: Boolean) {
         if (firstLoad) {
             posters.notifyDataSetChanged()
+            warmPool()
             return
         }
         val start = page * paged.pageSize
         posters.notifyItemRangeChanged(start, minOf(paged.pageSize, paged.total - start))
+    }
+
+    /**
+     * Builds [WARM_ROWS] rows of cells while the main thread is idle (one per idle callback), so
+     * scrolling into rows never shown before binds recycled cells instead of constructing views
+     * inside a frame.
+     */
+    private fun warmPool() {
+        if (warmed) return
+        warmed = true
+        Looper.myQueue().addIdleHandler {
+            val pool = recycledViewPool
+            // A grid not on screen yet stops here; the next page to land starts the warm-up again
+            if (!isAttachedToWindow) {
+                warmed = false
+                return@addIdleHandler false
+            }
+            if (pool.getRecycledViewCount(0) >= WARM_ROWS * SPAN) return@addIdleHandler false
+            pool.putRecycledView(posters.createViewHolder(this, 0))
+            true
+        }
     }
 
     /** The poster focus should return to: the last focused one, or the first on screen. */
@@ -166,6 +195,10 @@ class PosterGrid(context: Context, private val images: Images, private val paged
 
         /** Lets the last row reach the anchor. */
         private const val PAD_BOTTOM = 300
+
+        /** Rows of recycled cells the pool can hold, and how many of them are built ahead while idle. */
+        private const val POOL_ROWS = 5
+        private const val WARM_ROWS = 3
 
         /** Three rows each way are fetched ahead of focus. */
         const val PREFETCH = 3 * SPAN

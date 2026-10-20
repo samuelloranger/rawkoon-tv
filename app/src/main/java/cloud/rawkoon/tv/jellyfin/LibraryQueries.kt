@@ -1,5 +1,7 @@
 package cloud.rawkoon.tv.jellyfin
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
@@ -80,11 +82,16 @@ internal fun libraryRequest(
     nameStartsWithOrGreater = bound?.orGreater,
 )
 
-/** The [limit] titles of [types] (all libraries, or the collection [parentId]) from [startIndex]. */
-suspend fun JellyfinSession.libraryPage(types: List<BaseItemKind>, parentId: String?, query: LibraryQuery, startIndex: Int, limit: Int): LibraryPage {
-    val result = api.itemsApi.getItems(libraryRequest(userId, types, parentId?.let(JellyfinSession::parseId), query, startIndex, limit)).content
-    return LibraryPage(result.items.map { MediaItem.from(it, images) }, result.totalRecordCount)
-}
+/**
+ * The [limit] titles of [types] (all libraries, or the collection [parentId]) from [startIndex].
+ * Screens collect on the main thread, so the response is decoded and mapped off it: a page of a
+ * hundred titles is tens of milliseconds of work that would otherwise land in a frame.
+ */
+suspend fun JellyfinSession.libraryPage(types: List<BaseItemKind>, parentId: String?, query: LibraryQuery, startIndex: Int, limit: Int): LibraryPage =
+    withContext(Dispatchers.Default) {
+        val result = api.itemsApi.getItems(libraryRequest(userId, types, parentId?.let(JellyfinSession::parseId), query, startIndex, limit)).content
+        LibraryPage(result.items.map { MediaItem.from(it, images) }, result.totalRecordCount)
+    }
 
 /** Where the first title starting with [letter] sits in a title-sorted grid; one request, whatever the size of the library. */
 suspend fun JellyfinSession.libraryLetterIndex(types: List<BaseItemKind>, parentId: String?, query: LibraryQuery, letter: Char): Int {
