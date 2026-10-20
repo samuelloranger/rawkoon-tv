@@ -31,7 +31,7 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(R.string.language).uppercase() }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
-        column.addView(language)
+        column.addView(language, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.medium(context)).apply {
             text = string(R.string.version, BuildConfig.VERSION_NAME)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(28) })
@@ -50,7 +50,7 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         val choices = listOf("system" to R.string.language_system, "fr" to R.string.language_fr, "en" to R.string.language_en).map { (code, label) ->
             string(label) to {
                 if (code != Prefs.language(context)) {
-                    Prefs.of(context).edit().putString(Prefs.LANGUAGE, code).commit()
+                    Prefs.of(context).edit().putString(Prefs.LANGUAGE, code).apply()
                     // Every screen is rebuilt in the new language, starting from "Who's watching?"
                     activity.recreate()
                 }

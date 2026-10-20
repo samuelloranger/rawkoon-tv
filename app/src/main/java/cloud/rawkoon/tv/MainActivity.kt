@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.os.Bundle
@@ -63,7 +64,8 @@ class MainActivity : Activity() {
             finish()
             return
         }
-        stack.removeLast().let { remove(it) }
+        // removeAt, not removeLast: the Java 21 list method only exists on Android 15+
+        remove(stack.removeAt(stack.lastIndex))
         val below = stack.last()
         below.view.visibility = View.VISIBLE
         below.view.alpha = 1f
@@ -89,15 +91,18 @@ class MainActivity : Activity() {
         root.removeView(screen.view)
     }
 
+    /**
+     * Back is the remote's key: handled here on release, so it works the same on every Android
+     * version without the back-callback APIs. TVs have no back gesture to preview.
+     */
+    @SuppressLint("GestureBackNavigation")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (stack.lastOrNull()?.onKey(event) == true) return true
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && stack.lastOrNull()?.onBack() != true) pop()
+            return true
+        }
         return super.dispatchKeyEvent(event)
-    }
-
-    @Deprecated("Back is handled per screen; the platform callback API isn't needed on TV")
-    override fun onBackPressed() {
-        if (stack.lastOrNull()?.onBack() == true) return
-        pop()
     }
 
     override fun onDestroy() {

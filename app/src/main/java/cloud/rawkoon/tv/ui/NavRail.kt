@@ -126,6 +126,12 @@ class NavRail(
 
     override fun focusSearch(focused: View?, direction: Int): View? {
         if (direction == View.FOCUS_RIGHT) return onExit?.invoke() ?: focused
+        // Up and down walk the entries in order: geometric search can't jump the gap above Settings
+        if (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN) {
+            val list = items.values.toList()
+            val i = list.indexOf(focused)
+            if (i >= 0) return list.getOrNull(if (direction == View.FOCUS_DOWN) i + 1 else i - 1) ?: focused
+        }
         val next = super.focusSearch(focused, direction)
         if (next == null || !isInside(next)) return focused
         return next

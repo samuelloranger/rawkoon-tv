@@ -83,6 +83,14 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
+        // A release build (optimized, not debuggable) that installs next to the real app: for
+        // trying a change on a TV and for measuring it
+        create("preview") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".next"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
     }
 
     compileOptions {

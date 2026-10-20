@@ -25,6 +25,8 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
             gravity = Gravity.CENTER_HORIZONTAL
             background = rounded(Tokens.surface, context.dpf(14f))
             setPadding(context.dp(28), context.dp(22), context.dp(28), context.dp(18))
+            // The choices share one width, wide enough for their labels
+            minimumWidth = context.dp(300)
         }
         panel.addView(label(context, 20f, Tokens.textPrimary, Fonts.title(context)).apply { text = title }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -36,7 +38,7 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
                 action()
             }
             buttons += button
-            panel.addView(button)
+            panel.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         addView(panel, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
     }
