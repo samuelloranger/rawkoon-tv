@@ -44,4 +44,10 @@ class TmdbItemTest {
         assertNotEquals(before.signature, before.copy(items = listOf(title.copy(badge = Badge("Pending", Badge.Tone.WAITING)))).signature)
         assertNotEquals(before.signature, before.copy(items = listOf(title.copy(subtitle = "Today"))).signature)
     }
+
+    @Test
+    fun `a card that entered the library changes its row's signature`() {
+        val before = HomeRow("r", "R", listOf(title.copy(inLibrary = false)), landscape = false)
+        assertNotEquals(before.signature, before.copy(items = listOf(title.copy(inLibrary = true))).signature)
+    }
 }

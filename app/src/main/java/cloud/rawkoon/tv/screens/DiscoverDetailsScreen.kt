@@ -312,6 +312,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     }
 
     private fun addRows(cast: List<Person>, similar: List<MediaItem>) {
+        // Loading again (after linking the account) replaces the rows instead of adding to them
+        while (page.column.childCount > 1) page.column.removeViewAt(1)
         if (cast.isNotEmpty()) {
             val section = Section(context, "cast", string(R.string.row_cast))
             section.row.setCards(cast.map { PersonCard(context, it, app.images) })

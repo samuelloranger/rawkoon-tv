@@ -79,6 +79,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     /** The token the rows were loaded with: coming back from linking reloads only when it changed. */
     private var loadedWith: String? = null
     private var loading: Job? = null
+    private var searchJob: Job? = null
     private var backdropJob: Job? = null
 
     /** Backdrops fetched for titles already focused, by item id. The lists carry none, only a title's own page does. */
@@ -117,6 +118,10 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
 
     private fun load() {
         loading?.cancel()
+        searchJob?.cancel()
+        // Whatever was on screen is rebuilt as browse rows
+        searching = false
+        search.setText("")
         val profile = profile()
         loadedWith = profile.rawkoonToken
         api = profile.rawkoonDiscover(context)
@@ -218,7 +223,9 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         // Rawkoon answers nothing for fewer than two letters
         if (query.length < 2) return
         searching = true
-        scope.launch {
+        // A slow earlier search must not land after a newer one
+        searchJob?.cancel()
+        searchJob = scope.launch {
             try {
                 val found = api.search(query)
                 val results = section("search", string(R.string.discover_results, query), found)
@@ -244,6 +251,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     }
 
     private fun clearSearch() {
+        searchJob?.cancel()
         search.setText("")
         searching = false
         message.visibility = View.GONE

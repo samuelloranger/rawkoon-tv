@@ -288,7 +288,7 @@ class ImageUrls(private val base: String) {
 data class HomeRow(val id: String, val title: String, val items: List<MediaItem>, val landscape: Boolean) {
     /** Changes whenever anything a card shows changes. */
     val signature: String
-        get() = items.joinToString("|") { "${it.id}:${it.progress}:${it.played}:${it.thumbUrl}:${it.posterUrl}:${it.badge}:${it.subtitle}" }
+        get() = items.joinToString("|") { "${it.id}:${it.progress}:${it.played}:${it.thumbUrl}:${it.posterUrl}:${it.badge}:${it.subtitle}:${it.tmdbId}:${it.inLibrary}" }
 
     fun toJson(): JSONObject = JSONObject().put("id", id).put("title", title).put("landscape", landscape)
         .put("items", JSONArray().apply { items.forEach { put(it.toJson()) } })

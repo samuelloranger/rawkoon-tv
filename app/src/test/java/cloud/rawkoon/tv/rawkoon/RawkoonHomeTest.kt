@@ -151,4 +151,29 @@ class RawkoonHomeTest {
         val same = listOf(row("resume"))
         assertSame(same, RawkoonHome.merge(same, emptyList()))
     }
+
+    private fun row(id: String) = HomeRow(id, id, emptyList(), false)
+
+    @Test
+    fun `jellyfin rows show at once with the rawkoon rows already on screen`() {
+        val previous = listOf(row(RawkoonHome.UPCOMING_ID), row(RawkoonHome.REQUESTS_ID))
+        val jellyfin = listOf(row("resume"), row("latest:a"))
+        val interim = RawkoonHome.merge(jellyfin, previous)
+        assertEquals(listOf("resume", RawkoonHome.UPCOMING_ID, RawkoonHome.REQUESTS_ID, "latest:a"), interim.map { it.id })
+    }
+
+    @Test
+    fun `a failed or slow rawkoon refresh keeps the rows shown before`() {
+        val shown = listOf(row("resume"), row(RawkoonHome.UPCOMING_ID), row("latest:a"))
+        assertEquals(listOf(RawkoonHome.UPCOMING_ID), RawkoonHome.rowsFor(RawkoonOutcome.Unavailable, shown).map { it.id })
+    }
+
+    @Test
+    fun `a refused session or no session shows no rawkoon rows, a good answer replaces them`() {
+        val shown = listOf(row(RawkoonHome.UPCOMING_ID), row(RawkoonHome.REQUESTS_ID))
+        assertEquals(emptyList<HomeRow>(), RawkoonHome.rowsFor(RawkoonOutcome.Refused, shown))
+        assertEquals(emptyList<HomeRow>(), RawkoonHome.rowsFor(RawkoonOutcome.NoSession, shown))
+        val fresh = listOf(row(RawkoonHome.REQUESTS_ID))
+        assertEquals(fresh, RawkoonHome.rowsFor(RawkoonOutcome.Loaded(fresh), shown))
+    }
 }

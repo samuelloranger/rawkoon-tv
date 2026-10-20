@@ -49,17 +49,18 @@ object RawkoonHome {
     private val ID_PATTERN = Regex("^(?:movie|tv)-(\\d+)")
     private val URL_PATTERN = Regex("/(?:movie|tv)/(\\d+)")
 
-    /** Fetches both rows at once; a row that fails is just missing, except when Rawkoon refuses the session. */
+    /** Fetches both rows at once; a row that fails is just missing, but a refused session is thrown for the caller to decide. */
     suspend fun load(
         discover: RawkoonDiscover,
-        userId: suspend () -> String,
+        /** The account's id, or null when Rawkoon has none to give (then there is no way to tell its requests apart). */
+        userId: suspend () -> String?,
         text: RawkoonText,
         today: LocalDate,
         now: Instant,
         locale: Locale,
     ): List<HomeRow> = coroutineScope {
         val upcoming = async { optional { upcomingRow(discover.upcoming(), text, today, locale) } }
-        val requests = async { optional { requestsRow(discover, discover.requests(), userId(), text, now) } }
+        val requests = async { optional { userId()?.let { requestsRow(discover, discover.requests(), it, text, now) } } }
         listOfNotNull(upcoming.await(), requests.await())
     }
 
@@ -248,10 +249,32 @@ object RawkoonHome {
         badge = text.badge(state),
     )
 
+    fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID
+
+    /** The Rawkoon rows to show once a refresh ended as [outcome]: new ones, the [previous] ones kept, or none. */
+    fun rowsFor(outcome: RawkoonOutcome, previous: List<HomeRow>): List<HomeRow> = when (outcome) {
+        is RawkoonOutcome.Loaded -> outcome.rows
+        RawkoonOutcome.Unavailable -> previous.filter(::isRawkoonRow)
+        RawkoonOutcome.Refused, RawkoonOutcome.NoSession -> emptyList()
+    }
+
     /** The Rawkoon rows go right after Continue watching and Next up, or first when those are empty. */
     fun merge(jellyfin: List<HomeRow>, rawkoon: List<HomeRow>): List<HomeRow> {
         if (rawkoon.isEmpty()) return jellyfin
         val at = jellyfin.indexOfLast { it.id == "resume" || it.id == "nextup" } + 1
         return jellyfin.take(at) + rawkoon + jellyfin.drop(at)
     }
+}
+
+/** How the Rawkoon side of a home refresh ended. */
+sealed interface RawkoonOutcome {
+    data class Loaded(val rows: List<HomeRow>) : RawkoonOutcome
+
+    /** Failed or too slow: the rows shown before are still the best there is. */
+    data object Unavailable : RawkoonOutcome
+
+    /** Rawkoon refused the token: the old rows belong to a revoked session. Discover asks to link again. */
+    data object Refused : RawkoonOutcome
+
+    data object NoSession : RawkoonOutcome
 }

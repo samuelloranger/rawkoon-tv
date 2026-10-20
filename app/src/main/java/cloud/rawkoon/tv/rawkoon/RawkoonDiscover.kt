@@ -124,7 +124,8 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
         val response = client.send("POST", "api/requests", body, token)
         return when (response.code) {
             409 -> throw AlreadyRequested()
-            400 -> throw AlreadyInLibrary()
+            // Rawkoon's 400 for a title already in the library carries this message; any other 400 is a malformed request
+            400 -> throw if (runCatching { JSONObject(response.body).optString("error") }.getOrNull() == "Already in your library") AlreadyInLibrary() else RawkoonException.Http(400)
             else -> response.okJson().optInt("id")
         }
     }

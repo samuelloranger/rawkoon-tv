@@ -13,7 +13,9 @@ import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonHome
+import cloud.rawkoon.tv.rawkoon.RawkoonOutcome
 import cloud.rawkoon.tv.rawkoon.ResourceText
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.Card
@@ -33,9 +35,9 @@ import cloud.rawkoon.tv.ui.shownItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import java.io.File
 import java.time.Instant
@@ -60,6 +62,9 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
     private val cache = File(context.cacheDir, "home-${profile.id}.json")
     private val parking = FocusParking(context)
     private var backdropUrl: String? = null
+
+    /** The rows last handed to [show]: what a failed Rawkoon refresh falls back to. */
+    private var shown = emptyList<HomeRow>()
     private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
 
     init {
@@ -82,13 +87,20 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         scope.launch {
             val cached = withContext(Dispatchers.IO) { runCatching { HomeRow.listFromJson(cache.readText()) }.getOrNull() }
             if (cached != null && rows.column.childCount == 0) show(cached)
+            // Rawkoon is asked at the same time but never waited for: Jellyfin's rows show as soon as they arrive
+            val rawkoon = async { rawkoonOutcome() }
             try {
-                val fresh = fetchRows()
+                val jellyfin = session.homeRows()
+                val previous = (shown.ifEmpty { cached.orEmpty() }).filter(RawkoonHome::isRawkoonRow)
+                    .takeIf { hasRawkoonSession() }.orEmpty()
+                show(RawkoonHome.merge(jellyfin, previous))
+                val fresh = RawkoonHome.merge(jellyfin, RawkoonHome.rowsFor(rawkoon.await(), previous))
                 show(fresh)
                 withContext(Dispatchers.IO) { runCatching { cache.writeText(HomeRow.listToJson(fresh)) } }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                rawkoon.cancel()
                 val expired = e is InvalidStatusException && e.status == 401
                 // With rows already on screen from the cache, a failed refresh stays silent
                 if (expired || rows.column.childCount == 0) showMessage(string(if (expired) R.string.error_session else R.string.home_error), retry = !expired)
@@ -96,25 +108,29 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         }
     }
 
-    /** The Jellyfin rows and, for a profile with a Rawkoon session, the Rawkoon rows, fetched at the same time. */
-    private suspend fun fetchRows(): List<HomeRow> = coroutineScope {
-        val rawkoon = async { rawkoonRows() }
-        val jellyfin = session.homeRows()
-        RawkoonHome.merge(jellyfin, rawkoon.await())
-    }
+    /** Read again each time: linking the account from Discover changes the saved profile, not this screen's copy. */
+    private fun profile() = app.profiles.get(session.profile.id) ?: session.profile
 
-    /** Coming soon and My requests; both are left out when the profile has no session or Rawkoon doesn't answer. */
-    private suspend fun rawkoonRows(): List<HomeRow> {
-        // Read again: linking the account from Discover changes the saved profile, not this screen's copy
-        val profile = app.profiles.get(session.profile.id) ?: session.profile
-        val api = profile.rawkoonDiscover(context) ?: return emptyList()
+    private fun hasRawkoonSession() = profile().rawkoonDiscover(context) != null
+
+    /** Coming soon and My requests, capped so a slow Rawkoon can't hold the home refresh. */
+    private suspend fun rawkoonOutcome(): RawkoonOutcome {
+        val profile = profile()
+        val api = profile.rawkoonDiscover(context) ?: return RawkoonOutcome.NoSession
         return try {
-            val userId = suspend { profile.rawkoonUserId ?: api.userId().also { app.profiles.save(profile.copy(rawkoonUserId = it)) } }
-            RawkoonHome.load(api, userId, ResourceText(context), LocalDate.now(), Instant.now(), Locale.getDefault())
+            withTimeoutOrNull(RAWKOON_TIMEOUT_MS) {
+                val userId = suspend {
+                    profile.rawkoonUserId ?: api.userId().ifBlank { null }?.also { app.profiles.save(profile.copy(rawkoonUserId = it)) }
+                }
+                RawkoonOutcome.Loaded(RawkoonHome.load(api, userId, ResourceText(context), LocalDate.now(), Instant.now(), Locale.getDefault()))
+            } ?: RawkoonOutcome.Unavailable
         } catch (e: CancellationException) {
             throw e
+        } catch (e: RawkoonException.Unauthorized) {
+            // Home never nags about it: Discover is where the account is linked again
+            RawkoonOutcome.Refused
         } catch (e: Exception) {
-            emptyList()
+            RawkoonOutcome.Unavailable
         }
     }
 
@@ -128,6 +144,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
             return
         }
         message.visibility = View.GONE
+        shown = list
         val current = rows.sections()
         if (current.map { it.id to it.signature } == list.map { it.id to it.signature }) return
         val hadFocus = rows.hasFocus()
@@ -216,5 +233,10 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
     override fun destroy() {
         main.removeCallbacks(settleBackdrop)
         super.destroy()
+    }
+
+    private companion object {
+        /** The most a home refresh waits for Rawkoon (its requests row looks up each approved request's state). */
+        const val RAWKOON_TIMEOUT_MS = 8_000L
     }
 }
