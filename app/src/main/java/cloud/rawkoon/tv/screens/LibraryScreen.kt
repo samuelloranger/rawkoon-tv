@@ -84,6 +84,11 @@ class LibraryScreen(
     private var query = LibraryQuery()
     private var loading: Job? = null
     private var jumping: Job? = null
+    private var refreshing: Job? = null
+
+    /** The page fetches on their way, by page; a restarted grid has no use for them. */
+    private val pageJobs = HashMap<Int, Job>()
+    private var layoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     private var focusWhenLoaded = false
     private var backdropUrl: String? = null
     private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
@@ -100,12 +105,12 @@ class LibraryScreen(
         backdrop.strength = 0.5f
         bar.addView(label(context, 32f, Tokens.textPrimary, Fonts.title(context)).apply {
             text = collectionTitle ?: string(kind.label)
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(18) })
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(TITLE_GAP) })
         bar.addView(sortButton)
-        bar.addView(filterButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(4) })
-        bar.addView(count, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(14) })
+        bar.addView(filterButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(BUTTON_GAP) })
+        bar.addView(count, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(COUNT_GAP) })
         content.addView(bar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START - Tokens.RING_INSET - 4)
+            leftMargin = context.dp(Tokens.CONTENT_START - Tokens.RING_INSET - BAR_BLEED)
             topMargin = context.dp(BAR_TOP)
         })
 
@@ -113,10 +118,10 @@ class LibraryScreen(
         val gridBox = FrameLayout(context)
         gridBox.addView(grid, FrameLayout.LayoutParams(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET + PosterGrid.SPAN * PosterCell.CELL_W), ViewGroup.LayoutParams.MATCH_PARENT))
         content.addView(gridBox, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { topMargin = context.dp(GRID_TOP) })
-        content.addView(letters, FrameLayout.LayoutParams(context.dp(18), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END).apply {
-            topMargin = context.dp(GRID_TOP + 8)
-            bottomMargin = context.dp(26)
-            marginEnd = context.dp(4)
+        content.addView(letters, FrameLayout.LayoutParams(context.dp(LETTERS_W), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END).apply {
+            topMargin = context.dp(GRID_TOP + LETTERS_TOP)
+            bottomMargin = context.dp(LETTERS_BOTTOM)
+            marginEnd = context.dp(LETTERS_END)
         })
         content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
 
@@ -181,6 +186,10 @@ class LibraryScreen(
      */
     private fun reload(jump: Char? = null) {
         loading?.cancel()
+        refreshing?.cancel()
+        // The pages on their way belong to the grid being replaced
+        pageJobs.values.forEach { it.cancel() }
+        pageJobs.clear()
         if (message.hasFocus()) focusWhenLoaded = true
         jumping?.cancel()
         // A restarted grid is no longer at a letter
@@ -218,7 +227,7 @@ class LibraryScreen(
     private fun fetch(pages: List<Int>) {
         val gen = paged.generation
         for (page in pages) {
-            scope.launch {
+            val job = scope.launch {
                 try {
                     val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
                     if (paged.put(gen, page, result.items, result.total)) {
@@ -231,6 +240,8 @@ class LibraryScreen(
                     paged.release(gen, page)
                 }
             }
+            pageJobs[page] = job
+            job.invokeOnCompletion { pageJobs.remove(page, job) }
         }
     }
 
@@ -294,14 +305,17 @@ class LibraryScreen(
      * the bar and keeps their place.
      */
     private fun focusGridWhenLaidOut() {
-        val tree = grid.viewTreeObserver
-        tree.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                if (!focusGrid()) return
-                val observer = grid.viewTreeObserver
-                if (observer.isAlive) observer.removeOnGlobalLayoutListener(this)
-            }
-        })
+        stopWaitingForLayout()
+        val listener = ViewTreeObserver.OnGlobalLayoutListener { if (focusGrid()) stopWaitingForLayout() }
+        layoutListener = listener
+        grid.viewTreeObserver.addOnGlobalLayoutListener(listener)
+    }
+
+    private fun stopWaitingForLayout() {
+        val listener = layoutListener ?: return
+        layoutListener = null
+        val observer = grid.viewTreeObserver
+        if (observer.isAlive) observer.removeOnGlobalLayoutListener(listener)
     }
 
     /** True when the grid does not need focus any more. */
@@ -329,17 +343,20 @@ class LibraryScreen(
         val first = (grid.lastPosition - PosterGrid.PREFETCH).coerceAtLeast(0) / paged.pageSize
         val last = (grid.lastPosition + PosterGrid.PREFETCH).coerceAtMost(paged.total - 1) / paged.pageSize
         paged.keepOnly((first..last).toSet())
-        for (page in first..last) {
-            scope.launch {
-                try {
-                    val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
-                    if (gen != paged.generation) return@launch
-                    if (result.total != paged.total) return@launch reload()
-                    if (paged.put(gen, page, result.items, result.total)) grid.pageLoaded(page, firstLoad = false)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    // The posters on screen stay as they were
+        refreshing?.cancel()
+        refreshing = scope.launch {
+            for (page in first..last) {
+                launch {
+                    try {
+                        val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
+                        if (gen != paged.generation) return@launch
+                        if (result.total != paged.total) return@launch reload()
+                        if (paged.put(gen, page, result.items, result.total)) grid.pageLoaded(page, firstLoad = false)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // The posters on screen stay as they were
+                    }
                 }
             }
         }
@@ -368,6 +385,7 @@ class LibraryScreen(
 
     override fun destroy() {
         main.removeCallbacks(settleBackdrop)
+        stopWaitingForLayout()
         super.destroy()
     }
 
@@ -375,5 +393,15 @@ class LibraryScreen(
         const val TAG = "LibraryScreen"
         const val BAR_TOP = 26
         const val GRID_TOP = 84
+
+        /** Pulls the bar left of the first poster's art, to offset the first button's own padding. */
+        const val BAR_BLEED = 4
+        const val TITLE_GAP = 18
+        const val BUTTON_GAP = 4
+        const val COUNT_GAP = 14
+        const val LETTERS_W = 18
+        const val LETTERS_TOP = 8
+        const val LETTERS_BOTTOM = 26
+        const val LETTERS_END = 4
     }
 }
