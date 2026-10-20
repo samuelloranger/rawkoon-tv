@@ -1,13 +1,17 @@
 package cloud.rawkoon.tv.screens
 
+import android.text.format.DateFormat
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Toast
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
+import cloud.rawkoon.tv.data.Fetcher
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Fonts
@@ -16,12 +20,20 @@ import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
+import cloud.rawkoon.tv.update.Installer
+import cloud.rawkoon.tv.update.UpdateCheck
+import kotlinx.coroutines.isActive
 
-/** App settings. For now: the language, and the version. */
+/** App settings: the language, updates, and the version. */
 class SettingsScreen(activity: MainActivity) : Screen(activity) {
     override val view = FrameLayout(context)
     private val language = PillButton(context, languageLabel())
     private var dialog: ChoiceDialog? = null
+    private val updateCheck = UpdateCheck(context, Fetcher(context))
+    private val installer = Installer(context, Fetcher(context))
+    private val updateStatus = label(context, 13f, Tokens.textMuted, Fonts.medium(context))
+    private val checkNow = PillButton(context, string(R.string.update_check_now))
+    private val install = PillButton(context, "", primary = true)
 
     init {
         val column = LinearLayout(context).apply {
@@ -33,12 +45,62 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
         column.addView(language, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        column.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(R.string.update_title).uppercase() }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
+        column.addView(updateStatus, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.dp(4) })
+        if (updateCheck.enabled) {
+            val buttons = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }.noClip()
+            buttons.addView(checkNow)
+            buttons.addView(install)
+            column.addView(buttons, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            checkNow.setOnClickListener { checkForUpdate() }
+            install.setOnClickListener { installUpdate() }
+        }
+        showUpdate()
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.medium(context)).apply {
             text = string(R.string.version, BuildConfig.VERSION_NAME)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(28) })
         view.addView(column, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
         view.setBackgroundColor(Tokens.background)
         language.setOnClickListener { chooseLanguage() }
+    }
+
+    /** What the last check found, and the install button when a newer release is waiting. */
+    private fun showUpdate() {
+        val pending = updateCheck.pending()
+        updateStatus.text = when {
+            !updateCheck.enabled -> string(R.string.update_disabled)
+            pending != null -> string(R.string.update_available, pending.version)
+            updateCheck.checkedAt == 0L -> string(R.string.update_never_checked)
+            updateCheck.failed -> string(R.string.update_check_failed, checkedAtText())
+            else -> string(R.string.update_up_to_date, checkedAtText())
+        }
+        install.visibility = if (pending != null && !Installer.running) View.VISIBLE else View.GONE
+        pending?.let { install.label.text = string(R.string.update_install, it.version) }
+    }
+
+    private fun checkedAtText() = DateFormat.getMediumDateFormat(context).format(updateCheck.checkedAt)
+
+    private fun checkForUpdate() {
+        updateStatus.text = string(R.string.update_checking)
+        updateCheck.refreshAsync(force = true) { if (scope.isActive) showUpdate() }
+    }
+
+    private fun installUpdate() {
+        val release = updateCheck.pending() ?: return
+        install.visibility = View.GONE
+        // Focus would otherwise fall to whatever Android finds once the button is gone.
+        checkNow.requestFocus()
+        updateStatus.text = string(R.string.update_downloading, 0)
+        installer.install(release, onProgress = { percent ->
+            if (scope.isActive) updateStatus.text = string(R.string.update_downloading, percent)
+        }, onDone = { error ->
+            if (error != null) Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+            if (scope.isActive) {
+                if (error == null) updateStatus.text = string(R.string.update_confirm) else showUpdate()
+            }
+        })
     }
 
     private fun languageLabel() = when (Prefs.language(context)) {

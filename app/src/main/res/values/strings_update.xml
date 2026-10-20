@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_title">Updates</string>
+    <string name="update_disabled">Test builds don\'t update themselves.</string>
+    <string name="update_never_checked">Not checked yet.</string>
+    <string name="update_up_to_date">Up to date. Last checked %1$s.</string>
+    <string name="update_available">Version %1$s is available.</string>
+    <string name="update_check_failed">Couldn\'t check for updates. Last tried %1$s.</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_install">Install version %1$s</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_confirm">Confirm the installation on the TV.</string>
+    <string name="update_failed">The update failed.</string>
+    <string name="update_corrupt">The download is damaged. Try again.</string>
+    <string name="update_signature">This build was signed with another key and can\'t be updated in place.</string>
+    <string name="update_no_space">Not enough storage to install the update.</string>
+</resources>
