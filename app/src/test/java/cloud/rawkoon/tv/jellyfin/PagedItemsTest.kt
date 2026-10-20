@@ -99,4 +99,36 @@ class PagedItemsTest {
         assertEquals("Title 15", paged[15]?.title)
         assertEquals(listOf(2), paged.claimAround(25, 0))
     }
+
+    @Test
+    fun `keeping only some pages leaves a page still on its way claimed`() {
+        val paged = PagedItems(pageSize = 10)
+        val gen = paged.begin()
+        paged.put(gen, 0, page(0, 10), 50)
+        assertEquals(listOf(3), paged.claimAround(35, 0))
+        paged.keepOnly(setOf(0))
+        // Page 3 is still being fetched: it is not asked for a second time
+        assertEquals(emptyList<Int>(), paged.claimAround(35, 0))
+        paged.put(gen, 3, page(30, 10), 50)
+        paged.keepOnly(setOf(0))
+        assertNull(paged[35])
+        assertEquals(listOf(3), paged.claimAround(35, 0))
+    }
+
+    @Test
+    fun `pages far from the focus are evicted and fetched again when scrolled back to`() {
+        val paged = PagedItems(pageSize = 10, keepRadius = 2)
+        val gen = paged.begin()
+        paged.put(gen, 0, page(0, 10), 200)
+        for (p in 1..5) {
+            paged.claimAround(p * 10, 0)
+            paged.put(gen, p, page(p * 10, 10), 200)
+        }
+        // Focus is on page 5: pages 3 to 7 stay, 0 to 2 are gone
+        assertNull(paged[5])
+        assertNull(paged[25])
+        assertEquals("Title 30", paged[30]?.title)
+        assertEquals("Title 55", paged[55]?.title)
+        assertEquals(listOf(2), paged.claimAround(25, 0))
+    }
 }
