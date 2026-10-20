@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rk_row_upcoming">Prochainement</string>
+    <string name="rk_row_requests">Mes demandes</string>
+    <string name="rk_today">Aujourd\'hui</string>
+    <string name="rk_tomorrow">Demain</string>
+    <string name="rk_in_library">Dans ta bibliothèque</string>
+    <string name="rk_in_progress">En route</string>
+
+    <string name="rk_state_pending">En attente</string>
+    <string name="rk_state_approved">Approuvée</string>
+    <string name="rk_state_downloading">Téléchargement</string>
+    <string name="rk_state_downloading_percent">Téléchargement %1$d %%</string>
+    <string name="rk_state_partial">Partiellement disponible</string>
+    <string name="rk_state_available">Disponible</string>
+    <string name="rk_state_refused">Refusée</string>
+    <string name="rk_state_skipped">Indisponible</string>
+
+    <string name="discover_search_hint">Rechercher un film ou une série</string>
+    <string name="discover_results">Résultats pour « %1$s »</string>
+    <string name="discover_no_results">Rien trouvé pour « %1$s ».</string>
+    <string name="discover_error">Impossible de charger Découvrir.</string>
+    <string name="discover_trending">Tendances</string>
+    <string name="discover_popular_movies">Films populaires</string>
+    <string name="discover_popular_shows">Séries populaires</string>
+    <string name="discover_upcoming_movies">Films à venir</string>
+    <string name="discover_on_the_air">Séries à l\'affiche</string>
+    <string name="discover_genre_movies">Films · %1$s</string>
+    <string name="discover_genre_shows">Séries · %1$s</string>
+
+    <string name="rk_connect_title">Connecte ton compte Rawkoon</string>
+    <string name="rk_connect_hint">Parcours les films et les séries, et demande ceux que tu veux.</string>
+    <string name="rk_connect_button">Connecter</string>
+    <string name="rk_reconnect_hint">Ta session Rawkoon a pris fin. Connecte-toi de nouveau pour continuer.</string>
+    <string name="rk_reconnect_button">Reconnecter</string>
+    <string name="rk_linked">Compte Rawkoon connecté</string>
+
+    <string name="rk_request">Demander</string>
+    <string name="rk_requesting">Envoi…</string>
+    <string name="rk_open">Ouvrir</string>
+    <string name="rk_request_sent">Demande envoyée</string>
+    <string name="rk_already_requested">Déjà demandé</string>
+    <string name="rk_already_in_library">Déjà dans la bibliothèque</string>
+    <string name="rk_refused_reason">Raison : %1$s</string>
+</resources>

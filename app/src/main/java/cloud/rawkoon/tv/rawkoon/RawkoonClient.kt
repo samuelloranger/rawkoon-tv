@@ -19,6 +19,9 @@ sealed class RawkoonException(cause: Throwable? = null) : Exception(cause) {
     class NoJellyfin : RawkoonException()
     class NotLinked : RawkoonException()
     class QuickConnectExpired : RawkoonException()
+
+    /** The token was refused: the Rawkoon session ended, so the profile has to link its account again. */
+    class Unauthorized : RawkoonException()
 }
 
 /** A code the user approves on another device, then [deviceCode] is exchanged for a token. */
@@ -127,17 +130,22 @@ class RawkoonClient(baseUrl: String) {
         }
     }
 
-    private class Response(val code: Int, val body: String, val headers: Map<String, String>) {
+    /** One answer; [RawkoonDiscover] reads its own calls through the same [send]. */
+    internal class Response(val code: Int, val body: String, val headers: Map<String, String>) {
         fun json(): JSONObject = try {
             JSONObject(body)
         } catch (e: JSONException) {
             throw RawkoonException.InvalidResponse(e)
         }
 
-        fun okJson(): JSONObject = if (code in 200..299) json() else throw RawkoonException.Http(code)
+        fun okJson(): JSONObject = when (code) {
+            in 200..299 -> json()
+            401 -> throw RawkoonException.Unauthorized()
+            else -> throw RawkoonException.Http(code)
+        }
     }
 
-    private suspend fun send(method: String, path: String, body: JSONObject? = null, token: String? = null): Response =
+    internal suspend fun send(method: String, path: String, body: JSONObject? = null, token: String? = null): Response =
         withContext(Dispatchers.IO) {
             val url = try {
                 URL("$base/$path").also { require(it.protocol == "https" || it.protocol == "http") }
