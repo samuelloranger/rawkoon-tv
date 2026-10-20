@@ -10,6 +10,7 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
+import cloud.rawkoon.tv.data.profileToAutoOpen
 import cloud.rawkoon.tv.jellyfin.JellyfinSdk
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Fonts
@@ -28,9 +29,10 @@ import org.jellyfin.sdk.api.client.extensions.userApi
 /**
  * "Who's watching?", the first screen on every launch. One tile per saved profile, the one used
  * last already focused, then "Add". In manage mode, picking a profile offers to remove it or to
- * set or clear its PIN.
+ * set or clear its PIN. [autoOpen] is for an app launch: with "Skip Who's watching?" on, the only
+ * profile opens straight away.
  */
-class ProfilesScreen(activity: MainActivity) : Screen(activity) {
+class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = false) : Screen(activity) {
     override val view = FrameLayout(context)
     private val tiles = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -70,6 +72,13 @@ class ProfilesScreen(activity: MainActivity) : Screen(activity) {
         if (first && app.profiles.all().isEmpty()) {
             addProfile()
             return
+        }
+        // A plain launch with one profile without a PIN and the setting on: its home right away, this screen below for Back
+        if (first && autoOpen) {
+            profileToAutoOpen(app.profiles.all(), Prefs.skipProfilePicker(context))?.let {
+                open(it)
+                return
+            }
         }
         super.onShown(first)
         refreshAvatars()

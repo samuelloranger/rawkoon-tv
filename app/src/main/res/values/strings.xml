@@ -204,4 +204,17 @@
     <string name="home_row_shown">Shown</string>
     <string name="home_row_hidden">Hidden</string>
     <string name="home_all_hidden">Every row on Home is hidden. Show some again in Settings, under Home rows.</string>
+
+    <!-- Profiles, storage, updates, about -->
+    <string name="settings_profiles">Profiles</string>
+    <string name="setting_skip_picker">Skip \"Who\'s watching?\" with one profile</string>
+    <string name="settings_storage">Storage</string>
+    <string name="setting_clear_images">Clear image cache</string>
+    <string name="clear_images_confirm">Clear the image cache?</string>
+    <string name="clear_images_action">Clear</string>
+    <string name="setting_auto_update">Check for updates automatically</string>
+    <string name="settings_about">About</string>
+    <string name="setting_licences">Open-source licences</string>
+    <string name="licence_app">RawkoonTV</string>
+    <string name="licence_uses">Built with</string>
 </resources>

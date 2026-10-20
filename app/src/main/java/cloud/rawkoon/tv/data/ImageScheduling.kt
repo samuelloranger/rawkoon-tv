@@ -20,6 +20,9 @@ internal class FailureMemory(private val ttlMs: Long, private val max: Int, priv
     }
 
     @Synchronized
+    fun clear() = failed.clear()
+
+    @Synchronized
     fun add(url: String) {
         if (failed.size > max) failed.clear()
         failed[url] = clock()

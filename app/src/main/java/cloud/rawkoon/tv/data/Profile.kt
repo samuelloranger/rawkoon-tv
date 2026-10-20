@@ -70,3 +70,10 @@ data class Profile(
         fun sameUrl(a: String, b: String) = a.trim().trimEnd('/').equals(b.trim().trimEnd('/'), ignoreCase = true)
     }
 }
+
+/**
+ * The profile to open without asking "Who's watching?": the only one, when [skip] is on and it
+ * has no PIN. With a PIN, or no profile or several, the picker shows as usual.
+ */
+fun profileToAutoOpen(profiles: List<Profile>, skip: Boolean): Profile? =
+    profiles.singleOrNull()?.takeIf { skip && !it.hasPin }

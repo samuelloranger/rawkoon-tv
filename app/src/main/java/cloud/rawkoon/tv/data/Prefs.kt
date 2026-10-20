@@ -145,6 +145,9 @@ object Prefs {
     const val NEXT_UP_REWATCHING = "home:next_up_rewatching"
     const val CONTINUE_OPEN = "home:continue_open"
     const val SHOW_CLOCK = "home:show_clock"
+    // Profiles, updates
+    const val SKIP_PROFILE_PICKER = "profiles:skip_picker"
+    const val AUTO_UPDATE_CHECK = "update:auto_check"
     private const val HOME_ORDER = "home:order:"
     private const val HOME_HIDDEN = "home:hidden:"
 
@@ -244,6 +247,14 @@ object Prefs {
 
     fun setHomeHidden(context: Context, profileId: String, ids: Set<String>) =
         of(context).edit().putString(HOME_HIDDEN + profileId, JSONArray(ids.toList()).toString()).apply()
+
+    // Profiles and updates
+
+    /** Whether launching with a single PIN-less profile goes straight to its home. */
+    fun skipProfilePicker(context: Context): Boolean = of(context).getBoolean(SKIP_PROFILE_PICKER, false)
+
+    /** Whether the app asks for a new release once a day on start; "Check now" works either way. */
+    fun autoUpdateCheck(context: Context): Boolean = of(context).getBoolean(AUTO_UPDATE_CHECK, true)
 
     private fun readIds(json: String?): List<String> = runCatching {
         val array = JSONArray(json ?: return emptyList())

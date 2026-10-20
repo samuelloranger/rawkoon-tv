@@ -41,6 +41,12 @@ class Images(context: Context, fetcher: Fetcher) {
 
     /** URLs that failed lately and when, so a bad one is not retried on every bind. */
     private val failed = FailureMemory(FAILURE_MEMORY_MS, MAX_FAILURES)
+
+    /**
+     * Bumped before and after [clearCache] empties the caches: a job that overlapped a clear and
+     * failed lost its file to it, which says nothing about its URL.
+     */
+    private val generation = AtomicInteger()
     private val warming = Collections.synchronizedSet(HashSet<String>())
 
     /** Visible loads run before background ones (prefetch); each lane is first come, first served. */
@@ -122,6 +128,7 @@ class Images(context: Context, fetcher: Fetcher) {
     /** Worker side of a job: download, then decode, giving up between the two if nobody wants it any more. */
     private fun run(job: Job) {
         if (!job.started.compareAndSet(false, true)) return
+        val startedIn = generation.get()
         var bitmap: Bitmap? = null
         var abandoned = false
         try {
@@ -141,10 +148,12 @@ class Images(context: Context, fetcher: Fetcher) {
             bitmap = null
         } finally {
             // Always settle the job: a job left in the map would swallow every later load of its key
+            val cleared = startedIn != generation.get()
             if (bitmap != null) memory.put(job.key, bitmap)
-            else if (!abandoned) fail(job.url)
+            else if (!abandoned && !cleared) fail(job.url)
             val result = bitmap
-            main.post { finish(job, result, abandoned) }
+            // A load the clear spoiled goes through again, like an abandoned one, so its card isn't left blank
+            main.post { finish(job, result, abandoned || (result == null && cleared)) }
         }
     }
 
@@ -158,6 +167,18 @@ class Images(context: Context, fetcher: Fetcher) {
                 if (waiter.isCurrent()) load(job.url, job.w, job.h, job.radius, job.opaque, job.contain, false, waiter.isCurrent, waiter.onReady)
             }
         }
+    }
+
+    /**
+     * Empties the disk cache and the decoded bitmaps. Safe with loads in flight: they finish or
+     * fail quietly, and everything asked for afterwards is fetched again.
+     */
+    fun clearCache() {
+        generation.incrementAndGet()
+        failed.clear()
+        disk.clear()
+        memory.evictAll()
+        generation.incrementAndGet()
     }
 
     /** Downloads [url] into the disk cache in the background, so a later load skips the network. */

@@ -192,4 +192,17 @@
     <string name="home_row_shown">Affichée</string>
     <string name="home_row_hidden">Masquée</string>
     <string name="home_all_hidden">Toutes les rangées de l\'accueil sont masquées. Réaffiches-en dans les réglages, sous Rangées de l\'accueil.</string>
+
+    <!-- Profiles, storage, updates, about -->
+    <string name="settings_profiles">Profils</string>
+    <string name="setting_skip_picker">Sauter « Qui regarde ? » quand il n\'y a qu\'un seul profil</string>
+    <string name="settings_storage">Stockage</string>
+    <string name="setting_clear_images">Vider le cache d\'images</string>
+    <string name="clear_images_confirm">Vider le cache d\'images ?</string>
+    <string name="clear_images_action">Vider</string>
+    <string name="setting_auto_update">Vérifier les mises à jour automatiquement</string>
+    <string name="settings_about">À propos</string>
+    <string name="setting_licences">Licences open source</string>
+    <string name="licence_app">RawkoonTV</string>
+    <string name="licence_uses">Construit avec</string>
 </resources>
