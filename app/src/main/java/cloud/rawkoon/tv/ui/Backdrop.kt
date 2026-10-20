@@ -105,12 +105,14 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             canvas.drawBitmap(image, Rect(left, 0, left + cropW, cropH), Rect(0, 0, w, h), paint)
             paint.alpha = 255
             image.recycle()
+            // An even darkening first, so text stays readable over bright art anywhere on screen
+            canvas.drawColor(withAlpha(Color.BLACK, Tokens.BACKDROP_DIM))
 
             val wf = w.toFloat()
             val hf = h.toFloat()
             paint.shader = LinearGradient(0f, 0f, 0f, hf * 0.2f, withAlpha(Color.BLACK, 0.45f), Color.TRANSPARENT, Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, wf, hf * 0.2f, paint)
-            paint.shader = LinearGradient(0f, 0f, wf * 0.7f, 0f, withAlpha(tint, 0.85f), Color.TRANSPARENT, Shader.TileMode.CLAMP)
+            paint.shader = LinearGradient(0f, 0f, wf * 0.7f, 0f, withAlpha(tint, 0.92f), Color.TRANSPARENT, Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, wf, hf, paint)
             paint.shader = LinearGradient(
                 0f, hf * 0.35f, 0f, hf,

@@ -57,6 +57,9 @@ object Tokens {
     const val BACKDROP_SETTLE_MS = 300L
     const val BACKDROP_FADE_MS = 600L
 
+    /** How much every backdrop is darkened before the scrims, for readable text over any image. */
+    const val BACKDROP_DIM = 0.35f
+
     const val DRAWER_MS = 220L
     const val SCREEN_FADE_MS = 160L
 
