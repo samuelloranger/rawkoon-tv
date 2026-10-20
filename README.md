@@ -6,7 +6,8 @@ for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop ch
 - **Profiles.** "Who's watching?" on every launch, or straight to the only profile when it has no
   PIN and the setting is on. Each profile is a Rawkoon account signed in with a device code, and
   the Jellyfin account Rawkoon links to it, signed in through Quick Connect. Optional PIN per
-  profile.
+  profile. Updating from 2.x keeps its Jellyfin users as profiles; those without the old Rawkoon
+  sign-in link their account when Discover first needs it.
 - **Home.** Continue watching, next up, the latest of each library, and from Rawkoon the upcoming
   episodes and movies and your requests. Each profile can reorder or hide the rows.
 - **Library.** Movies, Shows and Collections as poster grids with sorting, filters and a letter
