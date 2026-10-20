@@ -22,6 +22,10 @@ import androidx.media3.extractor.ts.TsExtractor
 import org.jellyfin.sdk.model.api.PlayMethod
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 
+/** How far the rewind and fast-forward buttons and keys seek. */
+const val SEEK_BACK_MS = 10_000L
+const val SEEK_FORWARD_MS = 30_000L
+
 /**
  * ExoPlayer set up as the official client does it (decoder fallback, the ffmpeg extension for
  * audio the TV can't decode, wider TS timestamp search), with Jellyfin's auth header on every
@@ -55,12 +59,12 @@ class VideoPlayer(context: Context, authorization: String) {
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http), extractors))
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
-            .setSeekBackIncrementMs(10_000)
-            .setSeekForwardIncrementMs(30_000)
+            .setSeekBackIncrementMs(SEEK_BACK_MS)
+            .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
             .build()
         exo.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {
-                pending?.let { (audio, subtitle) -> if (apply(audio, subtitle)) pending = null }
+                pending?.let { (audio, subtitle) -> if (applyTracks(audio, subtitle)) pending = null }
             }
         })
     }
@@ -92,20 +96,24 @@ class VideoPlayer(context: Context, authorization: String) {
     /** True when the choice can be made here; false when the server must make a new stream (burned-in subtitles, a transcode). */
     fun canSwitchLocally(audio: Int?, subtitle: Int): Boolean {
         val s = stream ?: return false
-        if (s.method != PlayMethod.DIRECT_PLAY) return audio == s.audioIndex && (subtitle == s.subtitleIndex || subtitle == -1)
+        if (s.method != PlayMethod.DIRECT_PLAY) {
+            // A transcode can only drop its subtitles here when they aren't burned into the picture
+            val burnedIn = s.subtitles.firstOrNull { it.index == s.subtitleIndex }?.delivery == SubtitleDeliveryMethod.ENCODE
+            return audio == s.audioIndex && (subtitle == s.subtitleIndex || (subtitle == -1 && !burnedIn))
+        }
         val sub = s.subtitles.firstOrNull { it.index == subtitle }
         return sub == null || sub.delivery == SubtitleDeliveryMethod.EMBED || sub.delivery == SubtitleDeliveryMethod.EXTERNAL
     }
 
     fun select(audio: Int?, subtitle: Int) {
-        if (!apply(audio, subtitle)) pending = audio to subtitle
+        if (!applyTracks(audio, subtitle)) pending = audio to subtitle
     }
 
     /**
      * Selects tracks by Jellyfin index. Embedded tracks keep the file's order, so the n-th
      * embedded audio (or subtitle) stream is ExoPlayer's n-th group of that type.
      */
-    private fun apply(audio: Int?, subtitle: Int): Boolean {
+    private fun applyTracks(audio: Int?, subtitle: Int): Boolean {
         val s = stream ?: return false
         val groups = exo.currentTracks.groups
         if (groups.isEmpty()) return false

@@ -1,10 +1,12 @@
 package cloud.rawkoon.tv.playback
 
 import android.content.Context
+import android.util.Log
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.MediaInfo
 import cloud.rawkoon.tv.playback.profile.createDeviceProfile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -34,56 +36,6 @@ import org.jellyfin.sdk.model.api.RepeatMode
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 
-/** An audio or subtitle track of the file, as Jellyfin numbers it. */
-data class Track(
-    val index: Int,
-    val title: String,
-    val language: String?,
-    val codec: String?,
-    val external: Boolean,
-    /** For subtitles: how the server delivers it (embedded in the file, a separate file, or burned in). */
-    val delivery: SubtitleDeliveryMethod?,
-    /** For a subtitle delivered as its own file. */
-    val url: String?,
-)
-
-/** How to play one item: the URL, how it is delivered, and the tracks to choose from. */
-data class Stream(
-    val itemId: String,
-    val mediaSourceId: String?,
-    val playSessionId: String?,
-    val url: String,
-    val method: PlayMethod,
-    val audio: List<Track>,
-    val subtitles: List<Track>,
-    val audioIndex: Int?,
-    /** -1 when subtitles are off. */
-    val subtitleIndex: Int,
-    val durationMs: Long?,
-)
-
-/** A stretch of an episode worth skipping: intro, recap, credits, preview. */
-data class Segment(val type: MediaSegmentType, val startMs: Long, val endMs: Long)
-
-/** The thumbnails Jellyfin made along an item, in tiles of [columns] × [rows]. */
-data class Trickplay(
-    val width: Int,
-    val height: Int,
-    val columns: Int,
-    val rows: Int,
-    val count: Int,
-    val intervalMs: Int,
-    private val tileUrl: (Int) -> String,
-) {
-    /** The tile holding the thumbnail for [positionMs], and where in it that thumbnail sits. */
-    fun locate(positionMs: Long): Triple<String, Int, Int> {
-        val index = (positionMs / intervalMs).toInt().coerceIn(0, count - 1)
-        val perTile = columns * rows
-        val inTile = index % perTile
-        return Triple(tileUrl(index / perTile), (inTile % columns) * width, (inTile / columns) * height)
-    }
-}
-
 /**
  * Jellyfin's side of playback for one profile: asks the server how to play an item for this TV
  * (direct play, direct stream or transcode, from the official client's device profile), reports
@@ -109,7 +61,6 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         startMs: Long,
         audioIndex: Int? = null,
         subtitleIndex: Int? = null,
-        mediaSourceId: String? = null,
         direct: Boolean = true,
     ): Stream {
         val itemId = JellyfinSession.parseId(item.id)
@@ -117,7 +68,6 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             itemId = itemId,
             data = PlaybackInfoDto(
                 userId = session.userId,
-                mediaSourceId = mediaSourceId,
                 startTimeTicks = startMs * TICKS_PER_MS,
                 deviceProfile = profile(),
                 enableDirectPlay = direct,
@@ -131,8 +81,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             ),
         ).content
         response.errorCode?.let { throw PlaybackFailure(it.serialName) }
-        val source = response.mediaSources.firstOrNull { mediaSourceId != null && it.id == mediaSourceId }
-            ?: response.mediaSources.firstOrNull() ?: throw PlaybackFailure("NoMediaSource")
+        val source = response.mediaSources.firstOrNull() ?: throw PlaybackFailure("NoMediaSource")
         val (method, url) = when {
             source.supportsDirectPlay -> PlayMethod.DIRECT_PLAY to (
                 source.path?.takeIf { source.isRemote }
@@ -169,7 +118,8 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     private fun trackTitle(display: String?, language: String?, codec: String?): String =
         display?.takeIf { it.isNotBlank() } ?: listOfNotNull(MediaInfo.languageName(language), codec?.uppercase()).joinToString(" · ").ifEmpty { "?" }
 
-    suspend fun reportStart(stream: Stream, positionMs: Long, paused: Boolean, audioIndex: Int?, subtitleIndex: Int) = quietly {
+    /** Start, progress and stop go out one at a time, in the order they were made, so a late progress can't land after the stop. */
+    suspend fun reportStart(stream: Stream, positionMs: Long, paused: Boolean) = reported("start") {
         api.playStateApi.reportPlaybackStart(
             PlaybackStartInfo(
                 canSeek = true,
@@ -180,15 +130,15 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
                 isPaused = paused,
                 isMuted = false,
                 playMethod = stream.method,
-                audioStreamIndex = audioIndex,
-                subtitleStreamIndex = subtitleIndex,
+                audioStreamIndex = stream.audioIndex,
+                subtitleStreamIndex = stream.subtitleIndex,
                 repeatMode = RepeatMode.REPEAT_NONE,
                 playbackOrder = PlaybackOrder.DEFAULT,
             ),
         )
     }
 
-    suspend fun reportProgress(stream: Stream, positionMs: Long, paused: Boolean, audioIndex: Int?, subtitleIndex: Int) = quietly {
+    suspend fun reportProgress(stream: Stream, positionMs: Long, paused: Boolean) = reported("progress") {
         api.playStateApi.reportPlaybackProgress(
             PlaybackProgressInfo(
                 canSeek = true,
@@ -199,8 +149,8 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
                 isPaused = paused,
                 isMuted = false,
                 playMethod = stream.method,
-                audioStreamIndex = audioIndex,
-                subtitleStreamIndex = subtitleIndex,
+                audioStreamIndex = stream.audioIndex,
+                subtitleStreamIndex = stream.subtitleIndex,
                 repeatMode = RepeatMode.REPEAT_NONE,
                 playbackOrder = PlaybackOrder.DEFAULT,
             ),
@@ -208,7 +158,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     }
 
     /** Reports the stop, and ends the server's transcode so it doesn't keep encoding for nobody. */
-    suspend fun reportStop(stream: Stream, positionMs: Long) = quietly {
+    suspend fun reportStop(stream: Stream, positionMs: Long) = reported("stop") {
         api.playStateApi.reportPlaybackStopped(
             PlaybackStopInfo(
                 itemId = JellyfinSession.parseId(stream.itemId),
@@ -223,29 +173,30 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         }
     }
 
-    suspend fun segments(itemId: String): List<Segment> = runCatching {
+    suspend fun segments(itemId: String): List<Segment> = attempt("segments") {
         api.mediaSegmentsApi.getItemSegments(
             itemId = JellyfinSession.parseId(itemId),
             includeSegmentTypes = listOf(MediaSegmentType.INTRO, MediaSegmentType.RECAP, MediaSegmentType.OUTRO, MediaSegmentType.PREVIEW),
         ).content.items.map { Segment(it.type, it.startTicks / TICKS_PER_MS, it.endTicks / TICKS_PER_MS) }
-    }.getOrDefault(emptyList())
+    } ?: emptyList()
 
     /** The smallest set of thumbnails at least [minWidth] pixels wide, or the largest there is. */
-    suspend fun trickplay(itemId: String, mediaSourceId: String?, minWidth: Int): Trickplay? = runCatching {
+    suspend fun trickplay(itemId: String, mediaSourceId: String?, minWidth: Int): Trickplay? = attempt("trickplay") {
         val id = JellyfinSession.parseId(itemId)
         val dto = api.userLibraryApi.getItem(itemId = id, userId = session.userId).content
-        val byWidth = dto.trickplay?.let { all -> all[mediaSourceId ?: ""] ?: all.values.firstOrNull() } ?: return@runCatching null
-        val info = byWidth.values.sortedBy { it.width }.let { list -> list.firstOrNull { it.width >= minWidth } ?: list.lastOrNull() } ?: return@runCatching null
+        val byWidth = dto.trickplay?.let { all -> all[mediaSourceId ?: ""] ?: all.values.firstOrNull() } ?: return@attempt null
+        val info = byWidth.values.sortedBy { it.width }.let { list -> list.firstOrNull { it.width >= minWidth } ?: list.lastOrNull() } ?: return@attempt null
+        if (info.thumbnailCount <= 0 || info.interval <= 0) return@attempt null
         val source = mediaSourceId?.let { JellyfinSession.parseId(it) }
         Trickplay(info.width, info.height, info.tileWidth, info.tileHeight, info.thumbnailCount, info.interval) { tile ->
             api.trickplayApi.getTrickplayTileImageUrl(itemId = id, width = info.width, index = tile, mediaSourceId = source)
         }
-    }.getOrNull()
+    }
 
     /** The episode after [episode] in its show, for playing on at the end. */
     suspend fun nextEpisode(episode: MediaItem): MediaItem? {
         val series = episode.seriesId ?: return null
-        return runCatching {
+        return attempt("next episode") {
             api.tvShowsApi.getEpisodes(
                 GetEpisodesRequest(
                     seriesId = JellyfinSession.parseId(series),
@@ -255,24 +206,41 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
                     fields = listOf(ItemFields.OVERVIEW),
                 ),
             ).content.items.getOrNull(1)?.let { MediaItem.from(it, session.images) }
-        }.getOrNull()
+        }
     }
 
-    private suspend fun quietly(block: suspend () -> Unit) {
-        runCatching { block() }
+    /** Runs [block], giving null (and a log line) when it fails; cancellation is not a failure. */
+    private inline fun <T> attempt(what: String, block: () -> T): T? = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "$what failed", e)
+        null
     }
 
-    /** The device profile is built once per app run: probing the decoders takes a moment. */
+    private suspend fun reported(what: String, block: suspend () -> Unit) {
+        reportLock.withLock { attempt(what) { block() } }
+    }
+
+    /**
+     * The device profile is built once per app run: probing the decoders takes a moment. A profile
+     * built without knowing the server's version is used but not kept, so the next call asks again.
+     */
     private suspend fun profile(): DeviceProfile = profileLock.withLock {
-        cachedProfile ?: withContext(Dispatchers.Default) {
-            val version = runCatching { ServerVersion.fromString(api.systemApi.getPublicSystemInfo().content.version.orEmpty()) }.getOrNull()
-                ?: ServerVersion(10, 11, 0)
-            createDeviceProfile(context.applicationContext, version)
-        }.also { cachedProfile = it }
+        cachedProfile ?: run {
+            val version = attempt("server version") { ServerVersion.fromString(api.systemApi.getPublicSystemInfo().content.version.orEmpty()) }
+            val built = withContext(Dispatchers.Default) { createDeviceProfile(context.applicationContext, version ?: FALLBACK_VERSION) }
+            if (version != null) cachedProfile = built
+            built
+        }
     }
 
     companion object {
         const val TICKS_PER_MS = 10_000L
+        private const val TAG = "PlaybackService"
+        private val FALLBACK_VERSION = ServerVersion(10, 11, 0)
+        private val reportLock = Mutex()
         private val profileLock = Mutex()
         private var cachedProfile: DeviceProfile? = null
     }

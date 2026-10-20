@@ -105,6 +105,8 @@
     <string name="subtitles">Subtitles</string>
     <string name="audio">Audio</string>
     <string name="subtitles_off">Off</string>
+    <string name="choice_current">✓  %1$s</string>
+    <string name="time_remaining">−%1$s</string>
     <string name="playback_error">Couldn\'t play this video (%1$s).</string>
     <string name="rewind">Back 10 seconds</string>
     <string name="forward">Forward 30 seconds</string>

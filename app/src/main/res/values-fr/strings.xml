@@ -99,6 +99,8 @@
     <string name="subtitles">Sous-titres</string>
     <string name="audio">Audio</string>
     <string name="subtitles_off">Aucun</string>
+    <string name="choice_current">✓  %1$s</string>
+    <string name="time_remaining">−%1$s</string>
     <string name="playback_error">Impossible de lire cette vidéo (%1$s).</string>
     <string name="rewind">Reculer de 10 secondes</string>
     <string name="forward">Avancer de 30 secondes</string>
