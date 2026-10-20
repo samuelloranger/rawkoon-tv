@@ -30,9 +30,9 @@ import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 
 /**
- * A rail page made of titled rows under a header, like home: search results and favorites. The
- * header and the backdrop follow focus once it rests; [show] swaps the rows without ever moving
- * focus off the card it is on. Subclasses decide where the rows come from.
+ * A rail page made of titled rows under a header, like home: home itself, search results and
+ * favorites. The header and the backdrop follow focus once it rests; [show] swaps the rows without
+ * ever moving focus off the card it is on. Subclasses decide where the rows come from.
  */
 abstract class RowsPage(
     activity: MainActivity,
@@ -61,7 +61,7 @@ abstract class RowsPage(
         prefetchFrom?.let(::prefetchAround)
         prefetchFrom = null
     }
-    private var retryButton: PillButton? = null
+    private var messageButton: PillButton? = null
 
     init {
         content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -78,11 +78,14 @@ abstract class RowsPage(
         header.visibility = View.INVISIBLE
     }
 
+    /** True when the first item is previewed if rows arrive while focus is off the cards (on the rail, say). */
+    protected open val previewsFirstItem: Boolean get() = true
+
     protected fun hasRows() = rows.column.childCount > 0
 
-    /** Where a Down from above lands: the first row's card, or the retry button when there is no row. */
+    /** Where a Down from above lands: the first row's card, or the message's button when there is no row. */
     protected fun firstFocus(): View? =
-        rows.sections().firstOrNull()?.row?.remembered() ?: retryButton?.takeIf { it.isShown }
+        rows.sections().firstOrNull()?.row?.remembered() ?: messageButton?.takeIf { it.isShown }
 
     /**
      * Shows [list], keeping every row whose cards haven't changed. Focus comes back to the same
@@ -106,7 +109,7 @@ abstract class RowsPage(
         parking.around(hadFocus, rebuild = { replaceRows(next) }, restore = { restore() })
         if (!hadFocus && view.findFocus() == null) restore()
         rewireUp(current.firstOrNull(), next.first())
-        if (!hadFocus && view.findFocus() !is Card) list.first().items.firstOrNull()?.let(::preview)
+        if (previewsFirstItem && !hadFocus && view.findFocus() !is Card) list.first().items.firstOrNull()?.let(::preview)
         rows.post { ((rows.column.focusedChild as? Section) ?: next.first()).let { rows.reveal(it) } }
     }
 
@@ -148,20 +151,23 @@ abstract class RowsPage(
 
     protected fun hideMessage() {
         message.visibility = View.GONE
-        retryButton = null
+        messageButton = null
     }
 
-    /** A centered message; with [retry] it carries a "Try again" button, which takes focus only if [takeFocus]. */
-    protected fun showMessage(text: String, retry: (() -> Unit)? = null, takeFocus: Boolean = false) {
+    /**
+     * A centered message; with an [action] (the label's string id and what it does) it carries a
+     * button, which takes focus only if [takeFocus].
+     */
+    protected fun showMessage(text: String, action: Pair<Int, () -> Unit>? = null, takeFocus: Boolean = false) {
         message.removeAllViews()
-        retryButton = null
+        messageButton = null
         message.addView(label(context, MESSAGE_TEXT_SP, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
-        if (retry != null) {
-            val button = PillButton(context, string(R.string.try_again), primary = true)
-            button.setOnClickListener { retry() }
+        if (action != null) {
+            val button = PillButton(context, string(action.first), primary = true)
+            button.setOnClickListener { action.second() }
             button.nextFocusUpId = aboveId
             message.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(MESSAGE_GAP) })
-            retryButton = button
+            messageButton = button
             if (takeFocus) button.requestFocus()
         }
         message.visibility = View.VISIBLE
@@ -177,7 +183,7 @@ abstract class RowsPage(
         val expired = e is InvalidStatusException && e.status == 401
         if (!expired && silentIfRows && hasRows()) return
         clear()
-        showMessage(string(if (expired) R.string.error_session else errorText), retry.takeUnless { expired }, takeFocus)
+        showMessage(string(if (expired) R.string.error_session else errorText), retry.takeUnless { expired }?.let { R.string.try_again to it }, takeFocus)
     }
 
     /** One row per group in [found], in its order. */
@@ -193,9 +199,13 @@ abstract class RowsPage(
         },
     )
 
+    /** The card for [item] in a row; a page whose cards look or open differently overrides it. */
+    protected open fun card(item: MediaItem, landscape: Boolean) =
+        Card(context, item, landscape, app.images, ::onFocused, { openItem(it.item) }, cardCaption(item))
+
     private fun section(row: HomeRow) = Section(context, row.id, row.title).apply {
         signature = row.signature
-        this.row.setCards(row.items.map { item -> Card(context, item, row.landscape, app.images, ::onFocused, { openItem(it.item) }, cardCaption(item)) })
+        this.row.setCards(row.items.map { card(it, row.landscape) })
         this.row.onLeftEdge = { rail.activeItem() }
     }
 
@@ -206,7 +216,7 @@ abstract class RowsPage(
         main.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
     }
 
-    private fun onFocused(card: Card) {
+    protected fun onFocused(card: Card) {
         preview(card.item)
         prefetchFrom = card
     }
