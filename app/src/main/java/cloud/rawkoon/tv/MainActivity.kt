@@ -24,7 +24,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        root = FrameLayout(this).apply { setBackgroundColor(Tokens.background) }
+        root = FrameLayout(this)
         setContentView(root)
         // "Who's watching?" on every launch
         push(ProfilesScreen(this))

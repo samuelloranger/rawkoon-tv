@@ -17,7 +17,8 @@ import cloud.rawkoon.tv.data.DiskCache
 import java.util.concurrent.Executors
 
 /**
- * The page background. Instead of drawing the image, the tint and the scrims as separate layers on
+ * The page background. It draws no colour of its own: the window's page colour shows where there is
+ * no image, so the screen has one opaque layer under the content instead of three. Instead of drawing the image, the tint and the scrims as separate layers on
  * every frame, it blends them once, off the main thread, into a single screen-sized hardware
  * bitmap, then cross-fades two BitmapViews. While nothing changes the GPU draws one textured quad;
  * during the cross-fade, two.
@@ -43,7 +44,6 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     var strength = 1f
 
     init {
-        setBackgroundColor(Tokens.background)
         addView(bottom, fill())
         addView(top, fill())
     }
@@ -141,6 +141,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             val image = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
             val tint = darkTint(image)
             val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            // Every pixel ends up opaque (the tint fills first), so drawing it needs no blending
+            out.setHasAlpha(false)
             val canvas = Canvas(out)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
             canvas.drawColor(tint)
