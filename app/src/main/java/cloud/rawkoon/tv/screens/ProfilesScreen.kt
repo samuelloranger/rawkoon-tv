@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.screens
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
@@ -76,7 +77,7 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
         // A plain launch with one profile without a PIN and the setting on: its home right away, this screen below for Back
         if (first && autoOpen) {
             profileToAutoOpen(app.profiles.all(), Prefs.skipProfilePicker(context))?.let {
-                open(it)
+                openOnceFocused(it)
                 return
             }
         }
@@ -157,6 +158,23 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
         } else {
             open(profile)
         }
+    }
+
+    /**
+     * Opens [profile] once the window has focus. At launch it doesn't yet: a home shown then has
+     * nothing focused when the window gains focus, so Android puts focus on the rail and the rows
+     * never take it.
+     */
+    private fun openOnceFocused(profile: Profile) {
+        if (view.hasWindowFocus()) return open(profile)
+        view.viewTreeObserver.addOnWindowFocusChangeListener(object : ViewTreeObserver.OnWindowFocusChangeListener {
+            override fun onWindowFocusChanged(hasFocus: Boolean) {
+                if (!hasFocus) return
+                view.viewTreeObserver.removeOnWindowFocusChangeListener(this)
+                // Not from inside the observer's dispatch, which the screen swap would change under it
+                view.post { open(profile) }
+            }
+        })
     }
 
     private fun open(profile: Profile) {
