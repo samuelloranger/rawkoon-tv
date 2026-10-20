@@ -25,7 +25,7 @@ import cloud.rawkoon.tv.ui.whileAttachedOnFocusChange
  * A page of a profile's library: the backdrop, the page's own [content], and the nav rail over
  * it, which dims the page while open. Home, details and seasons all build on it.
  */
-abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, active: Destination) : Screen(activity) {
+abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, val active: Destination) : Screen(activity) {
     final override val view = FrameLayout(context)
     protected val backdrop = Backdrop(context, app.images.disk)
     protected val content = FrameLayout(context).noClip()
@@ -75,9 +75,28 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
             Destination.PROFILE -> activity.popTo { it is ProfilesScreen }
             Destination.HOME -> if (this is HomeScreen) contentFocus()?.requestFocus() else activity.popTo { it is HomeScreen }
             Destination.SETTINGS -> activity.push(SettingsScreen(activity))
-            else -> comingSoon()
+            Destination.SEARCH -> open(destination) { SearchScreen(activity, session) }
+            Destination.FAVORITES -> open(destination) { FavoritesScreen(activity, session) }
+            Destination.DISCOVER -> open(destination) { DiscoverScreen(activity, session) }
+            Destination.MOVIES, Destination.SHOWS, Destination.COLLECTIONS -> open(destination) { LibraryScreen(activity, session, destination) }
         }
     }
+
+    /**
+     * Opens a rail page. From home or a title page it goes on top; from another rail page it takes
+     * that page's place, so moving between Movies, Search and the rest never piles up screens.
+     */
+    private fun open(destination: Destination, make: () -> RailScreen) {
+        if (isRailPage && active == destination) {
+            contentFocus()?.requestFocus() ?: rail.activeItem()?.requestFocus()
+            return
+        }
+        if (isRailPage) activity.replace(make()) else activity.push(make())
+    }
+
+    /** True for the pages the rail itself opens (library, search, favorites, discover). */
+    private val isRailPage: Boolean
+        get() = this is LibraryScreen || this is SearchScreen || this is FavoritesScreen || this is DiscoverScreen
 
     protected fun comingSoon() = Toast.makeText(context, R.string.coming_soon, Toast.LENGTH_SHORT).show()
 
