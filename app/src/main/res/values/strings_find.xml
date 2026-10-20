@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="find_row_movies">Movies</string>
+    <string name="find_row_shows">Shows</string>
+    <string name="find_row_episodes">Episodes</string>
+    <string name="find_row_collections">Collections</string>
+    <string name="search_field_hint">Search titles</string>
+    <string name="search_hint">Type at least 2 letters to search.</string>
+    <string name="search_empty">No results for “%1$s”</string>
+    <string name="search_error">Couldn\'t search right now.</string>
+    <string name="favorites_empty">No favorites yet. Mark a title as a favorite from its page.</string>
+    <string name="favorites_error">Couldn\'t load your favorites.</string>
+</resources>
