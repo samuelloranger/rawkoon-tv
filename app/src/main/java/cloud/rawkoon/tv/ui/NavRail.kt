@@ -85,11 +85,11 @@ class NavRail(
         addView(reel, LinearLayout.LayoutParams(size, size).apply { marginStart = (context.dp(40) - size) / 2; marginEnd = (context.dp(40) - size) / 2 })
         val name = FlatLinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(label(context, 18f, Tokens.textPrimary, Fonts.bold(context)).apply { text = context.getString(R.string.brand_name) })
+            addView(label(context, 18f, BRAND_NAME, Fonts.heavy(context)).apply { text = context.getString(R.string.brand_name) })
             addView(GradientLabel(context, BRAND_TOP, BRAND_BOTTOM).apply {
                 text = context.getString(R.string.brand_tv)
                 textSize = 18f
-                typeface = Fonts.bold(context)
+                typeface = Fonts.heavy(context)
             }, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(5) })
         }
         fades += name
@@ -97,9 +97,10 @@ class NavRail(
     }
 
     private companion object {
-        // Sampled from the "TV" of the app banner
-        const val BRAND_TOP = 0xFFEEB27A.toInt()
-        const val BRAND_BOTTOM = 0xFFDF8F5C.toInt()
+        // Sampled from the app banner: the name, and the top and bottom of the "TV" capitals
+        const val BRAND_NAME = 0xFFF2EDE8.toInt()
+        const val BRAND_TOP = 0xFFF2B67E.toInt()
+        const val BRAND_BOTTOM = 0xFFD7804E.toInt()
     }
 
     /** The entry for the current page: where focus lands when it enters the rail. */
