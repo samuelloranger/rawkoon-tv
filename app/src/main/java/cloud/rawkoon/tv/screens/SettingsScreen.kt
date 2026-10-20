@@ -216,7 +216,7 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
     private fun showImageCacheSize(row: SettingRow) {
         scope.launch {
             val size = withContext(Dispatchers.IO) { app.images.disk.size() }
-            row.setValue(formatBytes(size, units = string(R.string.byte_units).split(' ')))
+            row.setValue(formatBytes(size, units = context.resources.getStringArray(R.array.byte_units).asList()))
         }
     }
 

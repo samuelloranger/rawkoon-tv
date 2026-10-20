@@ -42,6 +42,7 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
     private val manage = PillButton(context, string(R.string.manage_profiles), Icon.PEN)
     private var managing = false
     private var dialog: ChoiceDialog? = null
+    private var focusWait: ViewTreeObserver.OnWindowFocusChangeListener? = null
     private val clockView = clock(context).apply { applyClockSetting() }
 
     init {
@@ -167,14 +168,27 @@ class ProfilesScreen(activity: MainActivity, private val autoOpen: Boolean = fal
      */
     private fun openOnceFocused(profile: Profile) {
         if (view.hasWindowFocus()) return open(profile)
-        view.viewTreeObserver.addOnWindowFocusChangeListener(object : ViewTreeObserver.OnWindowFocusChangeListener {
+        val listener = object : ViewTreeObserver.OnWindowFocusChangeListener {
             override fun onWindowFocusChanged(hasFocus: Boolean) {
                 if (!hasFocus) return
-                view.viewTreeObserver.removeOnWindowFocusChangeListener(this)
+                stopWaitingForFocus()
                 // Not from inside the observer's dispatch, which the screen swap would change under it
-                view.post { open(profile) }
+                mainHandler.post { if (alive) open(profile) }
             }
-        })
+        }
+        focusWait = listener
+        view.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+    }
+
+    /** The window observer outlives this screen: a wait still pending (a launcher card came first) must not keep it. */
+    private fun stopWaitingForFocus() {
+        focusWait?.let { view.viewTreeObserver.removeOnWindowFocusChangeListener(it) }
+        focusWait = null
+    }
+
+    override fun destroy() {
+        stopWaitingForFocus()
+        super.destroy()
     }
 
     private fun open(profile: Profile) {
