@@ -1,27 +1,316 @@
 package cloud.rawkoon.tv.screens
 
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
+import cloud.rawkoon.tv.jellyfin.LibraryFilter
+import cloud.rawkoon.tv.jellyfin.LibraryQuery
+import cloud.rawkoon.tv.jellyfin.LibrarySort
+import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.PagedItems
+import cloud.rawkoon.tv.jellyfin.libraryLetterIndex
+import cloud.rawkoon.tv.jellyfin.libraryPage
+import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
+import cloud.rawkoon.tv.ui.LetterColumn
+import cloud.rawkoon.tv.ui.PillButton
+import cloud.rawkoon.tv.ui.PosterCell
+import cloud.rawkoon.tv.ui.PosterGrid
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.dp
+import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.noClip
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.BaseItemKind
 
-/** The Movies, Shows or Collections grid ([kind]). Placeholder until the library work lands. */
-class LibraryScreen(activity: MainActivity, session: JellyfinSession, val kind: Destination) : RailScreen(activity, session, kind) {
-    init {
-        content.addView(label(context, 18f, Tokens.textSoft, Fonts.medium(context)).apply { text = string(R.string.coming_soon) },
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+/**
+ * The Movies, Shows or Collections grid ([kind]), or, given a [parentId], the titles of one
+ * collection. The grid pages the server 100 titles at a time and recycles its posters, so a
+ * library of thousands scrolls as smoothly as a short one; the A to Z column jumps by asking the
+ * server how many titles come before a letter. The backdrop follows the focused poster once
+ * focus rests.
+ */
+class LibraryScreen(
+    activity: MainActivity,
+    session: JellyfinSession,
+    val kind: Destination,
+    private val parentId: String? = null,
+    private val collectionTitle: String? = null,
+) : RailScreen(activity, session, kind) {
+    private val main = Handler(Looper.getMainLooper())
+    private val paged = PagedItems()
+    private val grid = PosterGrid(context, app.images, paged)
+    private val letters = LetterColumn(context, ::jumpToLetter)
+    private val count = label(context, 12f, Tokens.textMuted, Fonts.medium(context))
+    private val sortButton = PillButton(context, "")
+    private val filterButton = PillButton(context, "")
+    private val message = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        visibility = View.GONE
+    }
+    private val bar = object : LinearLayout(context) {
+        /** Down returns to the grid, Left past the first button to the rail; nothing else leaves the bar. */
+        override fun focusSearch(focused: View?, direction: Int): View? {
+            val next = super.focusSearch(focused, direction)
+            return when {
+                direction == View.FOCUS_DOWN -> grid.focusTarget() ?: focused
+                next != null && next.isWithin(this) -> next
+                direction == View.FOCUS_LEFT -> rail.activeItem() ?: focused
+                else -> focused
+            }
+        }
+    }.apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+    }.noClip()
+    private var dialog: ChoiceDialog? = null
+    private var query = LibraryQuery()
+    private var loading: Job? = null
+    private var focusWhenLoaded = false
+    private var backdropUrl: String? = null
+    private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
+
+    /** What this page lists: collections, or movies and shows inside one. */
+    private val types = when {
+        kind == Destination.MOVIES -> listOf(BaseItemKind.MOVIE)
+        kind == Destination.SHOWS -> listOf(BaseItemKind.SERIES)
+        parentId == null -> listOf(BaseItemKind.BOX_SET)
+        else -> listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
     }
 
-    override fun contentFocus(): View? = null
+    init {
+        backdrop.strength = 0.5f
+        bar.addView(label(context, 32f, Tokens.textPrimary, Fonts.title(context)).apply {
+            text = collectionTitle ?: string(kind.label)
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(18) })
+        bar.addView(sortButton)
+        bar.addView(filterButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(4) })
+        bar.addView(count, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(14) })
+        content.addView(bar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = context.dp(Tokens.CONTENT_START - Tokens.RING_INSET - 4)
+            topMargin = context.dp(BAR_TOP)
+        })
 
+        // The grid is clipped to its own box, so rows gliding up never pass over the bar
+        val gridBox = FrameLayout(context)
+        gridBox.addView(grid, FrameLayout.LayoutParams(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET + PosterGrid.SPAN * PosterCell.CELL_W), ViewGroup.LayoutParams.MATCH_PARENT))
+        content.addView(gridBox, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { topMargin = context.dp(GRID_TOP) })
+        content.addView(letters, FrameLayout.LayoutParams(context.dp(18), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END).apply {
+            topMargin = context.dp(GRID_TOP + 8)
+            bottomMargin = context.dp(26)
+            marginEnd = context.dp(4)
+        })
+        content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+
+        grid.onFocused = ::showBackdropOf
+        grid.onOpen = ::open
+        grid.onPages = ::fetch
+        grid.onLeftEdge = { rail.activeItem() }
+        grid.onTopEdge = { sortButton }
+        grid.onRightEdge = { letters }
+        letters.onLeft = { grid.focusTarget() }
+        sortButton.setOnClickListener { showSortChoices() }
+        filterButton.setOnClickListener { showFilterChoices() }
+        paintButtons()
+        reload()
+    }
+
+    private fun paintButtons() {
+        sortButton.label.text = string(R.string.library_sort_button, string(sortLabel(query.sort)))
+        filterButton.label.text = string(R.string.library_filter_button, string(filterLabel(query.filter)))
+    }
+
+    private fun sortLabel(sort: LibrarySort) = when (sort) {
+        LibrarySort.ADDED -> R.string.library_sort_added
+        LibrarySort.TITLE -> R.string.library_sort_title
+        LibrarySort.YEAR -> R.string.library_sort_year
+        LibrarySort.RATING -> R.string.library_sort_rating
+    }
+
+    private fun filterLabel(filter: LibraryFilter) = when (filter) {
+        LibraryFilter.ALL -> R.string.library_filter_all
+        LibraryFilter.UNWATCHED -> R.string.library_filter_unwatched
+        LibraryFilter.FAVORITES -> R.string.library_filter_favorites
+    }
+
+    private fun showSortChoices() {
+        val choices = LibrarySort.entries.map { sort -> string(sortLabel(sort)) to { apply(query.copy(sort = sort)) } } +
+            (string(if (query.reverse) R.string.library_reverse_on else R.string.library_reverse_off) to { apply(query.copy(reverse = !query.reverse)) })
+        present(ChoiceDialog(context, string(R.string.library_sort_dialog), choices))
+    }
+
+    private fun showFilterChoices() {
+        val choices = LibraryFilter.entries.map { filter -> string(filterLabel(filter)) to { apply(query.copy(filter = filter)) } }
+        present(ChoiceDialog(context, string(R.string.library_filter_dialog), choices))
+    }
+
+    private fun present(choices: ChoiceDialog) {
+        dialog = choices
+        choices.open(view)
+    }
+
+    /** Applies a new sort or filter: the grid starts over from the first title. */
+    private fun apply(next: LibraryQuery) {
+        if (next == query) return
+        if (next.sort != LibrarySort.TITLE) letters.active = null
+        query = next
+        paintButtons()
+        reload()
+    }
+
+    /**
+     * Fetches the first page and starts the grid over. With [jump], also asks where that letter
+     * is and scrolls there; the pages around it are fetched as its posters are shown.
+     */
+    private fun reload(jump: Char? = null) {
+        loading?.cancel()
+        if (message.hasFocus()) focusWhenLoaded = true
+        message.visibility = View.GONE
+        val gen = paged.begin()
+        grid.reset()
+        count.text = ""
+        loading = scope.launch {
+            try {
+                val (first, index) = coroutineScope {
+                    val page = async { session.libraryPage(types, parentId, query, 0, paged.pageSize) }
+                    val at = jump?.let { letter -> async { session.libraryLetterIndex(types, parentId, query, letter) } }
+                    page.await() to (at?.await() ?: 0)
+                }
+                if (!paged.put(gen, 0, first.items, first.total)) return@launch
+                grid.pageLoaded(0, firstLoad = true)
+                count.text = context.resources.getQuantityString(R.plurals.library_count, first.total, first.total)
+                if (first.total == 0) {
+                    showMessage(string(if (query.filter == LibraryFilter.ALL) R.string.library_empty else R.string.library_empty_filtered), retry = true)
+                    return@launch
+                }
+                if (jump != null) grid.jumpTo(index.coerceAtMost(first.total - 1))
+                if (focusWhenLoaded) focusGrid()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val expired = e is InvalidStatusException && e.status == 401
+                showMessage(string(if (expired) R.string.error_session else R.string.library_error), retry = !expired)
+            }
+        }
+    }
+
+    /** Fetches [pages] of the current grid; a failed page is asked for again the next time focus nears it. */
+    private fun fetch(pages: List<Int>) {
+        val gen = paged.generation
+        for (page in pages) {
+            scope.launch {
+                try {
+                    val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
+                    if (paged.put(gen, page, result.items, result.total)) {
+                        grid.pageLoaded(page, firstLoad = false)
+                        if (grid.hasFocus()) showBackdropOf(grid.lastPosition)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    paged.release(gen, page)
+                }
+            }
+        }
+    }
+
+    /** The A to Z column picked [letter]: the grid is sorted by title first if it was not. */
+    private fun jumpToLetter(letter: Char) {
+        letters.active = letter
+        if (query.sort != LibrarySort.TITLE) {
+            query = query.copy(sort = LibrarySort.TITLE)
+            paintButtons()
+            reload(jump = letter)
+            return
+        }
+        val gen = paged.generation
+        scope.launch {
+            try {
+                val index = session.libraryLetterIndex(types, parentId, query, letter)
+                if (gen == paged.generation && paged.total > 0) grid.jumpTo(index.coerceAtMost(paged.total - 1))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The grid stays where it is; picking the letter again retries
+            }
+        }
+    }
+
+    private fun showMessage(text: String, retry: Boolean) {
+        message.removeAllViews()
+        message.addView(label(context, 16f, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
+        val button = PillButton(context, string(if (retry) R.string.try_again else R.string.back_to_profiles), primary = true)
+        button.setOnClickListener { if (retry) reload() else activity.popTo { it is ProfilesScreen } }
+        message.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(12) })
+        message.visibility = View.VISIBLE
+        if (focusWhenLoaded) {
+            focusWhenLoaded = false
+            button.requestFocus()
+        }
+    }
+
+    private fun showBackdropOf(position: Int) {
+        val url = paged[position]?.backdropUrl?.let { "$it&maxWidth=1920" }
+        if (url == backdropUrl) return
+        backdropUrl = url
+        main.removeCallbacks(settleBackdrop)
+        main.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
+    }
+
+    /** A collection opens its own grid; a movie or show opens its page. */
+    private fun open(item: MediaItem) {
+        if (kind == Destination.COLLECTIONS && parentId == null) {
+            activity.push(LibraryScreen(activity, session, kind, parentId = item.id, collectionTitle = item.title))
+        } else {
+            openItem(item)
+        }
+    }
+
+    private fun focusGrid() {
+        focusWhenLoaded = false
+        val focus = view.findFocus()
+        // Only take focus from nowhere or the bar: someone who already moved on keeps their place
+        if (focus == null || focus.isWithin(bar)) grid.focusTarget()?.requestFocus()
+    }
+
+    override fun contentFocus(): View? = grid.focusTarget()
+
+    /** The first page may still be on its way: focus goes to the grid as soon as it has posters. */
     override fun focusDefault() {
-        rail.activeItem()?.requestFocus()
+        val target = grid.focusTarget()
+        if (target != null) target.requestFocus() else focusWhenLoaded = true
+    }
+
+    override fun onBack(): Boolean {
+        dialog?.takeIf { it.isAttachedToWindow }?.let {
+            it.close()
+            return true
+        }
+        return super.onBack()
+    }
+
+    override fun destroy() {
+        main.removeCallbacks(settleBackdrop)
+        super.destroy()
+    }
+
+    private companion object {
+        const val BAR_TOP = 26
+        const val GRID_TOP = 84
     }
 }
