@@ -6,7 +6,6 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
@@ -24,16 +23,14 @@ import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.rawkoon.toItem
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
-import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Header
-import cloud.rawkoon.tv.ui.PillButton
+import cloud.rawkoon.tv.ui.MessagePanel
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.SearchField
 import cloud.rawkoon.tv.ui.Section
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.dp
-import cloud.rawkoon.tv.ui.label
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -52,11 +49,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private val text: RawkoonText = ResourceText(context)
     private val header = Header(context, app.images)
     private val rows = Rows(context)
-    private val message = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        visibility = View.GONE
-    }
+    private val message = MessagePanel(context)
     private val search = SearchField(context, hint = string(R.string.discover_search_hint), onChanged = ::onTyped, onSearch = ::onSearchAction)
     private var api: RawkoonDiscover? = null
 
@@ -77,9 +70,6 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     private var browse = emptyList<Section>()
     private var searching = false
 
-    /** The button of the notice (link the account, retry), while one is shown. */
-    private var noticeButton: PillButton? = null
-
     init {
         content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = context.dp(Tokens.CONTENT_START)
@@ -92,7 +82,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
             topMargin = context.dp(SEARCH_TOP)
             marginEnd = context.dp(SEARCH_END)
         })
-        content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        content.addView(message, MessagePanel.params())
         // The rows are clipped to their area, so rows gliding up never pass over the header
         content.clipChildren = true
         load()
@@ -163,7 +153,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     /** Puts the first browse rows on screen, in place of the notice if there was one. */
     private fun showFirst(sections: List<Section>) {
         val refocus = message.hasFocus()
-        message.visibility = View.GONE
+        message.hide()
         search.visibility = View.VISIBLE
         browse = sections
         if (!searching) place(sections)
@@ -199,17 +189,8 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         browse = emptyList()
         rows.column.removeAllViews()
         search.visibility = View.GONE
-        message.removeAllViews()
-        message.addView(label(context, 20f, Tokens.textPrimary, Fonts.title(context)).apply { text = title })
-        hint?.let { message.addView(label(context, 15f, Tokens.textSoft, Fonts.medium(context)).apply { text = it }, spaced(8)) }
-        val button = PillButton(context, buttonLabel, primary = true).apply { setOnClickListener { action() } }
-        message.addView(button, spaced(16))
-        noticeButton = button
-        message.visibility = View.VISIBLE
-        button.requestFocus()
+        message.showNotice(title, hint, buttonLabel to action)
     }
-
-    private fun spaced(top: Int) = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(top) }
 
     private fun link() = activity.push(RawkoonLinkScreen(activity, session.profile.id))
 
@@ -244,12 +225,10 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
                 val found = api.search(query)
                 val results = section("search", string(R.string.discover_results, query), found)
                 if (results == null) {
-                    message.removeAllViews()
-                    message.addView(label(context, 16f, Tokens.textSoft, Fonts.medium(context)).apply { text = string(R.string.discover_no_results, query) })
-                    message.visibility = View.VISIBLE
+                    message.show(string(R.string.discover_no_results, query))
                     rows.column.removeAllViews()
                 } else {
-                    message.visibility = View.GONE
+                    message.hide()
                     place(listOf(results))
                     rows.sections().first().row.restoreFocus()
                     firstItem()?.let(header::show)
@@ -268,7 +247,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         searchJob?.cancel()
         search.setText("")
         searching = false
-        message.visibility = View.GONE
+        message.hide()
         place(browse)
         firstItem()?.let(header::show)
     }
@@ -311,7 +290,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     }
 
     override fun focusDefault() {
-        val notice = noticeButton?.takeIf { it.parent === message && message.visibility == View.VISIBLE }
+        val notice = message.button?.takeIf { message.visibility == View.VISIBLE }
         (notice ?: search).requestFocus()
     }
 

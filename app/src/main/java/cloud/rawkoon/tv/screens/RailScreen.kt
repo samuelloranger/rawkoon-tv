@@ -11,7 +11,6 @@ import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.jellyfin.ImageUrls
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
-import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.Backdrop
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FlatView
@@ -19,6 +18,7 @@ import cloud.rawkoon.tv.ui.NavRail
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.fill
+import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.whileAttachedOnFocusChange
 
@@ -105,6 +105,10 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     /** True for the pages the rail itself opens (library, search, favorites, discover). */
     private val isRailPage: Boolean
         get() = this is LibraryScreen || this is SearchScreen || this is FavoritesScreen || this is DiscoverScreen
+
+    /** A message's button: "Try again" with a [retry], else "Back to profiles" (retrying can't help when the session ended). */
+    protected fun messageAction(retry: (() -> Unit)?): Pair<String, () -> Unit> =
+        if (retry != null) string(R.string.try_again) to retry else string(R.string.back_to_profiles) to { activity.popTo { it is ProfilesScreen } }
 
     protected fun comingSoon() = Toast.makeText(context, R.string.coming_soon, Toast.LENGTH_SHORT).show()
 

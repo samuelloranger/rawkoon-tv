@@ -31,7 +31,6 @@ import cloud.rawkoon.tv.ui.yearChip
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -83,27 +82,17 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
 
     private fun load() {
         loadJob?.cancel()
-        loadJob = scope.launch {
-            try {
-                // coroutineScope keeps a failing child here, to be caught below, instead of
-                // cancelling the screen's scope and reaching the uncaught handler
-                coroutineScope {
-                    val details = async { session.details(start.id) }
-                    val seasons = async { if (start.kind == MediaItem.Kind.SERIES) session.seasons(start.id) else emptyList() }
-                    val next = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.nextEpisode(start.id) }.getOrNull() else null }
-                    val similar = async { runCatching { session.similar(start.id) }.getOrDefault(emptyList()) }
-                    val d = details.await()
-                    showItem(d.item, d)
-                    actions.next = next.await()
-                    actions.bind(d.item)
-                    backdrop.show(d.item.backdropUrl?.let { "$it&maxWidth=1920" })
-                    addRows(d, seasons.await(), similar.await())
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
-            }
+        loadJob = launchLoading {
+            val details = async { session.details(start.id) }
+            val seasons = async { if (start.kind == MediaItem.Kind.SERIES) session.seasons(start.id) else emptyList() }
+            val next = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.nextEpisode(start.id) }.getOrNull() else null }
+            val similar = async { runCatching { session.similar(start.id) }.getOrDefault(emptyList()) }
+            val d = details.await()
+            showItem(d.item, d)
+            actions.next = next.await()
+            actions.bind(d.item)
+            backdrop.show(d.item.backdropUrl?.let { "$it&maxWidth=1920" })
+            addRows(d, seasons.await(), similar.await())
         }
     }
 

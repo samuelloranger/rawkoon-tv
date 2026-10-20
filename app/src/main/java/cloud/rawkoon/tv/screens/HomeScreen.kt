@@ -8,6 +8,7 @@ import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonHome
 import cloud.rawkoon.tv.rawkoon.RawkoonOutcome
@@ -18,6 +19,10 @@ import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.cardCaption
+import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,11 +30,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.jellyfin.sdk.api.client.exception.InvalidStatusException
-import java.io.File
-import java.time.Instant
-import java.time.LocalDate
-import java.util.Locale
 
 /**
  * A profile's home: the backdrop, the header for the focused item, and the rows under it, with the
@@ -83,11 +83,11 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 throw e
             } catch (e: Exception) {
                 rawkoon?.cancel()
-                val expired = e is InvalidStatusException && e.status == 401
+                val expired = e.isSessionEnded()
                 // With rows already on screen from the cache, a failed refresh stays silent
                 if (expired || !hasRows()) {
                     val text = string(if (expired) R.string.error_session else R.string.home_error)
-                    showMessage(text, if (expired) R.string.back_to_profiles to { activity.popTo { it is ProfilesScreen } } else R.string.try_again to ::load, takeFocus = true)
+                    showMessage(text, messageAction(if (expired) null else ::load), takeFocus = true)
                 }
             }
         }
@@ -133,7 +133,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Shows [list] as home's rows; an empty answer leaves the rows already there and only fills an empty page. */
     private fun showHome(list: List<HomeRow>) {
         if (list.isEmpty()) {
-            if (!hasRows()) showMessage(string(R.string.home_empty), R.string.try_again to ::load, takeFocus = true)
+            if (!hasRows()) showMessage(string(R.string.home_empty), messageAction(::load), takeFocus = true)
             return
         }
         shown = list

@@ -4,6 +4,7 @@ import android.content.Context
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Profile
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -12,6 +13,7 @@ import kotlinx.coroutines.delay
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.playStateApi
@@ -34,7 +36,6 @@ import org.jellyfin.sdk.model.api.request.GetNextUpRequest
 import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.jellyfin.sdk.model.api.request.GetSeasonsRequest
 import org.jellyfin.sdk.model.api.request.GetSimilarItemsRequest
-import java.util.UUID
 
 /** The SDK, set up once with this app's name and the device id Jellyfin already knows this TV by. */
 object JellyfinSdk {
@@ -199,3 +200,6 @@ class JellyfinSession(context: Context, val profile: Profile) {
     }
 }
 
+
+/** True when the server answered 401: the session ended, so retrying can't help. */
+fun Exception.isSessionEnded() = this is InvalidStatusException && status == 401

@@ -50,7 +50,6 @@ import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -132,29 +131,19 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         loadedWith = profile.rawkoonToken
         val api = profile.rawkoonDiscover(context) ?: return reconnect()
         loadJob?.cancel()
-        loadJob = scope.launch {
-            try {
-                coroutineScope {
-                    val modalCall = async { api.modal(isMovie, tmdbId) }
-                    // The page is still worth showing without knowing where the title stands
-                    val statusCall = async { optional { api.status(isMovie, tmdbId) } }
-                    val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
-                    modal = modalCall.await()
-                    showTitle()
-                    modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
-                    val status = statusCall.await()
-                    statusJob?.cancel()
-                    statusJob = scope.launch { applyStatus(status) }
-                    val cast = modal?.cast.orEmpty().map { Person(it.id.toString(), it.name, it.character, tmdbImage(it.photoUrl)) }
-                    addRows(cast, similarCall.await().map { it.toItem(text) })
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: RawkoonException.Unauthorized) {
-                reconnect()
-            } catch (e: Exception) {
-                Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
-            }
+        loadJob = launchLoading(onError = { e -> if (e is RawkoonException.Unauthorized) reconnect() else toastPageError() }) {
+            val modalCall = async { api.modal(isMovie, tmdbId) }
+            // The page is still worth showing without knowing where the title stands
+            val statusCall = async { optional { api.status(isMovie, tmdbId) } }
+            val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
+            modal = modalCall.await()
+            showTitle()
+            modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
+            val status = statusCall.await()
+            statusJob?.cancel()
+            statusJob = scope.launch { applyStatus(status) }
+            val cast = modal?.cast.orEmpty().map { Person(it.id.toString(), it.name, it.character, tmdbImage(it.photoUrl)) }
+            addRows(cast, similarCall.await().map { it.toItem(text) })
         }
     }
 

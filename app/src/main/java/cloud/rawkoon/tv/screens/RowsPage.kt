@@ -1,33 +1,28 @@
 package cloud.rawkoon.tv.screens
 
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.FindGroup
 import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FocusParking
-import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Header
-import cloud.rawkoon.tv.ui.PillButton
+import cloud.rawkoon.tv.ui.MessagePanel
 import cloud.rawkoon.tv.ui.RowItem
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
-import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
 import kotlinx.coroutines.CancellationException
-import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 
 /**
  * A rail page made of titled rows under a header, like home: home itself, search results and
@@ -43,14 +38,9 @@ abstract class RowsPage(
     /** The id of the view above the first row, when the page has one: Up from the first row goes to it. */
     private val aboveId: Int = View.NO_ID,
 ) : RailScreen(activity, session, active) {
-    private val main = Handler(Looper.getMainLooper())
     private val header = Header(context, app.images)
     protected val rows = Rows(context)
-    private val message = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        visibility = View.GONE
-    }
+    private val message = MessagePanel(context)
     private val parking = FocusParking(context)
     private var backdropUrl: String? = null
 
@@ -61,7 +51,6 @@ abstract class RowsPage(
         prefetchFrom?.let(::prefetchAround)
         prefetchFrom = null
     }
-    private var messageButton: PillButton? = null
 
     init {
         content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -71,7 +60,7 @@ abstract class RowsPage(
         content.addView(rows, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
             topMargin = context.dp(rowsTop)
         })
-        content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        content.addView(message, MessagePanel.params())
         content.addView(parking, FrameLayout.LayoutParams(1, 1))
         // The rows are clipped to their area, so rows gliding up never pass over the header
         content.clipChildren = true
@@ -85,7 +74,7 @@ abstract class RowsPage(
 
     /** Where a Down from above lands: the first row's card, or the message's button when there is no row. */
     protected fun firstFocus(): View? =
-        rows.sections().firstOrNull()?.row?.remembered() ?: messageButton?.takeIf { it.isShown }
+        rows.sections().firstOrNull()?.row?.remembered() ?: message.button?.takeIf { it.isShown }
 
     /**
      * Shows [list], keeping every row whose cards haven't changed. Focus comes back to the same
@@ -132,8 +121,8 @@ abstract class RowsPage(
         if (!hasRows() && backdropUrl == null) return
         header.visibility = View.INVISIBLE
         backdropUrl = null
-        main.removeCallbacks(settleBackdrop)
-        main.post(settleBackdrop)
+        mainHandler.removeCallbacks(settleBackdrop)
+        mainHandler.post(settleBackdrop)
         if (!hasRows()) return
         parking.around(rows.hasFocus(), rebuild = {
             rows.column.removeAllViews()
@@ -149,29 +138,14 @@ abstract class RowsPage(
         if (view.findFocus() == null) rail.activeItem()?.requestFocus()
     }
 
-    protected fun hideMessage() {
-        message.visibility = View.GONE
-        messageButton = null
-    }
+    protected fun hideMessage() = message.hide()
 
     /**
-     * A centered message; with an [action] (the label's string id and what it does) it carries a
+     * A centered message; with an [action] (the button's label and what it does) it carries a
      * button, which takes focus only if [takeFocus].
      */
-    protected fun showMessage(text: String, action: Pair<Int, () -> Unit>? = null, takeFocus: Boolean = false) {
-        message.removeAllViews()
-        messageButton = null
-        message.addView(label(context, MESSAGE_TEXT_SP, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
-        if (action != null) {
-            val button = PillButton(context, string(action.first), primary = true)
-            button.setOnClickListener { action.second() }
-            button.nextFocusUpId = aboveId
-            message.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(MESSAGE_GAP) })
-            messageButton = button
-            if (takeFocus) button.requestFocus()
-        }
-        message.visibility = View.VISIBLE
-    }
+    protected fun showMessage(text: String, action: Pair<String, () -> Unit>? = null, takeFocus: Boolean = false) =
+        message.show(text, action, takeFocus, aboveId)
 
     /**
      * Reports a failed load: an ended session says so (retrying can't help), anything else offers
@@ -180,10 +154,10 @@ abstract class RowsPage(
      */
     protected fun fail(e: Exception, errorText: Int, retry: () -> Unit, takeFocus: Boolean, silentIfRows: Boolean = false) {
         if (e is CancellationException) throw e
-        val expired = e is InvalidStatusException && e.status == 401
+        val expired = e.isSessionEnded()
         if (!expired && silentIfRows && hasRows()) return
         clear()
-        showMessage(string(if (expired) R.string.error_session else errorText), retry.takeUnless { expired }?.let { R.string.try_again to it }, takeFocus)
+        showMessage(string(if (expired) R.string.error_session else errorText), if (expired) null else messageAction(retry), takeFocus)
     }
 
     /** One row per group in [found], in its order. */
@@ -212,8 +186,8 @@ abstract class RowsPage(
     private fun preview(item: MediaItem) {
         header.show(item)
         backdropUrl = item.backdropUrl?.let { "$it&maxWidth=1920" }
-        main.removeCallbacks(settleBackdrop)
-        main.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
+        mainHandler.removeCallbacks(settleBackdrop)
+        mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
     }
 
     protected fun onFocused(card: Card) {
@@ -235,13 +209,4 @@ abstract class RowsPage(
 
     override fun contentFocus(): View? = super.contentFocus() ?: firstFocus()
 
-    override fun destroy() {
-        main.removeCallbacks(settleBackdrop)
-        super.destroy()
-    }
-
-    private companion object {
-        const val MESSAGE_TEXT_SP = 16f
-        const val MESSAGE_GAP = 12
-    }
 }
