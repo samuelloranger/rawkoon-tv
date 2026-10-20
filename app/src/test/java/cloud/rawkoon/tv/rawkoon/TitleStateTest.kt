@@ -101,4 +101,17 @@ class TitleStateTest {
         assertNull(show.tmdb!!.badge)
         assertFalse(show.tmdb!!.inLibrary)
     }
+
+    @Test
+    fun `only the account's own pending or declined request can be withdrawn`() {
+        val pending = RequestEntry(1, "pending", null, mine = true)
+        assertEquals(pending, TitleState.withdrawable(TitleState.Pending, pending))
+        val denied = RequestEntry(1, "denied", null, mine = true)
+        assertEquals(denied, TitleState.withdrawable(TitleState.Refused(null), denied))
+        assertNull(TitleState.withdrawable(TitleState.Pending, pending.copy(mine = false)))
+        assertNull(TitleState.withdrawable(TitleState.Processing(false, null), RequestEntry(1, "approved", null, mine = true)))
+        // The library entry wins over the request, so the page shows no request to withdraw
+        assertNull(TitleState.withdrawable(TitleState.Available, pending))
+        assertNull(TitleState.withdrawable(TitleState.Pending, null))
+    }
 }

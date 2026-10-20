@@ -55,6 +55,12 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
         }
     }
 
+    /** Withdraws the account's own pending or declined request; one that is already gone counts as withdrawn. */
+    suspend fun withdraw(requestId: Int) {
+        val response = client.send("DELETE", "api/requests/$requestId", token = token)
+        if (response.code != 404) withContext(Dispatchers.Default) { response.okJson() }
+    }
+
     /** The Rawkoon user id of the token, to tell the account's own requests apart. */
     suspend fun userId(): String = client.bootstrap(token).userId
 

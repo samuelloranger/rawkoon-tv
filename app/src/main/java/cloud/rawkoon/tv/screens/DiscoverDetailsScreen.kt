@@ -28,6 +28,7 @@ import cloud.rawkoon.tv.rawkoon.tmdbLogo
 import cloud.rawkoon.tv.rawkoon.toItem
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
+import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Icon
@@ -66,12 +67,15 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private val block = TitleBlock(context, app.images) { alive }
     private val request = PillButton(context, string(R.string.rk_request), Icon.PLUS, primary = true, height = 40)
     private val open = PillButton(context, string(R.string.rk_open), Icon.PLAY, primary = true, height = 40)
+    private val withdraw = PillButton(context, string(R.string.rk_withdraw), Icon.XMARK, height = 40)
     private val state = label(context, 13f, Tokens.textSoft, Fonts.bold(context))
     private val actions = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
     }.noClip()
     private var titleState: TitleState = TitleState.Requestable
+    private var status: TitleStatus? = null
+    private var dialog: ChoiceDialog? = null
     private var inLibrary: MediaItem? = null
     private var modal: TitleModal? = null
     private var busy = false
@@ -92,12 +96,14 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         page.column.addView(block, TitleBlock.params(context))
         showTitle()
         request.setOnClickListener { onRequest() }
+        withdraw.setOnClickListener { onWithdraw() }
         open.setOnClickListener { inLibrary?.let { activity.push(DetailsScreen(activity, session, it)) } }
         load()
     }
 
     private fun buildBlock() {
         actions.addView(request)
+        actions.addView(withdraw, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
         actions.addView(open)
         actions.addView(state, LinearLayout.LayoutParams(context.dp(STATE_W), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
         block.setActions(actions)
@@ -166,6 +172,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
 
     /** Binds what Rawkoon knows of the title, then looks for its Jellyfin item when the library can serve it. */
     private suspend fun applyStatus(status: TitleStatus?) {
+        this.status = status
         titleState = TitleState.of(status, !isMovie)
         if (!titleState.inLibrary) inLibrary = null
         bindActions()
@@ -179,10 +186,13 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
      * Jellyfin's page, when there is one, replaces it. A refusal's reason shows beside it.
      */
     private fun bindActions() {
-        val hadFocus = request.hasFocus() || open.hasFocus()
+        val hadFocus = request.hasFocus() || open.hasFocus() || withdraw.hasFocus()
         val opens = inLibrary != null
         open.visibility = if (opens) View.VISIBLE else View.GONE
         request.visibility = if (opens) View.GONE else View.VISIBLE
+        val own = TitleState.withdrawable(titleState, status?.request)
+        withdraw.visibility = if (!opens && own != null) View.VISIBLE else View.GONE
+        withdraw.label.text = string(if (titleState is TitleState.Refused) R.string.rk_clear else R.string.rk_withdraw)
         request.label.text = when {
             busy -> string(R.string.rk_requesting)
             titleState.canRequest -> string(R.string.rk_request)
@@ -227,6 +237,43 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         }
     }
 
+    /** Asks first: a remote has no undo. Withdrawing a declined request clears it, and the title can be asked for again. */
+    private fun onWithdraw() {
+        if (busy) return
+        val own = TitleState.withdrawable(titleState, status?.request) ?: return
+        val refused = titleState is TitleState.Refused
+        dialog = ChoiceDialog(
+            context,
+            string(if (refused) R.string.rk_clear_confirm else R.string.rk_withdraw_confirm),
+            listOf(
+                string(if (refused) R.string.rk_clear else R.string.rk_withdraw) to { withdraw(own.id) },
+                string(R.string.cancel) to {},
+            ),
+        ).also { it.open(view) }
+    }
+
+    private fun withdraw(requestId: Int) {
+        val api = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return reconnect()
+        busy = true
+        bindActions()
+        scope.launch {
+            try {
+                api.withdraw(requestId)
+                Toast.makeText(context, R.string.rk_withdrawn, Toast.LENGTH_SHORT).show()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RawkoonException.Unauthorized) {
+                busy = false
+                bindActions()
+                return@launch reconnect()
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
+            }
+            busy = false
+            refreshStatus()
+        }
+    }
+
     private fun refreshStatus() {
         val api: RawkoonDiscover = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return
         statusJob?.cancel()
@@ -263,6 +310,14 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
 
     override fun focusDefault() {
         (if (open.visibility == View.VISIBLE) open else request).requestFocus()
+    }
+
+    override fun onBack(): Boolean {
+        dialog?.takeIf { it.isAttachedToWindow }?.let {
+            it.close()
+            return true
+        }
+        return super.onBack()
     }
 
     /** Back from linking the account: load again with the new session. */

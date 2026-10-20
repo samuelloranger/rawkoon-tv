@@ -42,4 +42,9 @@
     <string name="rk_already_requested">Déjà demandé</string>
     <string name="rk_already_in_library">Déjà dans la bibliothèque</string>
     <string name="rk_refused_reason">Raison : %1$s</string>
+    <string name="rk_withdraw">Retirer la demande</string>
+    <string name="rk_clear">Effacer la demande</string>
+    <string name="rk_withdraw_confirm">Retirer votre demande ?</string>
+    <string name="rk_clear_confirm">Effacer cette demande refusée ? Vous pourrez redemander le titre.</string>
+    <string name="rk_withdrawn">Demande retirée</string>
 </resources>

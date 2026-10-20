@@ -58,6 +58,13 @@ sealed interface TitleState {
             }
         }
 
+        /**
+         * The account's own request, when the page shows it as pending or declined: that one can be
+         * withdrawn. A library entry that wins over the request hides it.
+         */
+        fun withdrawable(state: TitleState, request: RequestEntry?): RequestEntry? =
+            request?.takeIf { it.mine && (state == Pending || state is Refused) }
+
         private fun percent(library: LibraryEntry, isShow: Boolean): Int? {
             val total = library.episodeCount ?: 0
             return if (isShow && total > 0) (100 * (library.downloadedEpisodeCount ?: 0) / total).coerceIn(0, 99) else null
