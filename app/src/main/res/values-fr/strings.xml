@@ -169,4 +169,27 @@
     <string name="hdr_auto">Auto (ce que ta télé indique)</string>
     <string name="hdr_always">Toujours autoriser</string>
     <string name="hdr_never">Ne jamais autoriser</string>
+
+    <!-- Home -->
+    <string name="settings_home">Accueil</string>
+    <string name="setting_home_rows">Rangées de l\'accueil</string>
+    <string name="setting_home_row_limit">Éléments par rangée</string>
+    <string name="setting_next_up_cutoff">Prochains épisodes : ignorer les séries non regardées depuis</string>
+    <string name="days">%1$d jours</string>
+    <string name="setting_next_up_rewatching">Revisionnement dans Prochains épisodes</string>
+    <string name="setting_continue_open">Continuer à regarder : OK</string>
+    <string name="continue_open_page">Ouvre la page du titre</string>
+    <string name="continue_open_play">Lance la lecture tout de suite</string>
+    <string name="setting_clock">Horloge</string>
+    <string name="clock_shown">Affichée</string>
+    <string name="clock_hidden">Masquée</string>
+    <string name="home_rows_hint">Appuie sur OK sur une rangée pour la déplacer ou la masquer.</string>
+    <string name="home_rows_empty">Ouvre l\'accueil une fois et ses rangées seront listées ici.</string>
+    <string name="home_row_up">Monter</string>
+    <string name="home_row_down">Descendre</string>
+    <string name="home_row_show">Afficher</string>
+    <string name="home_row_hide">Masquer</string>
+    <string name="home_row_shown">Affichée</string>
+    <string name="home_row_hidden">Masquée</string>
+    <string name="home_all_hidden">Toutes les rangées de l\'accueil sont masquées. Réaffiches-en dans les réglages, sous Rangées de l\'accueil.</string>
 </resources>
