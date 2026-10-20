@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.screens
 
 import android.os.SystemClock
+import android.util.LruCache
 import android.view.View
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
@@ -15,6 +16,7 @@ import cloud.rawkoon.tv.rawkoon.RawkoonOutcome
 import cloud.rawkoon.tv.rawkoon.ResourceText
 import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
+import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Tokens
@@ -27,6 +29,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -47,6 +50,13 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private val opener = TitleOpener(this)
     private val text = ResourceText(context)
     private var loadJob: Job? = null
+    private var backdropJob: Job? = null
+
+    /**
+     * Backdrops looked up for TMDB cards focused before, by item id; "" for a title with none or
+     * whose lookup failed. Rawkoon's request list carries no backdrop, only a title's own page does.
+     */
+    private val backdrops = LruCache<String, String>(BACKDROP_CACHE)
 
     /** When the Rawkoon rows last loaded for real ([SystemClock.elapsedRealtime]), 0 before the first time. */
     private var rawkoonLoadedAt = 0L
@@ -148,6 +158,34 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             Card(context, item, landscape, app.images, ::onFocused, { openItem(it.item) })
         }
 
+    /** A TMDB card without a backdrop (a request) looks its title's up once focus rests, so it doesn't cost a call per card. */
+    override fun onFocused(card: Card) {
+        super.onFocused(card)
+        backdropJob?.cancel()
+        val item = card.item
+        val tmdbId = item.tmdb?.id ?: return
+        if (item.backdropUrl != null) return
+        backdrops.get(item.id)?.let { return useBackdrop(it.ifEmpty { null }, now = false) }
+        val api = profile().rawkoonDiscover(context) ?: return
+        backdropJob = scope.launch {
+            delay(Tokens.BACKDROP_SETTLE_MS)
+            val url = try {
+                api.modal(item.kind != MediaItem.Kind.SERIES, tmdbId).backdropUrl.let(::tmdbBackdrop).orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ""
+            }
+            backdrops.put(item.id, url)
+            useBackdrop(url.ifEmpty { null }, now = true)
+        }
+    }
+
+    override fun destroy() {
+        backdropJob?.cancel()
+        super.destroy()
+    }
+
     /** Home keeps the header where it was when rows change under the rail. */
     override val previewsFirstItem get() = false
 
@@ -179,5 +217,6 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
         /** How long loaded Rawkoon rows are reused before a refresh asks again. */
         const val RAWKOON_FRESH_MS = 60_000L
+        const val BACKDROP_CACHE = 100
     }
 }
