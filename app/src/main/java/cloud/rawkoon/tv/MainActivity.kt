@@ -38,10 +38,11 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         root = FrameLayout(this)
         setContentView(root)
-        // "Who's watching?" on every launch
-        push(ProfilesScreen(this))
         // A recreation (language change) keeps the intent: only a real launch opens its card
-        if (savedInstanceState == null) openLink(LauncherLink.from(intent))
+        val link = if (savedInstanceState == null) LauncherLink.from(intent) else null
+        // "Who's watching?" on every launch; a plain launch (no card, not a recreation) may skip it
+        push(ProfilesScreen(this, autoOpen = savedInstanceState == null && link == null))
+        openLink(link)
     }
 
     /** A launcher card tapped while the app runs; any other intent leaves the screens as they are. */
