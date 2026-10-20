@@ -16,18 +16,20 @@ import kotlinx.coroutines.launch
  */
 class FavoritesScreen(activity: MainActivity, session: JellyfinSession) :
     RowsPage(activity, session, Destination.FAVORITES, headerTop = 26, rowsTop = Tokens.ROWS_TOP - 6) {
+    // Declared before init: a property set after load() starts would reset the running job to null
+    private var loading: Job? = null
+
     init {
         load()
     }
 
-    private var loading: Job? = null
-
     private fun load() {
-        hideMessage()
         loading?.cancel()
         loading = scope.launch {
             try {
                 val list = session.favorites { groupTitle(it) }
+                // The message only goes once there is something to replace it, so focus on its button stays put
+                hideMessage()
                 if (list.isEmpty()) {
                     clear()
                     showMessage(string(R.string.favorites_empty))

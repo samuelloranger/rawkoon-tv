@@ -35,20 +35,19 @@ class SearchScreen(activity: MainActivity, session: JellyfinSession) :
     private val field = EditText(context).apply {
         id = View.generateViewId()
         hint = string(R.string.search_field_hint)
-        inputType = InputType.TYPE_CLASS_TEXT
+        // No suggestions: autocorrect underlines and a suggestion strip get in the way on a TV
+        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         imeOptions = EditorInfo.IME_ACTION_SEARCH
         textSize = 16f
         typeface = Fonts.medium(context)
         setTextColor(Tokens.textPrimary)
         setHintTextColor(Tokens.textMuted)
         isSingleLine = true
-        background = rounded(Tokens.surfaceHigh, context.dpf(10f))
+        val idle = rounded(Tokens.surfaceHigh, context.dpf(10f))
+        val focusedLook = rounded(Tokens.surfaceFocused, context.dpf(10f)).apply { setStroke(context.dp(2), Tokens.ring) }
+        background = idle
         setPadding(context.dp(16), 0, context.dp(16), 0)
-        setOnFocusChangeListener { v, focused ->
-            v.background = rounded(if (focused) Tokens.surfaceFocused else Tokens.surfaceHigh, context.dpf(10f)).apply {
-                if (focused) setStroke(context.dp(2), Tokens.ring)
-            }
-        }
+        setOnFocusChangeListener { v, focused -> v.background = if (focused) focusedLook else idle }
     }
     private var searching: Job? = null
 
@@ -66,10 +65,16 @@ class SearchScreen(activity: MainActivity, session: JellyfinSession) :
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable) = onTyped(s)
         })
-        // Search on the keyboard, or Down, goes to the results
+        // Search on the keyboard searches now (no debounce) and goes to the results; Down goes there too
         field.setOnEditorActionListener { _, _, _ ->
             context.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(field.windowToken, 0)
-            firstFocus()?.requestFocus()
+            val term = Find.term(field.text)
+            if (term != null && term != shownTerm) {
+                searching?.cancel()
+                searching = scope.launch { runSearch(term, focusResults = true) }
+            } else {
+                firstFocus()?.requestFocus()
+            }
             true
         }
         field.setOnKeyListener { _, keyCode, event ->
@@ -82,20 +87,21 @@ class SearchScreen(activity: MainActivity, session: JellyfinSession) :
     private fun onTyped(typed: CharSequence) {
         val term = Find.term(typed)
         searching?.cancel()
-        if (term == shownTerm) return
+        // Too short first: after a failed search shownTerm is still null, and the error must give way to the hint
         if (term == null) {
             shownTerm = null
             clear()
             showMessage(string(R.string.search_hint))
             return
         }
+        if (term == shownTerm) return
         searching = scope.launch {
             delay(Find.DEBOUNCE_MS)
             runSearch(term)
         }
     }
 
-    private suspend fun runSearch(term: String) {
+    private suspend fun runSearch(term: String, focusResults: Boolean = false) {
         try {
             val list = session.search(term) { groupTitle(it) }
             shownTerm = term
@@ -104,9 +110,15 @@ class SearchScreen(activity: MainActivity, session: JellyfinSession) :
                 showMessage(string(R.string.search_empty, term))
             } else {
                 show(list)
+                if (focusResults) firstFocus()?.requestFocus()
             }
         } catch (e: Exception) {
-            fail(e, R.string.search_error, retry = { searching = scope.launch { runSearch(term) } }, takeFocus = false)
+            // Retrying replaces whatever search is running, so an older term can never land last
+            fail(e, R.string.search_error, retry = {
+                searching?.cancel()
+                shownTerm = null
+                searching = scope.launch { runSearch(term) }
+            }, takeFocus = false)
         }
     }
 

@@ -56,7 +56,8 @@ private suspend fun JellyfinSession.fetch(term: String?, favorite: Boolean): Map
                     searchTerm = term,
                     includeItemTypes = listOf(group.kind),
                     recursive = true,
-                    limit = RESULT_LIMIT,
+                    // Search shows top hits; favorites is a page to browse, so it shows them all
+                    limit = if (favorite) null else RESULT_LIMIT,
                     fields = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO),
                     filters = if (favorite) listOf(ItemFilter.IS_FAVORITE) else null,
                     // A search keeps Jellyfin's relevance order
