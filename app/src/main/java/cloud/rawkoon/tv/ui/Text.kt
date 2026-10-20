@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.ui
 
 import android.content.Context
 import android.graphics.LinearGradient
+import android.graphics.Rect
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.text.TextUtils
@@ -23,6 +24,9 @@ object Fonts {
     fun medium(context: Context) = get(context, R.font.hanken_medium)
 
     fun bold(context: Context) = get(context, R.font.hanken_semibold)
+
+    /** The weight of the brand name in the app banner. */
+    fun heavy(context: Context) = get(context, R.font.hanken_bold)
 
     fun icons(context: Context) = get(context, R.font.icons)
 }
@@ -76,7 +80,11 @@ object Icon {
     const val SKIP = "\uf04e"
 }
 
-/** Text filled with a top-to-bottom gradient, like the "TV" of the brand. */
+/**
+ * Text filled with a top-to-bottom gradient, like the "TV" of the brand. The gradient spans the
+ * capitals, from their top to the baseline, so [top] and [bottom] are the colours the letters
+ * actually start and end with.
+ */
 class GradientLabel(context: Context, private val top: Int, private val bottom: Int) : TextView(context) {
     init {
         includeFontPadding = false
@@ -85,8 +93,12 @@ class GradientLabel(context: Context, private val top: Int, private val bottom: 
         setTextColor(0xFFFFFFFF.toInt())
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        paint.shader = LinearGradient(0f, 0f, 0f, h.toFloat(), top, bottom, Shader.TileMode.CLAMP)
+    private val caps = Rect()
+
+    override fun onLayout(changed: Boolean, left: Int, t: Int, right: Int, b: Int) {
+        super.onLayout(changed, left, t, right, b)
+        paint.getTextBounds("T", 0, 1, caps)
+        val y = baseline.toFloat()
+        paint.shader = LinearGradient(0f, y + caps.top, 0f, y, top, bottom, Shader.TileMode.CLAMP)
     }
 }

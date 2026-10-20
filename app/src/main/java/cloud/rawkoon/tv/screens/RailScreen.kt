@@ -38,7 +38,8 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     protected val rail = NavRail(
         context,
         session.profile.name,
-        session.profile.avatarTag?.let { ImageUrls(session.profile.jellyfinUrl).user(session.profile.jellyfinUserId, it) },
+        // Read from the store each time: the picture can arrive after the page was built
+        { (app.profiles.get(session.profile.id) ?: session.profile).let { p -> p.avatarTag?.let { ImageUrls(p.jellyfinUrl).user(p.jellyfinUserId, it) } } },
         app.images,
         active,
         ::navigate,
@@ -102,6 +103,11 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         if (retry != null) string(R.string.try_again) to retry else string(R.string.back_to_profiles) to { activity.popTo { it is ProfilesScreen } }
 
     protected fun comingSoon() = Toast.makeText(context, R.string.coming_soon, Toast.LENGTH_SHORT).show()
+
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        if (!first) rail.refreshAvatar()
+    }
 
     /** Back from the rail returns to the page; from the page it goes back a screen. */
     override fun onBack(): Boolean {
