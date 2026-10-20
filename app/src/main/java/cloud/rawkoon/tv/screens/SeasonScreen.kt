@@ -7,14 +7,12 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.text.format.DateFormat
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
@@ -22,26 +20,24 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
-import cloud.rawkoon.tv.ui.FocusParking
+import cloud.rawkoon.tv.ui.EntryRow
 import cloud.rawkoon.tv.ui.FlatView
 import cloud.rawkoon.tv.ui.FocusMotion
+import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.FocusRow
 import cloud.rawkoon.tv.ui.Focusable
 import cloud.rawkoon.tv.ui.Fonts
-import cloud.rawkoon.tv.ui.LogoView
+import cloud.rawkoon.tv.ui.TitleLogo
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.chipRow
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.dpf
-import cloud.rawkoon.tv.ui.fill
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
-import kotlinx.coroutines.CancellationException
+import java.util.Date
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import java.util.Date
 
 /**
  * A show's seasons and episodes: tabs for the seasons, the focused episode described at the top,
@@ -56,16 +52,11 @@ class SeasonScreen(
     private val startEpisode: String?,
 ) : RailScreen(activity, session, Destination.SHOWS) {
     private val tabs = TabsRow(context)
-    private val logo = LogoView(context)
-    // Long names shrink and wrap instead of being cut
-    private val showName = label(context, 26f, Tokens.textPrimary, Fonts.title(context), lines = 2).apply {
-        gravity = Gravity.BOTTOM
-        setAutoSizeTextTypeUniformWithConfiguration(16, 26, 2, TypedValue.COMPLEX_UNIT_SP)
-    }
+    private val showName = TitleLogo(context, app.images, context.dp(240), context.dp(44), 26f, 16) { alive }
     private val number = label(context, 17f, Tokens.accent, Fonts.title(context))
     private val episodeTitle = label(context, 26f, Tokens.textPrimary, Fonts.title(context))
     private val chips = FrameLayout(context)
-    private val overview = label(context, 14f, 0xE6ECE3DB.toInt(), Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
+    private val overview = label(context, 14f, Tokens.textBody, Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
     private val episodes = FocusRow(context)
     private val actions = ActionBar(this)
     private val parking = FocusParking(context)
@@ -82,10 +73,7 @@ class SeasonScreen(
     init {
         val start = Tokens.CONTENT_START
         content.addView(tabs, at(start - Tokens.RING_INSET, 18, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        val box = FrameLayout(context)
-        box.addView(logo, fill())
-        box.addView(showName, fill())
-        content.addView(box, at(start, 58, context.dp(520), context.dp(48)))
+        content.addView(showName, at(start, 58, context.dp(520), context.dp(48)))
         val titleRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.BOTTOM
@@ -109,42 +97,25 @@ class SeasonScreen(
     }
 
     private fun load() {
-        scope.launch {
-            try {
-                // coroutineScope keeps a failing child here, to be caught below, instead of
-                // cancelling the screen's scope and reaching the uncaught handler
-                coroutineScope {
-                    val details = async { session.details(seriesId) }
-                    seasons = session.seasons(seriesId)
-                    // A tab only switches the season if focus stays on it; leaving it cancels the switch
-                    tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab) }) { season, focused ->
-                        mainHandler.removeCallbacks(settleTab)
-                        if (focused) {
-                            // Moving along the tabs only switches once focus rests on one
-                            pendingTab = season
-                            mainHandler.postDelayed(settleTab, TAB_SETTLE_MS)
-                        } else {
-                            select(season, null, focus = true)
-                        }
-                    }
-                    val first = seasons.firstOrNull { it.id == startSeason } ?: seasons.firstOrNull()
-                    if (first != null) select(first, startEpisode, focus = true)
-                    val show = details.await().item
-                    backdrop.show(show.backdropUrl?.let { "$it&maxWidth=1920" })
-                    val url = show.logoUrl
-                    if (url == null) {
-                        showName.text = show.title
-                    } else {
-                        val w = context.dp(240)
-                        val h = context.dp(44)
-                        app.images.load("$url&maxWidth=$w", w, h, 0f, contain = true, isCurrent = { alive }) { logo.bitmap = it }
-                    }
+        launchLoading {
+            val details = async { session.details(seriesId) }
+            seasons = session.seasons(seriesId)
+            // A tab only switches the season if focus stays on it; leaving it cancels the switch
+            tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab) }) { season, focused ->
+                mainHandler.removeCallbacks(settleTab)
+                if (focused) {
+                    // Moving along the tabs only switches once focus rests on one
+                    pendingTab = season
+                    mainHandler.postDelayed(settleTab, TAB_SETTLE_MS)
+                } else {
+                    select(season, null, focus = true)
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
             }
+            val first = seasons.firstOrNull { it.id == startSeason } ?: seasons.firstOrNull()
+            if (first != null) select(first, startEpisode, focus = true)
+            val show = details.await().item
+            backdrop.show(backdropRequest(show.backdropUrl))
+            showName.bind(show.logoUrl, show.title)
         }
     }
 
@@ -157,7 +128,7 @@ class SeasonScreen(
         }
         shownSeason = season.id
         loadJob?.cancel()
-        loadJob = scope.launch {
+        loadJob = launchLoading {
             try {
                 val list = session.episodes(seriesId, season.id)
                 val refocus = focus && episodes.hasFocus()
@@ -169,16 +140,12 @@ class SeasonScreen(
                         Card(context, e, true, app.images, { showEpisode(it.item) }, { describePending(); actions.primary.performClick() }, caption = name to e.runtimeMinutes?.let { MediaItem.duration(it) })
                     },
                 )
-                val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull() ?: return@launch
+                val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull() ?: return@launchLoading
                 episodes.remember(target.id)
                 showEpisode(target, settle = false)
                 if (focus) episodes.restoreFocus()
                 // Glide to the remembered card once the row is laid out
                 episodes.post { episodes.remembered()?.let { episodes.reveal(it) } }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
             } finally {
                 parking.isFocusable = false
             }
@@ -243,7 +210,7 @@ class SeasonScreen(
 }
 
 /** The season tabs. Coming from below, focus lands on the selected one. */
-class TabsRow(context: Context) : LinearLayout(context) {
+class TabsRow(context: Context) : EntryRow(context) {
     private val tabs = mutableListOf<Tab>()
 
     init {
@@ -270,14 +237,7 @@ class TabsRow(context: Context) : LinearLayout(context) {
 
     fun focusSelected() = (tabs.firstOrNull { it.current } ?: tabs.firstOrNull())?.requestFocus()
 
-    override fun addFocusables(views: ArrayList<View>, direction: Int, focusableMode: Int) {
-        val selected = tabs.firstOrNull { it.current }
-        if (!hasFocus() && selected != null && (direction == FOCUS_UP || direction == FOCUS_DOWN)) {
-            views.add(selected)
-            return
-        }
-        super.addFocusables(views, direction, focusableMode)
-    }
+    override fun entry(): View? = tabs.firstOrNull { it.current }
 }
 
 /** One season tab: its name, an apricot underline when it is the one shown, a ring when focused. */

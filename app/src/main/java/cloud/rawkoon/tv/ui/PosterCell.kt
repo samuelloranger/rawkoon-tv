@@ -3,8 +3,6 @@ package cloud.rawkoon.tv.ui
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.jellyfin.MediaItem
@@ -16,12 +14,14 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
  */
 @SuppressLint("ViewConstructor")
 class PosterCell(context: Context, private val images: Images) : Focusable(context) {
-    private val art = BitmapView(context)
-    private val frame = FrameLayout(context).noClip()
-    private val ring = FlatView(context)
+    private val posterW = context.dp(Tokens.POSTER_W)
+    private val posterH = context.dp(Tokens.POSTER_H)
+    private val radius = context.dpf(Tokens.CARD_RADIUS)
+    private val frame = PosterFrame(context, posterW, posterH, radius)
+    private val art = frame.art
+    private val ring = frame.ring
     private val badge = WatchedBadge(context)
-    private val title = label(context, 12.5f, Tokens.textPrimary, Fonts.bold(context))
-    private val subtitle = label(context, 11f, Tokens.textMuted, Fonts.medium(context))
+    private val caption = CaptionColumn(context)
     override val motion = FocusMotion(frame, ring, raise = false)
 
     /** The title shown, or null while its page loads. */
@@ -39,30 +39,15 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
     /** The title whose art is on its way, so rebinding it does not start a second load. */
     private var loadingId: String? = null
 
-    private val inset = context.dp(Tokens.RING_INSET)
-    private val posterW = context.dp(Tokens.POSTER_W)
-    private val posterH = context.dp(Tokens.POSTER_H)
-    private val radius = context.dpf(Tokens.CARD_RADIUS)
-
     init {
-        val w = posterW
-        val h = posterH
+        val inset = context.dp(Tokens.RING_INSET)
         layoutParams = RecyclerView.LayoutParams(context.dp(CELL_W), context.dp(CELL_H))
-        art.placeholder = rounded(Tokens.surfaceHigh, radius)
-        val inner = { FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) } }
-        frame.addView(art, inner())
         badge.visibility = View.GONE
-        frame.addView(badge, inner())
-        ring.background = ringDrawable(context, radius)
-        ring.alpha = 0f
-        frame.addView(ring, FrameLayout.LayoutParams(w + inset * 2, h + inset * 2))
-        addView(frame, LayoutParams(w + inset * 2, h + inset * 2))
-        val caption = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        caption.addView(title)
-        caption.addView(subtitle)
-        addView(caption, LayoutParams(w, context.dp(CAPTION_H)).apply {
+        frame.addOverlay(badge)
+        addView(frame, frame.frameParams())
+        addView(caption, LayoutParams(posterW, context.dp(Tokens.CAPTION_H)).apply {
             leftMargin = inset
-            topMargin = h + inset * 2
+            topMargin = frame.outerH
         })
         listenForFocus { onFocused(this) }
         setOnClickListener { item?.let(onOpen) }
@@ -78,8 +63,8 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         if (boundId != loadingId) loadingId = null
         if (!keepArt) art.bitmap = null
         contentDescription = item?.title
-        title.text = item?.title.orEmpty()
-        subtitle.text = item?.year?.toString().orEmpty()
+        caption.title.text = item?.title.orEmpty()
+        caption.subtitle.text = item?.year?.toString().orEmpty()
         badge.visibility = if (item?.played == true) View.VISIBLE else View.GONE
         if (!isFocused) {
             // A recycled view may still be shrinking back from its last title
@@ -102,11 +87,8 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         /** Art, the ring's room on both sides, and the gap to the next poster. */
         const val CELL_W = Tokens.POSTER_W + Tokens.RING_INSET * 2 + Tokens.POSTER_GAP
 
-        /** Room for the title and the year under the art. */
-        private const val CAPTION_H = 38
-
         /** The vertical gap between the caption and the next row. */
         private const val ROW_GAP = 10
-        const val CELL_H = Tokens.POSTER_H + Tokens.RING_INSET * 2 + CAPTION_H + ROW_GAP
+        const val CELL_H = Tokens.POSTER_H + Tokens.RING_INSET * 2 + Tokens.CAPTION_H + ROW_GAP
     }
 }

@@ -9,6 +9,7 @@ import cloud.rawkoon.tv.data.LegacyImport
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.ProfileStore
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.MediaWords
 import cloud.rawkoon.tv.update.UpdateCheck
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        MediaWords.source = resources
         profiles = ProfileStore(this)
         images = Images(this, Fetcher(this))
         LegacyImport.run(this, profiles)

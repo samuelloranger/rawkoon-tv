@@ -8,10 +8,10 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
+import cloud.rawkoon.tv.data.sha1Hex
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -69,7 +69,7 @@ class TrickplayLoader(private val context: Context, private val authorization: S
     }
 
     private fun decoder(url: String): BitmapRegionDecoder? {
-        val file = File(dir, sha1(url))
+        val file = File(dir, sha1Hex(url))
         if (file.isFile) {
             file.setLastModified(System.currentTimeMillis())
         } else {
@@ -106,6 +106,4 @@ class TrickplayLoader(private val context: Context, private val authorization: S
         if (workerLazy.isInitialized()) worker.shutdownNow()
         synchronized(lock) { decoders.evictAll() }
     }
-
-    private fun sha1(text: String) = MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 }

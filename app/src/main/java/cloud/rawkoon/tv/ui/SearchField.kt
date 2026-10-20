@@ -20,13 +20,15 @@ class SearchField(
     hint: String,
     onChanged: (CharSequence) -> Unit,
     onSearch: () -> Unit,
+    textSp: Float = TEXT_SP,
+    paddingDp: Int = PAD_H,
 ) : EditText(context) {
     init {
         this.hint = hint
         // No suggestions: autocorrect underlines and a suggestion strip get in the way on a TV
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         imeOptions = EditorInfo.IME_ACTION_SEARCH
-        textSize = TEXT_SP
+        textSize = textSp
         typeface = Fonts.medium(context)
         setTextColor(Tokens.textPrimary)
         setHintTextColor(Tokens.textMuted)
@@ -34,7 +36,7 @@ class SearchField(
         val idle = rounded(Tokens.surfaceHigh, context.dpf(RADIUS))
         val focusedLook = rounded(Tokens.surfaceFocused, context.dpf(RADIUS)).apply { setStroke(context.dp(RING_W), Tokens.ring) }
         background = idle
-        setPadding(context.dp(PAD_H), 0, context.dp(PAD_H), 0)
+        setPadding(context.dp(paddingDp), 0, context.dp(paddingDp), 0)
         setOnFocusChangeListener { v, focused -> v.background = if (focused) focusedLook else idle }
         addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -48,10 +50,13 @@ class SearchField(
         }
     }
 
-    private companion object {
+    companion object {
+        /** How long typing must pause before a search starts. */
+        const val DEBOUNCE_MS = 350L
+
         const val TEXT_SP = 16f
-        const val RADIUS = 10f
-        const val RING_W = 2
+        private const val RADIUS = 10f
+        private const val RING_W = 2
         const val PAD_H = 16
     }
 }

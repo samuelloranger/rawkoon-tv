@@ -1,7 +1,5 @@
 package cloud.rawkoon.tv.screens
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -17,16 +15,19 @@ import cloud.rawkoon.tv.jellyfin.LibraryQuery
 import cloud.rawkoon.tv.jellyfin.LibrarySort
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.PagedItems
+import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.jellyfin.libraryLetterIndex
 import cloud.rawkoon.tv.jellyfin.libraryPage
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.LetterColumn
+import cloud.rawkoon.tv.ui.MessagePanel
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.PosterCell
 import cloud.rawkoon.tv.ui.PosterGrid
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.label
@@ -36,7 +37,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 /**
@@ -53,18 +53,13 @@ class LibraryScreen(
     private val parentId: String? = null,
     private val collectionTitle: String? = null,
 ) : RailScreen(activity, session, kind) {
-    private val main = Handler(Looper.getMainLooper())
     private val paged = PagedItems()
     private val grid = PosterGrid(context, app.images, paged)
     private val letters = LetterColumn(context, ::jumpToLetter)
     private val count = label(context, 12f, Tokens.textMuted, Fonts.medium(context))
     private val sortButton = PillButton(context, "")
     private val filterButton = PillButton(context, "")
-    private val message = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        visibility = View.GONE
-    }
+    private val message = MessagePanel(context)
     private val bar = object : LinearLayout(context) {
         /** Down returns to the grid, Left past the first button to the rail; nothing else leaves the bar. */
         override fun focusSearch(focused: View?, direction: Int): View? {
@@ -123,7 +118,7 @@ class LibraryScreen(
             bottomMargin = context.dp(LETTERS_BOTTOM)
             marginEnd = context.dp(LETTERS_END)
         })
-        content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        content.addView(message, MessagePanel.params())
 
         grid.onFocused = ::showBackdropOf
         grid.onOpen = ::open
@@ -194,7 +189,7 @@ class LibraryScreen(
         jumping?.cancel()
         // A restarted grid is no longer at a letter
         if (jump == null) letters.active = null
-        message.visibility = View.GONE
+        message.hide()
         val gen = paged.begin()
         grid.reset()
         count.text = ""
@@ -217,7 +212,7 @@ class LibraryScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val expired = e is InvalidStatusException && e.status == 401
+                val expired = e.isSessionEnded()
                 showMessage(string(if (expired) R.string.error_session else R.string.library_error), retry = !expired)
             }
         }
@@ -270,24 +265,16 @@ class LibraryScreen(
     }
 
     private fun showMessage(text: String, retry: Boolean) {
-        message.removeAllViews()
-        message.addView(label(context, 16f, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
-        val button = PillButton(context, string(if (retry) R.string.try_again else R.string.back_to_profiles), primary = true)
-        button.setOnClickListener { if (retry) reload() else activity.popTo { it is ProfilesScreen } }
-        message.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(12) })
-        message.visibility = View.VISIBLE
-        if (focusWhenLoaded) {
-            focusWhenLoaded = false
-            button.requestFocus()
-        }
+        message.show(text, messageAction(if (retry) ({ reload() }) else null), takeFocus = focusWhenLoaded)
+        focusWhenLoaded = false
     }
 
     private fun showBackdropOf(position: Int) {
-        val url = paged[position]?.backdropUrl?.let { "$it&maxWidth=1920" }
+        val url = backdropRequest(paged[position]?.backdropUrl)
         if (url == backdropUrl) return
         backdropUrl = url
-        main.removeCallbacks(settleBackdrop)
-        main.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
+        mainHandler.removeCallbacks(settleBackdrop)
+        mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
     }
 
     /** A collection opens its own grid; a movie or show opens its page. */
@@ -370,6 +357,8 @@ class LibraryScreen(
     override fun contentFocus(): View? = grid.focusTarget()
 
     /** The first page may still be on its way: focus goes to the grid as soon as it has posters. */
+    override val isRailPage get() = true
+
     override fun focusDefault() {
         val target = grid.focusTarget()
         if (target != null) target.requestFocus() else focusWhenLoaded = true
@@ -384,7 +373,6 @@ class LibraryScreen(
     }
 
     override fun destroy() {
-        main.removeCallbacks(settleBackdrop)
         stopWaitingForLayout()
         super.destroy()
     }

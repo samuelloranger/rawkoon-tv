@@ -1,5 +1,7 @@
 package cloud.rawkoon.tv.jellyfin
 
+import cloud.rawkoon.tv.data.optFloatOrNull
+import cloud.rawkoon.tv.data.optIntOrNull
 import cloud.rawkoon.tv.data.optStringOrNull
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -91,36 +93,33 @@ data class MediaItem(
         .put("resumeMs", resumeMs).putOpt("tmdb", tmdb?.toJson())
 
     companion object {
-        fun duration(minutes: Int) = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} min" else "$minutes min"
+        fun duration(minutes: Int) = if (minutes >= 60) MediaWords.duration(minutes / 60, minutes % 60) else MediaWords.minutes(minutes)
 
         fun fromJson(json: JSONObject): MediaItem {
-            fun str(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getString(key)
-            fun int(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getInt(key)
-            fun float(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getDouble(key).toFloat()
             return MediaItem(
                 id = json.getString("id"),
                 kind = runCatching { Kind.valueOf(json.getString("kind")) }.getOrDefault(Kind.OTHER),
                 title = json.getString("title"),
-                seriesName = str("seriesName"),
-                episodeLabel = str("episodeLabel"),
+                seriesName = json.optStringOrNull("seriesName"),
+                episodeLabel = json.optStringOrNull("episodeLabel"),
                 overview = json.optString("overview"),
-                year = int("year"),
-                runtimeMinutes = int("runtimeMinutes"),
-                officialRating = str("officialRating"),
-                communityRating = float("communityRating"),
-                posterUrl = str("posterUrl"),
-                thumbUrl = str("thumbUrl"),
-                backdropUrl = str("backdropUrl"),
-                logoUrl = str("logoUrl"),
-                progress = float("progress"),
+                year = json.optIntOrNull("year"),
+                runtimeMinutes = json.optIntOrNull("runtimeMinutes"),
+                officialRating = json.optStringOrNull("officialRating"),
+                communityRating = json.optFloatOrNull("communityRating"),
+                posterUrl = json.optStringOrNull("posterUrl"),
+                thumbUrl = json.optStringOrNull("thumbUrl"),
+                backdropUrl = json.optStringOrNull("backdropUrl"),
+                logoUrl = json.optStringOrNull("logoUrl"),
+                progress = json.optFloatOrNull("progress"),
                 played = json.optBoolean("played"),
-                seriesId = str("seriesId"),
-                seasonId = str("seasonId"),
-                seasonNumber = int("seasonNumber"),
-                episodeNumber = int("episodeNumber"),
+                seriesId = json.optStringOrNull("seriesId"),
+                seasonId = json.optStringOrNull("seasonId"),
+                seasonNumber = json.optIntOrNull("seasonNumber"),
+                episodeNumber = json.optIntOrNull("episodeNumber"),
                 favorite = json.optBoolean("favorite"),
                 media = json.optJSONObject("media")?.let(MediaInfo::fromJson),
-                childCount = int("childCount"),
+                childCount = json.optIntOrNull("childCount"),
                 resumeMs = json.optLong("resumeMs"),
                 tmdb = json.optJSONObject("tmdb")?.let(TmdbRef::fromJson),
             )
@@ -229,8 +228,7 @@ data class MediaInfo(val resolution: String?, val codec: String?, val audio: Str
 
     companion object {
         fun fromJson(json: JSONObject): MediaInfo {
-            fun str(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getString(key)
-            return MediaInfo(str("resolution"), str("codec"), str("audio"))
+            return MediaInfo(json.optStringOrNull("resolution"), json.optStringOrNull("codec"), json.optStringOrNull("audio"))
         }
 
         fun from(streams: List<MediaStream>?): MediaInfo? {
@@ -243,7 +241,7 @@ data class MediaInfo(val resolution: String?, val codec: String?, val audio: Str
                         h >= 2000 -> "4K"
                         h >= 1000 -> "1080p"
                         h >= 700 -> "720p"
-                        else -> "SD"
+                        else -> MediaWords.standardDefinition()
                     }
                 },
                 codec = video?.codec?.let { codecName(it) },
@@ -282,11 +280,11 @@ data class MediaInfo(val resolution: String?, val codec: String?, val audio: Str
 
         private fun channels(stream: MediaStream): String? = when (val n = stream.channels) {
             null -> null
-            1 -> "Mono"
-            2 -> if (Locale.getDefault().language == "fr") "Stéréo" else "Stereo"
+            1 -> MediaWords.mono()
+            2 -> MediaWords.stereo()
             6 -> "5.1"
             8 -> "7.1"
-            else -> "$n ch"
+            else -> MediaWords.channels(n)
         }
     }
 }

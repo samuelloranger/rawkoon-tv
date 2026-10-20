@@ -1,11 +1,8 @@
 package cloud.rawkoon.tv.screens
 
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
@@ -29,31 +26,31 @@ import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.rawkoon.tmdbImage
 import cloud.rawkoon.tv.rawkoon.tmdbLogo
 import cloud.rawkoon.tv.rawkoon.toItem
+import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Icon
-import cloud.rawkoon.tv.ui.LogoView
 import cloud.rawkoon.tv.ui.PersonCard
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
+import cloud.rawkoon.tv.ui.TitleBlock
 import cloud.rawkoon.tv.ui.Tokens
-import cloud.rawkoon.tv.ui.TitleCard
 import cloud.rawkoon.tv.ui.badgeColors
-import cloud.rawkoon.tv.ui.chipRow
+import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.dp
-import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
+import cloud.rawkoon.tv.ui.kindChip
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
-import cloud.rawkoon.tv.ui.rounded
+import cloud.rawkoon.tv.ui.showCountChips
+import cloud.rawkoon.tv.ui.yearChip
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 /**
  * A TMDB title's page, laid out like a library title's: poster, logo or title, chips, genres and
@@ -66,11 +63,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private val tmdbId = checkNotNull(start.tmdb?.id)
     private val text: RawkoonText = ResourceText(context)
     private val page = Rows(context)
-    private val block = FrameLayout(context).noClip()
-    private val poster = ImageView(context)
-    private val logo = LogoView(context)
-    private val title = label(context, 34f, Tokens.textPrimary, Fonts.title(context), lines = 2).apply { gravity = Gravity.BOTTOM }
-    private val info = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val block = TitleBlock(context, app.images) { alive }
     private val request = PillButton(context, string(R.string.rk_request), Icon.PLUS, primary = true, height = 40)
     private val open = PillButton(context, string(R.string.rk_open), Icon.PLAY, primary = true, height = 40)
     private val state = label(context, 13f, Tokens.textSoft, Fonts.bold(context))
@@ -96,7 +89,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         page.anchor = context.dp(PAGE_ANCHOR)
         content.addView(page, fill())
         buildBlock()
-        page.column.addView(block, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(BLOCK_H)))
+        page.column.addView(block, TitleBlock.params(context))
         showTitle()
         request.setOnClickListener { onRequest() }
         open.setOnClickListener { inLibrary?.let { activity.push(DetailsScreen(activity, session, it)) } }
@@ -104,77 +97,30 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     }
 
     private fun buildBlock() {
-        poster.background = rounded(Tokens.surfaceHigh, context.dpf(8f))
-        block.addView(poster, FrameLayout.LayoutParams(context.dp(POSTER_W), context.dp(POSTER_H)).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START)
-            topMargin = context.dp(TOP)
-        })
-        val box = FrameLayout(context)
-        box.addView(logo, fill())
-        box.addView(title, fill())
-        info.addView(box, LinearLayout.LayoutParams(context.dp(LOGO_W), context.dp(LOGO_H)))
-        block.addView(info, FrameLayout.LayoutParams(context.dp(INFO_W), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START + POSTER_W + POSTER_GAP)
-            topMargin = context.dp(TOP)
-        })
         actions.addView(request)
         actions.addView(open)
         actions.addView(state, LinearLayout.LayoutParams(context.dp(STATE_W), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
-        block.addView(actions, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = context.dp(Tokens.CONTENT_START - Tokens.RING_INSET)
-            topMargin = context.dp(TOP + POSTER_H + ACTIONS_GAP)
-        })
-        title.setAutoSizeTextTypeUniformWithConfiguration(20, 34, 2, TypedValue.COMPLEX_UNIT_SP)
-        val w = context.dp(POSTER_W)
-        val h = context.dp(POSTER_H)
-        start.posterUrl?.let { url -> app.images.load(url, w, h, context.dpf(8f), isCurrent = { true }) { poster.setImageBitmap(it) } }
+        block.setActions(actions)
+        block.setPoster(start.posterUrl, fillWidth = false)
     }
 
     /** Fills the top block from the list entry, then again with the modal's genres, runtime and logo. */
     private fun showTitle() {
         val modal = modal
-        val logoUrl = tmdbLogo(modal?.logoUrl)
-        if (logoUrl == null) {
-            title.text = start.title
-        } else {
-            title.text = ""
-            val lw = context.dp(LOGO_W)
-            val lh = context.dp(LOGO_H)
-            app.images.load("$logoUrl&maxWidth=$lw", lw, lh, 0f, contain = true, isCurrent = { true }) { logo.bitmap = it }
-        }
-        while (info.childCount > 1) info.removeViewAt(1)
-        info.addView(chipRow(context, metaChips(modal)), wrapRow(10))
-        val tags = modal?.genres.orEmpty().take(3).map { Chip.Outline(it) }
-        if (tags.isNotEmpty()) info.addView(chipRow(context, tags, 12.5f), wrapRow(8))
-        info.addView(label(context, 14f, Tokens.textBody, Fonts.body(context), lines = 3).apply {
-            this.text = modal?.overview ?: start.overview
-            setLineSpacing(0f, 1.2f)
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(10) })
+        block.bind(
+            start.title, tmdbLogo(modal?.logoUrl), metaChips(modal), modal?.genres.orEmpty().take(3).map { Chip.Outline(it) },
+            modal?.overview ?: start.overview,
+        )
     }
 
-    private fun wrapRow(top: Int) = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(top) }
-
     private fun metaChips(modal: TitleModal?): List<Chip> = buildList {
-        add(Chip.Kind(string(if (isMovie) R.string.kind_movie else R.string.kind_show)))
+        add(kindChip(context, !isMovie))
         val year = modal?.year ?: start.year
-        if (year != null) {
-            val end = modal?.endYear
-            add(
-                Chip.Text(
-                    when {
-                        isMovie -> year.toString()
-                        modal?.continuing == true -> "$year –"
-                        end != null && end != year -> "$year – $end"
-                        else -> year.toString()
-                    },
-                ),
-            )
-        }
+        if (year != null) add(yearChip(year, !isMovie, modal?.continuing == true, modal?.endYear))
         if (isMovie) {
             modal?.runtimeMinutes?.let { add(Chip.Text(MediaItem.duration(it))) }
         } else {
-            modal?.seasons?.let { add(Chip.Text(context.resources.getQuantityString(R.plurals.seasons_count, it, it))) }
-            modal?.episodes?.let { add(Chip.Text(context.resources.getQuantityString(R.plurals.episodes_count, it, it))) }
+            addAll(showCountChips(context, modal?.seasons, modal?.episodes))
         }
         val score = modal?.voteAverage ?: start.communityRating?.toDouble()
         score?.let { add(Chip.Score("★ " + String.format(Locale.ROOT, "%.1f", it))) }
@@ -185,29 +131,19 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         loadedWith = profile.rawkoonToken
         val api = profile.rawkoonDiscover(context) ?: return reconnect()
         loadJob?.cancel()
-        loadJob = scope.launch {
-            try {
-                coroutineScope {
-                    val modalCall = async { api.modal(isMovie, tmdbId) }
-                    // The page is still worth showing without knowing where the title stands
-                    val statusCall = async { optional { api.status(isMovie, tmdbId) } }
-                    val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
-                    modal = modalCall.await()
-                    showTitle()
-                    modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
-                    val status = statusCall.await()
-                    statusJob?.cancel()
-                    statusJob = scope.launch { applyStatus(status) }
-                    val cast = modal?.cast.orEmpty().map { Person(it.id.toString(), it.name, it.character, tmdbImage(it.photoUrl)) }
-                    addRows(cast, similarCall.await().map { it.toItem(text) })
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: RawkoonException.Unauthorized) {
-                reconnect()
-            } catch (e: Exception) {
-                Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
-            }
+        loadJob = launchLoading(onError = { e -> if (e is RawkoonException.Unauthorized) reconnect() else toastPageError() }) {
+            val modalCall = async { api.modal(isMovie, tmdbId) }
+            // The page is still worth showing without knowing where the title stands
+            val statusCall = async { optional { api.status(isMovie, tmdbId) } }
+            val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
+            modal = modalCall.await()
+            showTitle()
+            modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
+            val status = statusCall.await()
+            statusJob?.cancel()
+            statusJob = scope.launch { applyStatus(status) }
+            val cast = modal?.cast.orEmpty().map { Person(it.id.toString(), it.name, it.character, tmdbImage(it.photoUrl)) }
+            addRows(cast, similarCall.await().map { it.toItem(text) })
         }
     }
 
@@ -315,7 +251,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         }
         if (similar.isNotEmpty()) {
             val section = Section(context, "similar", string(R.string.row_similar))
-            section.row.setCards(similar.map { s -> TitleCard(context, s, app.images, {}, { opener.open(it.item) }) })
+            section.row.setCards(similar.map { s -> Card(context, s, false, app.images, {}, { opener.open(it.item) }, cardCaption(s)) })
             addSection(section)
         }
     }
@@ -338,19 +274,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     }
 
     private companion object {
-        const val TOP = 50
-        const val POSTER_W = 135
-        const val POSTER_H = 202
-        const val LOGO_W = 330
-        const val LOGO_H = 66
-        const val POSTER_GAP = 25
-        const val INFO_W = 540
         const val STATE_W = 380
-        const val ACTIONS_GAP = 14
         const val PAGE_BOTTOM = 200
         const val PAGE_ANCHOR = 34
-
-        /** Room under the poster for the action row. */
-        const val BLOCK_H = TOP + POSTER_H + ACTIONS_GAP + 56
     }
 }

@@ -78,7 +78,7 @@ class SearchScreen private constructor(activity: MainActivity, session: Jellyfin
     private fun startSearch(term: String, debounce: Boolean, focusResults: Boolean) {
         searching?.cancel()
         searching = scope.launch {
-            if (debounce) delay(DEBOUNCE_MS)
+            if (debounce) delay(SearchField.DEBOUNCE_MS)
             try {
                 val found = session.search(term)
                 shownTerm = term
@@ -99,13 +99,13 @@ class SearchScreen private constructor(activity: MainActivity, session: Jellyfin
 
     override fun contentFocus(): View? = super.contentFocus() ?: field
 
+    override val isRailPage get() = true
+
     override fun focusDefault() {
         field.requestFocus()
     }
 
     private companion object {
-        /** How long typing must pause before a search starts. */
-        const val DEBOUNCE_MS = 350L
         const val FIELD_TOP = 30
         const val FIELD_W = 420
         const val FIELD_H = 44

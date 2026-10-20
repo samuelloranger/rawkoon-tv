@@ -18,7 +18,7 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
     /** Local copy of [url]: remote art goes through the cache, local paths are used as they are. */
     fun file(url: String): File? {
         if (url.startsWith("/")) return File(url).takeIf { it.isFile }
-        val cached = File(dir, sha1(url))
+        val cached = File(dir, sha1Hex(url))
         if (hit(cached)) return cached
         val lock = locks.computeIfAbsent(cached.name) { Any() }
         try {
@@ -55,15 +55,16 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
         trimDir(dir, now, BUDGET, STALE_TMP_MS)
     }
 
-    private fun sha1(text: String) =
-        MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
-
     private companion object {
         const val BUDGET = 60L * 1024 * 1024
         const val TRIM_EVERY_MS = 60_000L
         const val STALE_TMP_MS = 60 * 60_000L
     }
 }
+
+/** The SHA-1 of [text] as lowercase hex: the name a cached file gets from its URL. */
+fun sha1Hex(text: String): String =
+    MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 
 /**
  * Deletes the least recently modified files of [dir] until the rest fit [budget] bytes. A `.tmp`

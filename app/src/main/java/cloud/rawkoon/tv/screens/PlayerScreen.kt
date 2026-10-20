@@ -53,7 +53,6 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private val service = PlaybackService(context, session)
     private val player = VideoPlayer(context, service.authorization)
     private val trickplayLoader = TrickplayLoader(context, service.authorization)
-    private val main = Handler(Looper.getMainLooper())
 
     private val surface = PlayerView(context).apply {
         useController = false
@@ -81,15 +80,15 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         scheduleTick()
     }
     private val chrome: PlayerChrome = PlayerChrome(
-        context, app, view, surface, main,
+        context, app, view, surface, mainHandler,
         isPlaying = { player.exo.isPlaying },
         dialogOpen = { menus.isOpen },
         onShow = { updateProgress() },
         onSettled = { scheduleTick() },
     )
-    private val reporter = ProgressReporter(service, player.exo, main, scope, app.reportScope)
-    private val scrub = ScrubController(context, chrome, player.exo, trickplayLoader, main, refresh = { updateProgress() })
-    private val skipper = SegmentSkipper(context, chrome, player.exo, main, hasNext = { next != null }, playNext = { playNext() })
+    private val reporter = ProgressReporter(service, player.exo, mainHandler, scope, app.reportScope)
+    private val scrub = ScrubController(context, chrome, player.exo, trickplayLoader, mainHandler, refresh = { updateProgress() })
+    private val skipper = SegmentSkipper(context, chrome, player.exo, mainHandler, hasNext = { next != null }, playNext = { playNext() })
     private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter) { position, audio, subtitleIndex, previous ->
         start(item, position, audio, subtitleIndex, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
@@ -195,11 +194,11 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
      * player's callbacks start it again.
      */
     private fun scheduleTick() {
-        main.removeCallbacks(tick)
+        mainHandler.removeCallbacks(tick)
         val exo = player.exo
         if (!exo.isPlaying) return
         val delay = if (chrome.shown) TICK_MS else skipper.nextEdge(exo.currentPosition, TICK_MS, MAX_IDLE_TICK_MS) ?: return
-        main.postDelayed(tick, delay)
+        mainHandler.postDelayed(tick, delay)
     }
 
     private fun ended() {
@@ -320,7 +319,6 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     override fun destroy() {
-        main.removeCallbacksAndMessages(null)
         reporter.stop(player.exo.currentPosition)
         player.release()
         trickplayLoader.release()

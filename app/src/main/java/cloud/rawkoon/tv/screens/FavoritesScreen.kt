@@ -36,6 +36,8 @@ class FavoritesScreen(activity: MainActivity, session: JellyfinSession) :
     }
 
     /** With no rows yet, [show] puts focus on the first card as soon as they arrive. */
+    override val isRailPage get() = true
+
     override fun focusDefault() {
         firstFocus()?.requestFocus()
     }

@@ -105,4 +105,10 @@
     <string name="rewind">Reculer de 10 secondes</string>
     <string name="forward">Avancer de 30 secondes</string>
     <string name="play_pause">Lecture ou pause</string>
+    <string name="media_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="media_duration_minutes">%d min</string>
+    <string name="media_audio_mono">Mono</string>
+    <string name="media_audio_stereo">Stéréo</string>
+    <string name="media_audio_channels">%d canaux</string>
+    <string name="media_resolution_sd">SD</string>
 </resources>

@@ -11,7 +11,6 @@ import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.jellyfin.ImageUrls
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
-import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.Backdrop
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FlatView
@@ -19,6 +18,7 @@ import cloud.rawkoon.tv.ui.NavRail
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.fill
+import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.whileAttachedOnFocusChange
 
@@ -55,7 +55,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
             marginEnd = context.dp(32)
         })
         rail.onExit = { contentFocus() }
-        content.whileAttachedOnFocusChange { now -> if (now != null && isInContent(now)) lastContent = now }
+        content.whileAttachedOnFocusChange { now -> if (now != null && now.isWithin(content)) lastContent = now }
         rail.onOpenChanged = { open -> dim.animate().alpha(if (open) 1f else 0f).setDuration(Tokens.DRAWER_MS).start() }
     }
 
@@ -68,15 +68,6 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
 
     /** Where focus goes when it leaves the rail: what the page had focused last. */
     open fun contentFocus(): View? = lastContent?.takeIf { it.isAttachedToWindow && it.isShown }
-
-    private fun isInContent(view: View): Boolean {
-        var parent = view.parent
-        while (parent != null) {
-            if (parent === content) return true
-            parent = parent.parent
-        }
-        return false
-    }
 
     protected open fun navigate(destination: Destination) {
         when (destination) {
@@ -102,9 +93,12 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         if (isRailPage) activity.replace(make()) else activity.push(make())
     }
 
-    /** True for the pages the rail itself opens (library, search, favorites, discover). */
-    private val isRailPage: Boolean
-        get() = this is LibraryScreen || this is SearchScreen || this is FavoritesScreen || this is DiscoverScreen
+    /** True for the pages the rail itself opens (library, search, favorites, discover): each declares it. */
+    protected open val isRailPage: Boolean get() = false
+
+    /** A message's button: "Try again" with a [retry], else "Back to profiles" (retrying can't help when the session ended). */
+    protected fun messageAction(retry: (() -> Unit)?): Pair<String, () -> Unit> =
+        if (retry != null) string(R.string.try_again) to retry else string(R.string.back_to_profiles) to { activity.popTo { it is ProfilesScreen } }
 
     protected fun comingSoon() = Toast.makeText(context, R.string.coming_soon, Toast.LENGTH_SHORT).show()
 

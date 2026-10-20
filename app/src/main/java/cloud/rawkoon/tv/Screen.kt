@@ -5,10 +5,15 @@ import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
+import android.widget.Toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * One page of the app. Pages are plain views on a stack in [MainActivity]: the ones below stay
@@ -67,6 +72,23 @@ abstract class Screen(val activity: MainActivity) {
         mainHandler.removeCallbacksAndMessages(null)
         scope.cancel()
     }
+
+    /**
+     * Launches a page load in [scope]. Its children run in a scope of their own, so one that fails
+     * lands in [onError] (a toast by default) instead of cancelling the screen's scope and reaching
+     * the uncaught handler. Cancellation is never an error.
+     */
+    protected fun launchLoading(onError: (Exception) -> Unit = { toastPageError() }, block: suspend CoroutineScope.() -> Unit): Job = scope.launch {
+        try {
+            coroutineScope(block)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            onError(e)
+        }
+    }
+
+    protected fun toastPageError() = Toast.makeText(context, R.string.page_error, Toast.LENGTH_LONG).show()
 
     fun string(id: Int, vararg args: Any): String = activity.getString(id, *args)
 }

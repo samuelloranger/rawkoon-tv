@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.FrameLayout
+import cloud.rawkoon.tv.jellyfin.MediaWords
 import cloud.rawkoon.tv.screens.ProfilesScreen
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.fill
@@ -20,7 +21,12 @@ class MainActivity : Activity() {
     private lateinit var root: FrameLayout
     private val stack = ArrayList<Screen>()
 
-    override fun attachBaseContext(base: Context) = super.attachBaseContext(Language.wrap(base))
+    override fun attachBaseContext(base: Context) {
+        val wrapped = Language.wrap(base)
+        // Recreating after a language change wraps again: the media words follow it
+        MediaWords.source = wrapped.resources
+        super.attachBaseContext(wrapped)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

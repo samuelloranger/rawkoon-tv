@@ -13,6 +13,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import cloud.rawkoon.tv.data.Images
+import cloud.rawkoon.tv.jellyfin.Badge
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.Person
 
@@ -103,9 +104,9 @@ abstract class Focusable(context: Context) : FrameLayout(context) {
 }
 
 /**
- * A poster or landscape card for one item, optionally captioned under the art (episodes, seasons).
- * The art is decoded at its exact size with its corners already rounded, so drawing it is a single
- * blit; progress and the watched badge are drawn once.
+ * A poster or landscape card for one item, optionally captioned under the art (episodes, seasons,
+ * TMDB titles). The art is decoded at its exact size with its corners already rounded, so drawing
+ * it is a single blit; progress, the watched badge and a TMDB title's status badge are drawn once.
  */
 @SuppressLint("ViewConstructor")
 class Card(
@@ -118,13 +119,11 @@ class Card(
     caption: Pair<String, String?>? = null,
 ) : Focusable(context), RowItem {
     override val key: String get() = item.id
-    private val art = BitmapView(context)
-    private val frame = FrameLayout(context).noClip()
-    private val ring = FlatView(context)
-    override val motion = FocusMotion(frame, ring, raise = false)
     private val artW = context.dp(if (landscape) Tokens.LAND_W else Tokens.POSTER_W)
     private val artH = context.dp(if (landscape) Tokens.LAND_H else Tokens.POSTER_H)
     private val artRadius = context.dpf(Tokens.CARD_RADIUS)
+    private val frame = PosterFrame(context, artW, artH, artRadius)
+    override val motion = FocusMotion(frame, frame.ring, raise = false)
 
     @Volatile
     private var alive = false
@@ -132,30 +131,29 @@ class Card(
     init {
         contentDescription = item.headerTitle
         val inset = context.dp(Tokens.RING_INSET)
-        val w = artW
-        val h = artH
-        val radius = artRadius
-        val captionH = if (caption != null) context.dp(CAPTION_DP) else 0
-        layoutParams = LinearLayout.LayoutParams(w + inset * 2, h + inset * 2 + captionH)
-        art.placeholder = rounded(Tokens.surfaceHigh, radius)
-        val inner = { FrameLayout.LayoutParams(w, h).apply { setMargins(inset, inset, inset, inset) } }
-        frame.addView(art, inner())
-        if (item.progress != null && (landscape || item.kind == MediaItem.Kind.EPISODE)) frame.addView(CardProgress(context, item.progress), inner())
-        if (item.played) frame.addView(WatchedBadge(context), inner())
-        ring.background = ringDrawable(context, radius)
-        ring.alpha = 0f
-        frame.addView(ring, FrameLayout.LayoutParams(w + inset * 2, h + inset * 2))
-        addView(frame, LayoutParams(w + inset * 2, h + inset * 2))
-        if (caption != null) {
-            val column = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-            column.addView(label(context, 12.5f, Tokens.textPrimary, Fonts.bold(context)).apply { text = caption.first })
-            caption.second?.let { sub ->
-                column.addView(label(context, 11f, Tokens.textMuted, Fonts.medium(context)).apply { text = sub })
-            }
-            addView(column, LayoutParams(w, captionH, Gravity.BOTTOM).apply { leftMargin = inset })
+        val captionH = if (caption != null) context.dp(Tokens.CAPTION_H) else 0
+        layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionH)
+        if (item.progress != null && (landscape || item.kind == MediaItem.Kind.EPISODE)) frame.addOverlay(CardProgress(context, item.progress))
+        if (item.played) frame.addOverlay(WatchedBadge(context))
+        item.tmdb?.badge?.let {
+            frame.addOverlay(badgeLabel(it, artW - context.dp(12)), FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START,
+            ).apply { setMargins(inset + context.dp(6), 0, 0, inset + context.dp(6)) })
         }
+        addView(frame, frame.frameParams())
+        if (caption != null) addView(CaptionColumn(context, caption.first, caption.second), LayoutParams(artW, captionH, Gravity.BOTTOM).apply { leftMargin = inset })
         listenForFocus { onFocused(this) }
         setOnClickListener { onClick(this) }
+    }
+
+    private fun badgeLabel(badge: Badge, maxWidth: Int): View {
+        val (background, text) = badgeColors(badge.tone)
+        return label(context, 10f, text, Fonts.bold(context)).apply {
+            this.text = badge.text
+            this.maxWidth = maxWidth
+            this.background = rounded(background, context.dpf(4f))
+            setPadding(context.dp(5), context.dp(2), context.dp(5), context.dp(2))
+        }
     }
 
     /**
@@ -165,9 +163,10 @@ class Card(
      * would only flash the placeholder when the card comes back.
      */
     private fun requestArt() {
-        if (art.bitmap != null) return
+        if (frame.art.bitmap != null) return
         val url = (if (landscape) item.thumbUrl else item.posterUrl) ?: return
-        images.load("$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive }) { art.bitmap = it }
+        // A TMDB image's URL is final; a library image is asked at the card's width
+        images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive }) { frame.art.bitmap = it }
     }
 
     override fun onAttachedToWindow() {
@@ -180,10 +179,22 @@ class Card(
         alive = false
         super.onDetachedFromWindow()
     }
+}
 
-    private companion object {
-        const val CAPTION_DP = 38
-    }
+/** What a card captions under its art: a TMDB title's name and year or air date, an episode's show and "S1 · E3 · Title"; nothing for the rest. */
+fun cardCaption(item: MediaItem): Pair<String, String?>? {
+    item.tmdb?.let { return item.title to (it.subtitle ?: item.year?.toString()) }
+    if (item.kind != MediaItem.Kind.EPISODE) return null
+    return item.headerTitle to listOfNotNull(item.episodeLabel, item.title).joinToString(" · ")
+}
+
+/** Background and text colour of a badge, by tone. */
+fun badgeColors(tone: Badge.Tone): Pair<Int, Int> = when (tone) {
+    Badge.Tone.NEUTRAL -> 0xCC000000.toInt() to Tokens.textPrimary
+    Badge.Tone.WAITING -> 0xFFE0A93B.toInt() to Tokens.background
+    Badge.Tone.ACTIVE -> 0xFF5BA8D8.toInt() to Tokens.background
+    Badge.Tone.READY -> 0xFF52B788.toInt() to Tokens.background
+    Badge.Tone.REFUSED -> 0xFFC8564D.toInt() to Tokens.textPrimary
 }
 
 /** A cast member: a round photo (initials when there is none), the name and the role. */
