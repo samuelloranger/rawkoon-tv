@@ -28,7 +28,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private val top = layer()
     private val main = Handler(Looper.getMainLooper())
 
-    /** The key (url and strength) asked for last; read from the worker to drop superseded composes. */
+    /** The key (url, strength and resolution) asked for last; read from the worker to drop superseded composes. */
     @Volatile
     private var requested: String? = null
     private var shown: String? = null
@@ -43,6 +43,13 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     /** How much of the image shows: 1 on home, lower behind denser pages. Part of the cache key. */
     var strength = 1f
 
+    /**
+     * The share of the screen's resolution the image is composed at, scaled up when drawn. Lower
+     * behind dimmed pages, where the softer image doesn't show and the GPU fades fewer texels.
+     * Part of the cache key.
+     */
+    var resolution = 1f
+
     init {
         addView(bottom, fill())
         addView(top, fill())
@@ -53,7 +60,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     /** Shows [url] (an image URL, or null for the plain page colour) once it is composed. */
     fun show(url: String?) {
         val strength = strength
-        val key = url?.let { "$it|$strength" }
+        val resolution = resolution
+        val key = url?.let { "$it|$strength|$resolution" }
         if (key == requested) return
         requested = key
         if (key == shown) return
@@ -65,8 +73,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             crossfade(key, it)
             return
         }
-        val w = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
-        val h = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val w = ((width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) * resolution).toInt()
+        val h = ((height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels) * resolution).toInt()
         worker.execute {
             if (requested != key) return@execute
             val bitmap = try {
