@@ -110,7 +110,11 @@ class ProfileStore(private val file: File) {
     private fun read(): List<Profile> {
         if (!file.exists()) return emptyList()
         return try {
-            decode(file.readText())
+            val text = file.readText()
+            val (profiles, dropped) = decodeCounting(text)
+            // Entries that no longer parse would vanish on the next write: keep the original
+            if (dropped > 0) file.copyTo(File(file.path + ".bad"), overwrite = true)
+            profiles
         } catch (e: Exception) {
             val bad = File(file.path + ".bad")
             bad.delete()
@@ -133,9 +137,13 @@ class ProfileStore(private val file: File) {
     companion object {
         fun encode(list: List<Profile>): String = JSONArray().apply { list.forEach { put(it.toJson()) } }.toString()
 
-        fun decode(text: String): List<Profile> {
+        fun decode(text: String): List<Profile> = decodeCounting(text).first
+
+        /** The profiles that parse, and how many elements did not. */
+        fun decodeCounting(text: String): Pair<List<Profile>, Int> {
             val array = JSONArray(text)
-            return (0 until array.length()).mapNotNull { runCatching { Profile.fromJson(array.getJSONObject(it)) }.getOrNull() }
+            val profiles = (0 until array.length()).mapNotNull { runCatching { Profile.fromJson(array.getJSONObject(it)) }.getOrNull() }
+            return profiles to array.length() - profiles.size
         }
     }
 }

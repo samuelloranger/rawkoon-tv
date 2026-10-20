@@ -51,6 +51,20 @@ class ProfilesTest {
     }
 
     @Test
+    fun `a file with one bad element is kept aside before the next save drops it`() {
+        val dir = createTempDirectory().toFile()
+        try {
+            val text = "[{\"id\":\"x\"}," + profile().toJson() + "]"
+            val file = File(dir, "profiles.json").apply { writeText(text) }
+            val store = ProfileStore(file)
+            assertEquals(listOf(profile()), store.all())
+            assertEquals(text, File(dir, "profiles.json.bad").readText())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `a missing file is an empty store, with nothing set aside`() {
         val dir = createTempDirectory().toFile()
         try {
