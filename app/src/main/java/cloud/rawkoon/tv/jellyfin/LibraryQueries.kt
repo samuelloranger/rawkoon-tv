@@ -74,7 +74,7 @@ internal fun libraryRequest(
     filters = query.filter.filters,
     startIndex = startIndex,
     limit = limit,
-    fields = listOf(ItemFields.PRIMARY_IMAGE_ASPECT_RATIO),
+    fields = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO),
     enableTotalRecordCount = true,
     nameLessThan = bound?.lessThan,
     nameStartsWithOrGreater = bound?.orGreater,
