@@ -17,6 +17,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.noClip
 
 /**
  * A profile's PIN: checking it before the profile opens, or choosing a new one (entered twice).
@@ -39,7 +40,7 @@ class PinScreen(activity: MainActivity, private val mode: Mode, private val onDo
         letterSpacing = 0.4f
         gravity = Gravity.CENTER
     }
-    private val keypad = GridLayout(context).apply { columnCount = 3 }
+    private val keypad = GridLayout(context).apply { columnCount = 3 }.noClip()
     private var entered = ""
     private var first: String? = null
 
@@ -47,7 +48,7 @@ class PinScreen(activity: MainActivity, private val mode: Mode, private val onDo
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-        }
+        }.noClip()
         column.addView(title)
         column.addView(message, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(8) })
         column.addView(dots, LinearLayout.LayoutParams(context.dp(260), context.dp(48)).apply { topMargin = context.dp(14) })

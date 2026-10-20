@@ -60,7 +60,7 @@ class Rows(context: Context) : ScrollView(context) {
     val column: LinearLayout = object : LinearLayout(context) {
         override fun requestChildFocus(child: View?, focused: View?) {
             super.requestChildFocus(child, focused)
-            (child as? Section)?.let { reveal(it) }
+            if (child != null) reveal(child)
         }
     }.apply {
         orientation = LinearLayout.VERTICAL
@@ -79,11 +79,15 @@ class Rows(context: Context) : ScrollView(context) {
         addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
+    /** Room kept above the focused row once it glides up, e.g. for its title under the screen edge. */
+    var anchor = 0
+
     fun sections(): List<Section> = (0 until column.childCount).map { column.getChildAt(it) as Section }
 
-    fun reveal(section: Section) {
+    /** Glides so [section] (a row, or any block in the column) sits at the top of this view. */
+    fun reveal(section: View) {
         val maxShift = (column.height - height).coerceAtLeast(0)
-        val target = -(section.top - column.paddingTop).coerceIn(0, maxShift).toFloat()
+        val target = -(section.top - column.paddingTop - anchor).coerceIn(0, maxShift).toFloat()
         if (column.translationY == target) return
         column.animate().translationY(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
     }

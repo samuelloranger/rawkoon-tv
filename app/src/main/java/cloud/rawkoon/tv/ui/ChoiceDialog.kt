@@ -27,7 +27,7 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
             setPadding(context.dp(28), context.dp(22), context.dp(28), context.dp(18))
             // The choices share one width, wide enough for their labels
             minimumWidth = context.dp(300)
-        }
+        }.noClip()
         panel.addView(label(context, 20f, Tokens.textPrimary, Fonts.title(context)).apply { text = title }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { bottomMargin = context.dp(14) })

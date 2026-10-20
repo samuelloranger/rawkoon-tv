@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
@@ -23,6 +24,17 @@ fun Context.dpf(value: Float): Float = value * resources.displayMetrics.density
  */
 class FlatView(context: Context) : View(context) {
     override fun hasOverlappingRendering() = false
+
+    /**
+     * Takes no room unless told its exact size. A match-parent ring inside a wrap-content frame
+     * would otherwise grow the frame to all the space its parent offers; FrameLayout measures it
+     * again at the frame's final size.
+     */
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val w = if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.EXACTLY) MeasureSpec.getSize(widthMeasureSpec) else 0
+        val h = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY) MeasureSpec.getSize(heightMeasureSpec) else 0
+        setMeasuredDimension(w, h)
+    }
 }
 
 /** Layout params filling the parent, for the stacked layers of a [FrameLayout]. */
@@ -106,4 +118,31 @@ class GradientLabel(context: Context, private val top: Int, private val bottom: 
         super.onSizeChanged(w, h, oldw, oldh)
         paint.shader = LinearGradient(0f, 0f, 0f, h.toFloat(), top, bottom, Shader.TileMode.CLAMP)
     }
+}
+
+/**
+ * Lets children draw past this view's bounds and padding. Focused things grow by a few percent
+ * and draw their ring near their edge; every container that holds them calls this, so no ring
+ * is ever cut.
+ */
+fun <T : ViewGroup> T.noClip(): T = apply {
+    clipChildren = false
+    clipToPadding = false
+}
+
+/** Anything a [FocusRow] holds: cards, cast, seasons. The key brings focus back to the same thing after a reload. */
+interface RowItem {
+    val key: String
+}
+
+/**
+ * Listens to focus moves anywhere in the window while this view is attached. The window's
+ * observer outlives screens, so the listener is removed on detach instead of leaking with it.
+ */
+fun View.whileAttachedOnFocusChange(listener: (View?) -> Unit) {
+    val global = ViewTreeObserver.OnGlobalFocusChangeListener { _, now -> listener(now) }
+    addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalFocusChangeListener(global)
+        override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalFocusChangeListener(global)
+    })
 }

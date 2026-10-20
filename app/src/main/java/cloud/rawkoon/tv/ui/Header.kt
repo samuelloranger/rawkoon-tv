@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Handler
 import android.os.Looper
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -41,7 +42,11 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
     private val logoW = context.dp(LOGO_W)
     private val logoH = context.dp(LOGO_H)
     private val logo = LogoView(context)
-    private val title = label(context, 40f, Tokens.textPrimary, Fonts.title(context)).apply { gravity = Gravity.BOTTOM }
+    // Long titles shrink and wrap onto a second line instead of being cut
+    private val title = label(context, 40f, Tokens.textPrimary, Fonts.title(context), lines = 2).apply {
+        gravity = Gravity.BOTTOM
+        setAutoSizeTextTypeUniformWithConfiguration(22, 40, 2, TypedValue.COMPLEX_UNIT_SP)
+    }
     private val meta = label(context, 13.5f, Tokens.textSoft, Fonts.medium(context))
     private val overview = label(context, 14f, 0xD9E9E0D8.toInt(), Fonts.body(context), lines = 2).apply {
         setLineSpacing(0f, 1.2f)
@@ -72,6 +77,11 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
 
     private fun switchTo(item: MediaItem) {
         if (item == shown) return
+        // The same item, refreshed (new progress): take the new data without animating
+        if (item.id == shown?.id) {
+            shown = item
+            return
+        }
         val first = shown == null
         shown = item
         animate().cancel()
@@ -98,10 +108,18 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
         }
         // The title stays empty while the logo loads, so the two never show together
         title.text = ""
-        images.load("$url&maxWidth=$logoW", logoW, logoH, 0f, contain = true, isCurrent = { wantedLogo == url }) {
+        images.load(logoRequest(url), logoW, logoH, 0f, contain = true, isCurrent = { wantedLogo == url }) {
             logo.bitmap = it
         }
     }
+
+    /** Loads [item]'s logo into the memory cache ahead of time, exactly as [fill] will ask for it. */
+    fun prefetch(item: MediaItem) {
+        val url = item.logoUrl ?: return
+        images.load(logoRequest(url), logoW, logoH, 0f, contain = true, isCurrent = { true }) {}
+    }
+
+    private fun logoRequest(url: String) = "$url&maxWidth=$logoW"
 
     private companion object {
         const val LOGO_W = 360

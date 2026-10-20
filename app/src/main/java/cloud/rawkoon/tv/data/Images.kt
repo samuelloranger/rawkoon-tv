@@ -12,6 +12,7 @@ import android.graphics.Shader
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
+import java.util.Collections
 import java.util.concurrent.Executors
 
 /**
@@ -56,6 +57,20 @@ class Images(context: Context, fetcher: Fetcher) {
             } ?: return@execute
             memory.put(key, bitmap)
             main.post { if (isCurrent()) onReady(bitmap) }
+        }
+    }
+
+    private val warming = Collections.synchronizedSet(HashSet<String>())
+
+    /** Downloads [url] into the disk cache in the background, so a later load skips the network. */
+    fun warm(url: String) {
+        if (!warming.add(url)) return
+        pool.execute {
+            try {
+                disk.file(url)
+            } catch (e: Exception) {
+                warming.remove(url)
+            }
         }
     }
 

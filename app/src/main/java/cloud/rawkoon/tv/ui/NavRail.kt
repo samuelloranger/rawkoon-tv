@@ -85,7 +85,7 @@ class NavRail(
         addView(column, LayoutParams(context.dp(Tokens.RAIL_OPEN_W), LayoutParams.MATCH_PARENT))
         fades.forEach { it.alpha = 0f }
 
-        viewTreeObserver.addOnGlobalFocusChangeListener { _, now -> setOpen(now != null && isInside(now)) }
+        whileAttachedOnFocusChange { now -> setOpen(now != null && isInside(now)) }
     }
 
     /** The brand as on the TV's home banner: the reel, then "Rawkoon" with "TV" in the apricot gradient. */
@@ -129,11 +129,15 @@ class NavRail(
         onOpenChanged?.invoke(open)
     }
 
-    /** Coming from the page, only the current destination is a candidate, as in Wholphin. */
+    /**
+     * Coming from the page, only Left enters the rail, and only on the current destination, as in
+     * Wholphin. The rail is laid out at its open width even when closed, so without this its
+     * entries would compete with the page's own views for up and down moves.
+     */
     override fun addFocusables(views: ArrayList<View>, direction: Int, focusableMode: Int) {
-        val target = items[active]
-        if (!hasFocus() && target != null) {
-            views.add(target)
+        if (!hasFocus()) {
+            val target = items[active]
+            if (direction == FOCUS_LEFT && target != null) views.add(target)
             return
         }
         super.addFocusables(views, direction, focusableMode)

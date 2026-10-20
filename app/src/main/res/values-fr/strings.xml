@@ -63,4 +63,30 @@
     <string name="language">Langue</string>
     <string name="language_system">Langue de la télé</string>
     <string name="version">Version %1$s</string>
+
+    <string name="kind_show">Série</string>
+    <string name="kind_movie">Film</string>
+    <string name="kind_episode">Épisode</string>
+    <plurals name="seasons_count">
+        <item quantity="one">%d saison</item>
+        <item quantity="other">%d saisons</item>
+    </plurals>
+    <plurals name="episodes_count">
+        <item quantity="one">%d épisode</item>
+        <item quantity="other">%d épisodes</item>
+    </plurals>
+    <string name="row_seasons">Saisons (%1$d)</string>
+    <string name="row_cast">Distribution</string>
+    <string name="row_similar">Plus comme ça</string>
+    <string name="play">Lecture</string>
+    <string name="resume">Reprendre</string>
+    <string name="play_episode">Lecture %1$s</string>
+    <string name="resume_episode">Reprendre %1$s</string>
+    <string name="ends_at">Se termine à %1$s</string>
+    <string name="time_left">%1$s restantes</string>
+    <string name="watched">Vu</string>
+    <string name="favorite">Favori</string>
+    <string name="player_soon">Le lecteur arrive dans la prochaine version</string>
+    <string name="page_error">Impossible de charger cette page.</string>
+    <string name="action_failed">Ça n\'a pas fonctionné. Réessaie.</string>
 </resources>

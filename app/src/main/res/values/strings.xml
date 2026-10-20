@@ -69,4 +69,30 @@
     <string name="language_fr" translatable="false">Français</string>
     <string name="language_en" translatable="false">English</string>
     <string name="version">Version %1$s</string>
+
+    <string name="kind_show">Show</string>
+    <string name="kind_movie">Movie</string>
+    <string name="kind_episode">Episode</string>
+    <plurals name="seasons_count">
+        <item quantity="one">%d season</item>
+        <item quantity="other">%d seasons</item>
+    </plurals>
+    <plurals name="episodes_count">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
+    </plurals>
+    <string name="row_seasons">Seasons (%1$d)</string>
+    <string name="row_cast">Cast &amp; crew</string>
+    <string name="row_similar">More like this</string>
+    <string name="play">Play</string>
+    <string name="resume">Resume</string>
+    <string name="play_episode">Play %1$s</string>
+    <string name="resume_episode">Resume %1$s</string>
+    <string name="ends_at">Ends at %1$s</string>
+    <string name="time_left">%1$s left</string>
+    <string name="watched">Watched</string>
+    <string name="favorite">Favorite</string>
+    <string name="player_soon">The player comes in the next version</string>
+    <string name="page_error">Couldn\'t load this page.</string>
+    <string name="action_failed">That didn\'t work. Try again.</string>
 </resources>

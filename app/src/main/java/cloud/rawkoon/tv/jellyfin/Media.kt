@@ -3,6 +3,10 @@ package cloud.rawkoon.tv.jellyfin
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.MediaStream
+import org.jellyfin.sdk.model.api.MediaStreamType
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.Locale
 import java.util.UUID
 
@@ -31,6 +35,15 @@ data class MediaItem(
     /** 0..1, or null when not started. */
     val progress: Float?,
     val played: Boolean,
+    val seriesId: String? = null,
+    val seasonId: String? = null,
+    /** Season number of an episode, or the number of a season. */
+    val seasonNumber: Int? = null,
+    val episodeNumber: Int? = null,
+    val favorite: Boolean = false,
+    val media: MediaInfo? = null,
+    /** Episodes in a season, seasons in a show. */
+    val childCount: Int? = null,
 ) {
     enum class Kind { MOVIE, SERIES, SEASON, EPISODE, OTHER }
 
@@ -49,13 +62,57 @@ data class MediaItem(
         runtimeMinutes?.takeIf { it > 0 }?.let { parts += duration(it) }
         if (kind != Kind.EPISODE) {
             officialRating?.let { parts += it }
-            communityRating?.let { parts += "★ " + String.format(Locale.ROOT, "%.1f", it) }
+            score()?.let { parts += it }
         }
         return parts.joinToString(" · ")
     }
 
+    fun score(): String? = communityRating?.let { "★ " + String.format(Locale.ROOT, "%.1f", it) }
+
+    /** Minutes left to watch, from the progress. */
+    fun minutesLeft(): Int? = runtimeMinutes?.let { total -> (total * (1f - (progress ?: 0f))).toInt().coerceAtLeast(1) }
+
+    fun toJson(): JSONObject = JSONObject()
+        .put("id", id).put("kind", kind.name).put("title", title).putOpt("seriesName", seriesName)
+        .putOpt("episodeLabel", episodeLabel).put("overview", overview).putOpt("year", year)
+        .putOpt("runtimeMinutes", runtimeMinutes).putOpt("officialRating", officialRating)
+        .putOpt("communityRating", communityRating?.toDouble()).putOpt("posterUrl", posterUrl)
+        .putOpt("thumbUrl", thumbUrl).putOpt("backdropUrl", backdropUrl).putOpt("logoUrl", logoUrl)
+        .putOpt("progress", progress?.toDouble()).put("played", played).putOpt("seriesId", seriesId)
+        .putOpt("seasonId", seasonId).putOpt("seasonNumber", seasonNumber).putOpt("episodeNumber", episodeNumber)
+        .put("favorite", favorite)
+
     companion object {
         fun duration(minutes: Int) = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} min" else "$minutes min"
+
+        fun fromJson(json: JSONObject): MediaItem {
+            fun str(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getString(key)
+            fun int(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getInt(key)
+            fun float(key: String) = if (json.isNull(key) || !json.has(key)) null else json.getDouble(key).toFloat()
+            return MediaItem(
+                id = json.getString("id"),
+                kind = runCatching { Kind.valueOf(json.getString("kind")) }.getOrDefault(Kind.OTHER),
+                title = json.getString("title"),
+                seriesName = str("seriesName"),
+                episodeLabel = str("episodeLabel"),
+                overview = json.optString("overview"),
+                year = int("year"),
+                runtimeMinutes = int("runtimeMinutes"),
+                officialRating = str("officialRating"),
+                communityRating = float("communityRating"),
+                posterUrl = str("posterUrl"),
+                thumbUrl = str("thumbUrl"),
+                backdropUrl = str("backdropUrl"),
+                logoUrl = str("logoUrl"),
+                progress = float("progress"),
+                played = json.optBoolean("played"),
+                seriesId = str("seriesId"),
+                seasonId = str("seasonId"),
+                seasonNumber = int("seasonNumber"),
+                episodeNumber = int("episodeNumber"),
+                favorite = json.optBoolean("favorite"),
+            )
+        }
 
         fun from(dto: BaseItemDto, images: ImageUrls): MediaItem {
             val kind = when (dto.type) {
@@ -76,6 +133,7 @@ data class MediaItem(
                 ?: dto.parentLogoItemId?.let { id -> dto.parentLogoImageTag?.let { images.item(id, ImageType.LOGO, it) } }
             val parentThumb = dto.parentThumbItemId?.let { id -> dto.parentThumbImageTag?.let { images.item(id, ImageType.THUMB, it) } }
             val episode = kind == Kind.EPISODE
+            val season = kind == Kind.SEASON
             val percent = dto.userData?.playedPercentage
             return MediaItem(
                 id = dto.id.toString(),
@@ -89,6 +147,7 @@ data class MediaItem(
                 runtimeMinutes = dto.runTimeTicks?.let { (it / 600_000_000L).toInt() },
                 officialRating = dto.officialRating,
                 communityRating = dto.communityRating,
+                // A season without its own poster borrows the show's
                 posterUrl = if (episode) seriesPoster ?: own(ImageType.PRIMARY) else own(ImageType.PRIMARY) ?: seriesPoster,
                 // Landscape cards: an episode's still, else the item's thumb or backdrop
                 thumbUrl = if (episode) own(ImageType.PRIMARY) ?: parentThumb ?: backdrop else own(ImageType.THUMB) ?: backdrop ?: parentThumb,
@@ -96,10 +155,95 @@ data class MediaItem(
                 logoUrl = logo,
                 progress = percent?.takeIf { it > 0.0 }?.let { (it / 100.0).toFloat().coerceIn(0f, 1f) },
                 played = dto.userData?.played == true,
+                seriesId = dto.seriesId?.toString() ?: if (kind == Kind.SERIES) dto.id.toString() else null,
+                seasonId = dto.seasonId?.toString() ?: if (season) dto.id.toString() else null,
+                seasonNumber = if (season) dto.indexNumber else dto.parentIndexNumber,
+                episodeNumber = if (episode) dto.indexNumber else null,
+                favorite = dto.userData?.isFavorite == true,
+                media = MediaInfo.from(dto.mediaStreams ?: dto.mediaSources?.firstOrNull()?.mediaStreams),
+                childCount = dto.childCount,
             )
         }
     }
 }
+
+/** What the chips say about a file: "1080p", "HEVC", "Français 5.1". */
+data class MediaInfo(val resolution: String?, val codec: String?, val audio: String?) {
+    fun chips(): List<String> = listOfNotNull(resolution, codec, audio)
+
+    companion object {
+        fun from(streams: List<MediaStream>?): MediaInfo? {
+            if (streams.isNullOrEmpty()) return null
+            val video = streams.firstOrNull { it.type == MediaStreamType.VIDEO }
+            val audio = streams.firstOrNull { it.type == MediaStreamType.AUDIO && it.isDefault } ?: streams.firstOrNull { it.type == MediaStreamType.AUDIO }
+            return MediaInfo(
+                resolution = video?.height?.let { h ->
+                    when {
+                        h >= 2000 -> "4K"
+                        h >= 1000 -> "1080p"
+                        h >= 700 -> "720p"
+                        else -> "SD"
+                    }
+                },
+                codec = video?.codec?.let { codecName(it) },
+                audio = audio?.let { a -> listOfNotNull(languageName(a.language), channels(a)).joinToString(" ").ifEmpty { null } },
+            )
+        }
+
+        private fun codecName(codec: String) = when (codec.lowercase()) {
+            "hevc", "h265" -> "HEVC"
+            "h264", "avc" -> "H264"
+            "av1" -> "AV1"
+            "vp9" -> "VP9"
+            "mpeg2video" -> "MPEG-2"
+            else -> codec.uppercase()
+        }
+
+        /** Jellyfin's three-letter codes, named in the app's language: "fre" becomes "Français". */
+        fun languageName(code: String?): String? {
+            if (code.isNullOrBlank() || code == "und") return null
+            val two = when (code.lowercase()) {
+                "fre", "fra" -> "fr"
+                "eng" -> "en"
+                "spa" -> "es"
+                "ger", "deu" -> "de"
+                "ita" -> "it"
+                "jpn" -> "ja"
+                "por" -> "pt"
+                "kor" -> "ko"
+                "chi", "zho" -> "zh"
+                else -> code.lowercase()
+            }
+            val name = Locale.forLanguageTag(two).getDisplayLanguage(Locale.getDefault())
+            if (name.isBlank() || name.equals(two, ignoreCase = true)) return null
+            return name.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+        }
+
+        private fun channels(stream: MediaStream): String? = when (val n = stream.channels) {
+            null -> null
+            1 -> "Mono"
+            2 -> if (Locale.getDefault().language == "fr") "Stéréo" else "Stereo"
+            6 -> "5.1"
+            8 -> "7.1"
+            else -> "$n ch"
+        }
+    }
+}
+
+/** A cast or crew member. */
+data class Person(val id: String, val name: String, val role: String?, val imageUrl: String?)
+
+/** What a details page shows beyond the card: genres, cast, the studio, the show's span. */
+data class Details(
+    val item: MediaItem,
+    val genres: List<String>,
+    val studio: String?,
+    val endYear: Int?,
+    val continuing: Boolean,
+    val seasonCount: Int?,
+    val episodeCount: Int?,
+    val people: List<Person>,
+)
 
 /** Builds image URLs on one server. Tags make each URL change when the image does, so caches never go stale. */
 class ImageUrls(private val base: String) {
@@ -109,4 +253,28 @@ class ImageUrls(private val base: String) {
 }
 
 /** A titled row of items on the home screen. [landscape] rows show stills with progress. */
-data class HomeRow(val id: String, val title: String, val items: List<MediaItem>, val landscape: Boolean)
+data class HomeRow(val id: String, val title: String, val items: List<MediaItem>, val landscape: Boolean) {
+    /** Changes whenever anything a card shows changes. */
+    val signature: String get() = items.joinToString("|") { "${it.id}:${it.progress}:${it.played}:${it.thumbUrl}:${it.posterUrl}" }
+
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("title", title).put("landscape", landscape)
+        .put("items", JSONArray().apply { items.forEach { put(it.toJson()) } })
+
+    companion object {
+        fun listToJson(rows: List<HomeRow>): String = JSONArray().apply { rows.forEach { put(it.toJson()) } }.toString()
+
+        fun listFromJson(text: String): List<HomeRow> {
+            val array = JSONArray(text)
+            return (0 until array.length()).map { i ->
+                val row = array.getJSONObject(i)
+                val items = row.getJSONArray("items")
+                HomeRow(
+                    id = row.getString("id"),
+                    title = row.getString("title"),
+                    items = (0 until items.length()).map { MediaItem.fromJson(items.getJSONObject(it)) },
+                    landscape = row.getBoolean("landscape"),
+                )
+            }
+        }
+    }
+}

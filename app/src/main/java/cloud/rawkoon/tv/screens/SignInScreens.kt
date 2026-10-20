@@ -27,6 +27,7 @@ import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.noClip
 import cloud.rawkoon.tv.ui.rounded
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -42,11 +43,11 @@ abstract class FormScreen(activity: MainActivity, title: String, hint: String) :
     protected val column = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
-    }
+    }.noClip()
     protected val footer = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
-    }
+    }.noClip()
     protected val status = label(context, 14f, Tokens.accent, Fonts.medium(context), lines = 2).apply { gravity = Gravity.CENTER }
 
     init {
@@ -151,7 +152,7 @@ class SignInScreen(activity: MainActivity, private val rawkoonUrl: String) :
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-        }
+        }.noClip()
         row.addView(qr, LinearLayout.LayoutParams(context.dp(QR_DP), context.dp(QR_DP)))
         val right = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         right.addView(code)

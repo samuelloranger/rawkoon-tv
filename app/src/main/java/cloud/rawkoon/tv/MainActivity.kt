@@ -59,6 +59,12 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Goes back down the stack to the first screen (from the top) that matches, e.g. home from a details page. */
+    fun popTo(match: (Screen) -> Boolean) {
+        val target = stack.lastOrNull(match) ?: return
+        while (stack.last() !== target) pop()
+    }
+
     fun pop() {
         if (stack.size <= 1) {
             finish()

@@ -22,6 +22,7 @@ class PillButton(context: Context, text: String, glyph: String? = null, primary:
     init {
         isFocusable = true
         isClickable = true
+        noClip()
         val radius = context.dpf(height / 2f)
         val inset = context.dp(Tokens.RING_INSET)
         val fg = if (primary) Tokens.background else Tokens.textPrimary

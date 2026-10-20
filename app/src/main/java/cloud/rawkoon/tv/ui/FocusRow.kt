@@ -41,10 +41,10 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
         override fun requestChildFocus(child: View?, focused: View?) {
             super.requestChildFocus(child, focused)
-            (child as? Card)?.let {
-                lastKey = it.key
-                lastIndex = indexOfChild(it)
-                reveal(it)
+            (child as? RowItem)?.let { item ->
+                lastKey = item.key
+                lastIndex = indexOfChild(child)
+                reveal(child)
             }
         }
     }
@@ -64,7 +64,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         addView(strip, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
     }
 
-    fun setCards(cards: List<Card>) {
+    fun setCards(cards: List<View>) {
         strip.removeAllViews()
         val gap = context.dp(Tokens.CARD_GAP) - context.dp(Tokens.RING_INSET) * 2
         cards.forEachIndexed { i, card ->
@@ -76,14 +76,22 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         lastKey = null
     }
 
-    fun cards(): List<Card> = (0 until strip.childCount).map { strip.getChildAt(it) as Card }
+    fun cards(): List<View> = (0 until strip.childCount).map { strip.getChildAt(it) }
 
     fun restoreFocus(): Boolean = remembered()?.requestFocus() == true
 
     /** The card focused last time, or the one now at its position if it's gone. */
     fun remembered(): View? {
         if (strip.childCount == 0) return null
-        return cards().firstOrNull { it.key == lastKey } ?: strip.getChildAt(lastIndex.coerceIn(0, strip.childCount - 1))
+        return cards().firstOrNull { (it as? RowItem)?.key == lastKey } ?: strip.getChildAt(lastIndex.coerceIn(0, strip.childCount - 1))
+    }
+
+    /** Points the remembered card at [key], so the next focus into this row lands on it. */
+    fun remember(key: String) {
+        val index = cards().indexOfFirst { (it as? RowItem)?.key == key }
+        if (index < 0) return
+        lastKey = key
+        lastIndex = index
     }
 
     /** Glides so [card] sits at the row's start, or as far as the row allows. */

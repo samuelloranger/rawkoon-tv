@@ -15,6 +15,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.noClip
 
 /** App settings. For now: the language, and the version. */
 class SettingsScreen(activity: MainActivity) : Screen(activity) {
@@ -26,7 +27,7 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(context.dp(Tokens.CONTENT_START), context.dp(40), context.dp(Tokens.OVERSCAN_H), 0)
-        }
+        }.noClip()
         column.addView(label(context, 34f, Tokens.textPrimary, Fonts.title(context)).apply { text = string(R.string.nav_settings) })
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(R.string.language).uppercase() }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
