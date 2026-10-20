@@ -159,6 +159,8 @@ dependencies {
 androidComponents {
     onVariants(selector().all()) { variant ->
         val prefix = if (variant.buildType == "release") "RawkoonTV" else "RawkoonTV-${variant.buildType}"
+        // The public API has no way to rename an APK output; VariantOutputImpl is AGP-internal, so this
+        // cast may need updating when AGP is upgraded. The release names are part of the updater's contract.
         variant.outputs.map { it as VariantOutputImpl }.forEach { output ->
             val abi = output.getFilter(FilterConfiguration.FilterType.ABI)?.let { "-${it.identifier}" }.orEmpty()
             output.outputFileName = "$prefix$abi.apk"
