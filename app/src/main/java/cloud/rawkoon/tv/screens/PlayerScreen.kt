@@ -65,8 +65,9 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         keepScreenOn = true
         setShutterBackgroundColor(Color.BLACK)
         subtitleView?.apply {
-            setStyle(CaptionStyleCompat(Color.WHITE, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, Fonts.medium(context)))
-            setFractionalTextSize(0.058f)
+            val style = settings.subtitleStyle
+            setStyle(CaptionStyleCompat(style.textColor, style.backgroundColor, Color.TRANSPARENT, style.edgeType, style.edgeColor, Fonts.medium(context)))
+            setFractionalTextSize(style.textSizeFraction)
             setBottomPaddingFraction(0.08f)
         }
     }

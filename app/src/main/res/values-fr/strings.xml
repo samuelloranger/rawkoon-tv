@@ -143,4 +143,30 @@
     <string name="skipped_preview">Aperçu passé</string>
     <string name="skipped_credits">Générique passé</string>
     <string name="still_watching">Toujours là ?</string>
+
+    <!-- Subtitles, audio and HDR formats -->
+    <string name="settings_subtitles">Sous-titres</string>
+    <string name="setting_subtitle_size">Taille du texte</string>
+    <string name="size_small">Petite</string>
+    <string name="size_medium">Moyenne</string>
+    <string name="size_large">Grande</string>
+    <string name="size_extra_large">Très grande</string>
+    <string name="setting_subtitle_color">Couleur du texte</string>
+    <string name="color_white">Blanc</string>
+    <string name="color_yellow">Jaune</string>
+    <string name="color_grey">Gris clair</string>
+    <string name="setting_subtitle_background">Arrière-plan</string>
+    <string name="background_none">Aucun</string>
+    <string name="background_box">Boîte noire</string>
+    <string name="setting_subtitle_edge">Contour</string>
+    <string name="edge_outline">Contour</string>
+    <string name="edge_shadow">Ombre portée</string>
+    <string name="edge_none">Aucun</string>
+    <string name="settings_audio">Audio</string>
+    <string name="setting_ac3_passthrough">Son surround direct (AC3 / E-AC3)</string>
+    <string name="setting_downmix">Mixage en stéréo</string>
+    <string name="setting_pgs_direct_play">Lire les sous-titres PGS directement</string>
+    <string name="hdr_auto">Auto (ce que ta télé indique)</string>
+    <string name="hdr_always">Toujours autoriser</string>
+    <string name="hdr_never">Ne jamais autoriser</string>
 </resources>

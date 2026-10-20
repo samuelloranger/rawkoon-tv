@@ -15,9 +15,13 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.data.Fetcher
+import cloud.rawkoon.tv.data.HdrOverride
 import cloud.rawkoon.tv.data.MatchDisplay
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.SkipMode
+import cloud.rawkoon.tv.data.SubtitleColor
+import cloud.rawkoon.tv.data.SubtitleEdge
+import cloud.rawkoon.tv.data.SubtitleSize
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.PillButton
@@ -96,12 +100,16 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         choice(column, R.string.setting_still_watching, STILL_WATCHING_EPISODES.map { it to if (it == 0) string(R.string.setting_off) else string(R.string.after_episodes, it) },
             { Prefs.stillWatchingEpisodes(context) }) { put(Prefs.STILL_WATCHING_EPISODES, it) }
 
+        addSubtitleSection(column)
+        addAudioSection(column)
+
         header(column, R.string.settings_display)
         choice(column, R.string.setting_match_display, listOf(
             MatchDisplay.OFF to string(R.string.setting_off),
             MatchDisplay.FRAME_RATE to string(R.string.match_frame_rate),
             MatchDisplay.FRAME_RATE_AND_RESOLUTION to string(R.string.match_frame_rate_resolution),
         ), { Prefs.matchDisplay(context) }) { put(Prefs.MATCH_DISPLAY, it.key) }
+        addHdrRows(column)
 
         header(column, R.string.language)
         choice(column, R.string.language, listOf("system" to string(R.string.language_system), "fr" to string(R.string.language_fr), "en" to string(R.string.language_en)),
@@ -136,6 +144,55 @@ class SettingsScreen(activity: MainActivity) : Screen(activity) {
         // Pulled back by its inner room, so the rows still line up with the title
         page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { marginStart = -context.dp(SCROLL_ROOM) })
         view.addView(page, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.TOP))
+    }
+
+    // Subtitles, audio and HDR formats
+
+    private fun addSubtitleSection(column: LinearLayout) {
+        header(column, R.string.settings_subtitles)
+        choice(column, R.string.setting_subtitle_size, listOf(
+            SubtitleSize.SMALL to string(R.string.size_small),
+            SubtitleSize.MEDIUM to string(R.string.size_medium),
+            SubtitleSize.LARGE to string(R.string.size_large),
+            SubtitleSize.EXTRA_LARGE to string(R.string.size_extra_large),
+        ), { Prefs.subtitleSize(context) }) { put(Prefs.SUBTITLE_SIZE, it.key) }
+        choice(column, R.string.setting_subtitle_color, listOf(
+            SubtitleColor.WHITE to string(R.string.color_white),
+            SubtitleColor.YELLOW to string(R.string.color_yellow),
+            SubtitleColor.GREY to string(R.string.color_grey),
+        ), { Prefs.subtitleColor(context) }) { put(Prefs.SUBTITLE_COLOR, it.key) }
+        choice(column, R.string.setting_subtitle_background, listOf(
+            false to string(R.string.background_none),
+            true to string(R.string.background_box),
+        ), { Prefs.subtitleBackground(context) }) { put(Prefs.SUBTITLE_BACKGROUND, it) }
+        choice(column, R.string.setting_subtitle_edge, listOf(
+            SubtitleEdge.OUTLINE to string(R.string.edge_outline),
+            SubtitleEdge.SHADOW to string(R.string.edge_shadow),
+            SubtitleEdge.NONE to string(R.string.edge_none),
+        ), { Prefs.subtitleEdge(context) }) { put(Prefs.SUBTITLE_EDGE, it.key) }
+    }
+
+    private fun addAudioSection(column: LinearLayout) {
+        val onOff = listOf(true to string(R.string.setting_on), false to string(R.string.setting_off))
+        header(column, R.string.settings_audio)
+        choice(column, R.string.setting_ac3_passthrough, onOff, { Prefs.ac3Passthrough(context) }) { put(Prefs.AC3_PASSTHROUGH, it) }
+        choice(column, R.string.setting_downmix, onOff, { Prefs.downmixStereo(context) }) { put(Prefs.DOWNMIX_STEREO, it) }
+        choice(column, R.string.setting_pgs_direct_play, onOff, { Prefs.pgsDirectPlay(context) }) { put(Prefs.PGS_DIRECT_PLAY, it) }
+    }
+
+    private fun addHdrRows(column: LinearLayout) {
+        val overrides = listOf(
+            HdrOverride.AUTO to string(R.string.hdr_auto),
+            HdrOverride.ALWAYS to string(R.string.hdr_always),
+            HdrOverride.NEVER to string(R.string.hdr_never),
+        )
+        for ((title, key) in listOf(
+            R.string.setting_hdr10 to Prefs.HDR10,
+            R.string.setting_hdr10_plus to Prefs.HDR10_PLUS,
+            R.string.setting_dolby_vision to Prefs.DOLBY_VISION,
+        )) {
+            choice(column, title, overrides, { Prefs.hdrOverride(context, key) }) { put(key, it.key) }
+        }
     }
 
     /** A section's name, small and muted above its rows. */

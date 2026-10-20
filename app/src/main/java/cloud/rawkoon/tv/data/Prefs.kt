@@ -36,6 +36,52 @@ enum class MatchDisplay(val key: String) {
     }
 }
 
+/** How the player treats an HDR format: trust what the TV reports, or force it either way. */
+enum class HdrOverride(val key: String) {
+    AUTO("auto"),
+    ALWAYS("always"),
+    NEVER("never"),
+    ;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: AUTO
+    }
+}
+
+enum class SubtitleSize(val key: String) {
+    SMALL("small"),
+    MEDIUM("medium"),
+    LARGE("large"),
+    EXTRA_LARGE("xlarge"),
+    ;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: MEDIUM
+    }
+}
+
+enum class SubtitleColor(val key: String) {
+    WHITE("white"),
+    YELLOW("yellow"),
+    GREY("grey"),
+    ;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: WHITE
+    }
+}
+
+enum class SubtitleEdge(val key: String) {
+    OUTLINE("outline"),
+    SHADOW("shadow"),
+    NONE("none"),
+    ;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: OUTLINE
+    }
+}
+
 /** The one preferences file: app-wide settings that don't belong to a profile. */
 object Prefs {
     private const val NAME = "rawkoon"
@@ -60,6 +106,22 @@ object Prefs {
 
     // Display
     const val MATCH_DISPLAY = "playback:match_display"
+
+    // Subtitles
+    const val SUBTITLE_SIZE = "subtitles:size"
+    const val SUBTITLE_COLOR = "subtitles:color"
+    const val SUBTITLE_BACKGROUND = "subtitles:background"
+    const val SUBTITLE_EDGE = "subtitles:edge"
+
+    // Audio
+    const val AC3_PASSTHROUGH = "audio:ac3_passthrough"
+    const val DOWNMIX_STEREO = "audio:downmix_stereo"
+    const val PGS_DIRECT_PLAY = "audio:pgs_direct_play"
+
+    // HDR formats (under Display)
+    const val HDR10 = "display:hdr10"
+    const val HDR10_PLUS = "display:hdr10_plus"
+    const val DOLBY_VISION = "display:dolby_vision"
 
     const val DEFAULT_SKIP_BACK_S = 10
     const val DEFAULT_SKIP_FORWARD_S = 30
@@ -105,4 +167,27 @@ object Prefs {
 
     /** The tallest picture to direct play, in pixels of height; 0 is no limit. */
     fun maxResolution(context: Context): Int = of(context).getInt(MAX_RESOLUTION, 0)
+
+    // Subtitles, audio and HDR formats
+
+    fun subtitleSize(context: Context): SubtitleSize = SubtitleSize.of(of(context).getString(SUBTITLE_SIZE, null))
+
+    fun subtitleColor(context: Context): SubtitleColor = SubtitleColor.of(of(context).getString(SUBTITLE_COLOR, null))
+
+    /** Whether subtitles sit on a semi-transparent black box. */
+    fun subtitleBackground(context: Context): Boolean = of(context).getBoolean(SUBTITLE_BACKGROUND, false)
+
+    fun subtitleEdge(context: Context): SubtitleEdge = SubtitleEdge.of(of(context).getString(SUBTITLE_EDGE, null))
+
+    /** Whether the server may send AC3 and E-AC3 as they are, for a receiver to decode. */
+    fun ac3Passthrough(context: Context): Boolean = of(context).getBoolean(AC3_PASSTHROUGH, true)
+
+    /** Whether audio is limited to stereo. */
+    fun downmixStereo(context: Context): Boolean = of(context).getBoolean(DOWNMIX_STEREO, false)
+
+    /** Whether PGS subtitles are drawn by the player; off has the server burn them in. */
+    fun pgsDirectPlay(context: Context): Boolean = of(context).getBoolean(PGS_DIRECT_PLAY, true)
+
+    /** The override for an HDR format, by the key of its setting ([HDR10] and the like). */
+    fun hdrOverride(context: Context, key: String): HdrOverride = HdrOverride.of(of(context).getString(key, null))
 }

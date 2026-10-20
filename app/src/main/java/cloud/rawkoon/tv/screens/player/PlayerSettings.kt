@@ -19,6 +19,7 @@ class PlayerSettings private constructor(
     val countdownSeconds: Int,
     val stillWatchingAfter: Int,
     val matchDisplay: MatchDisplay,
+    val subtitleStyle: SubtitleStyle,
 ) {
     /** What to do with a segment of [type]; types the server doesn't list as skippable are left alone. */
     fun modeFor(type: MediaSegmentType): SkipMode = segmentModes[type] ?: SkipMode.NONE
@@ -41,6 +42,10 @@ class PlayerSettings private constructor(
             countdownSeconds = Prefs.autoplayCountdownSeconds(context),
             stillWatchingAfter = Prefs.stillWatchingEpisodes(context),
             matchDisplay = Prefs.matchDisplay(context),
+            subtitleStyle = subtitleStyle(
+                Prefs.subtitleSize(context), Prefs.subtitleColor(context),
+                Prefs.subtitleBackground(context), Prefs.subtitleEdge(context),
+            ),
         )
     }
 }
