@@ -31,6 +31,12 @@ object Tokens {
     /** Where the home rows start; the header owns everything above. */
     const val ROWS_TOP = 235
 
+    // Pages of rows without a home-style hero (favorites, search): header and rows tops, and the
+    // room a search bar takes above both.
+    const val PAGE_HEADER_TOP = 26
+    const val PAGE_ROWS_TOP = ROWS_TOP - 6
+    const val SEARCH_BAR_OFFSET = 58
+
     const val POSTER_W = 102
     const val POSTER_H = 153
     const val LAND_W = 192
