@@ -1,5 +1,8 @@
+import com.android.build.api.variant.FilterConfiguration
+import com.android.build.api.variant.impl.VariantOutputImpl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.File
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -23,14 +26,18 @@ val gitTag: String = providers.exec {
 val semver = gitTag.removePrefix("v").split('.', '-').take(3).map { it.toIntOrNull() ?: 0 }
 
 /**
- * Release signing, from environment variables (CI) or a directory named by the
- * `rawkoontv.signingDir` Gradle property (local) holding release.jks and signing.env. Without
- * either, release builds fall back to the debug key so a fresh checkout still builds.
+ * Release signing, from the CI secrets (SIGNING_KEY is the base64 keystore, written next to the
+ * build outputs) or a directory named by the `rawkoontv.signingDir` Gradle property (local)
+ * holding release.jks and signing.env. Without either, release builds fall back to the debug key
+ * so a fresh checkout still builds; the release workflow refuses to publish such a build.
  */
 val signing: Map<String, String> = run {
-    val fromEnv = System.getenv("RAWKOONTV_KEYSTORE")?.let {
+    val fromEnv = System.getenv("SIGNING_KEY")?.takeIf { it.isNotBlank() }?.let { encoded ->
+        val keystore = layout.buildDirectory.file("ci.keystore").get().asFile
+        keystore.parentFile.mkdirs()
+        keystore.writeBytes(Base64.getMimeDecoder().decode(encoded))
         mapOf(
-            "store" to it,
+            "store" to keystore.path,
             "storePassword" to System.getenv("KEY_STORE_PASSWORD").orEmpty(),
             "alias" to System.getenv("KEY_ALIAS").orEmpty(),
             "keyPassword" to System.getenv("KEY_PASSWORD").orEmpty(),
@@ -139,4 +146,19 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
+}
+
+/**
+ * Names the APKs for the updaters: RawkoonTV-<abi>.apk per ABI and RawkoonTV.apk for the universal
+ * one, the names the first RawkoonTV's updater looks for and this one's too. Preview and debug
+ * builds carry their build type so they never pass for a release.
+ */
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val prefix = if (variant.buildType == "release") "RawkoonTV" else "RawkoonTV-${variant.buildType}"
+        variant.outputs.map { it as VariantOutputImpl }.forEach { output ->
+            val abi = output.getFilter(FilterConfiguration.FilterType.ABI)?.let { "-${it.identifier}" }.orEmpty()
+            output.outputFileName = "$prefix$abi.apk"
+        }
+    }
 }
