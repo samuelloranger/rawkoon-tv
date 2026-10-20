@@ -24,6 +24,7 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
+import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.FlatView
 import cloud.rawkoon.tv.ui.FocusMotion
 import cloud.rawkoon.tv.ui.FocusRow
@@ -69,6 +70,7 @@ class SeasonScreen(
     private val overview = label(context, 14f, 0xE6ECE3DB.toInt(), Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
     private val episodes = FocusRow(context)
     private val actions = ActionBar(this)
+    private val parking = FocusParking(context)
     private var seasons: List<MediaItem> = emptyList()
     private var shownSeason: String? = null
     private var loadJob: Job? = null
@@ -94,6 +96,7 @@ class SeasonScreen(
         content.addView(episodes, at(0, 228, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         content.addView(actions.view, at(start - Tokens.RING_INSET, 412, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         episodes.onLeftEdge = { rail.activeItem() }
+        content.addView(parking, FrameLayout.LayoutParams(1, 1))
         load()
     }
 
@@ -107,7 +110,8 @@ class SeasonScreen(
             try {
                 val details = async { session.details(seriesId) }
                 seasons = session.seasons(seriesId)
-                tabs.set(seasons) { season, focused ->
+                // A tab only switches the season if focus stays on it; leaving it cancels the switch
+                tabs.set(seasons, onLeave = { main.removeCallbacks(settleTab) }) { season, focused ->
                     main.removeCallbacks(settleTab)
                     if (focused) {
                         // Moving along the tabs only switches once focus rests on one
@@ -149,6 +153,9 @@ class SeasonScreen(
         loadJob = scope.launch {
             try {
                 val list = session.episodes(seriesId, season.id)
+                val refocus = focus && episodes.hasFocus()
+                parking.isFocusable = refocus
+                if (refocus) parking.requestFocus()
                 episodes.setCards(
                     list.map { e ->
                         val name = listOfNotNull(e.episodeNumber?.let { "E$it" }, e.title).joinToString(" · ")
@@ -159,6 +166,7 @@ class SeasonScreen(
                 episodes.remember(target.id)
                 showEpisode(target)
                 if (focus) episodes.restoreFocus()
+                parking.isFocusable = false
                 // Glide to the remembered card once the row is laid out
                 episodes.post { episodes.remembered()?.let { episodes.reveal(it) } }
             } catch (e: CancellationException) {
@@ -193,6 +201,16 @@ class SeasonScreen(
         if (!episodes.restoreFocus()) tabs.focusSelected()
     }
 
+    /** Back from the player: reload the season for the new progress and checks, on the same episode. */
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        if (first) return
+        val season = seasons.firstOrNull { it.id == shownSeason } ?: return
+        val key = (episodes.remembered() as? Card)?.item?.id
+        shownSeason = null
+        select(season, key, focus = episodes.hasFocus() || view.findFocus() == null)
+    }
+
     override fun destroy() {
         main.removeCallbacks(settleTab)
         super.destroy()
@@ -212,12 +230,15 @@ class TabsRow(context: Context) : LinearLayout(context) {
         noClip()
     }
 
-    fun set(seasons: List<MediaItem>, onPick: (MediaItem, focused: Boolean) -> Unit) {
+    fun set(seasons: List<MediaItem>, onLeave: () -> Unit, onPick: (MediaItem, focused: Boolean) -> Unit) {
         removeAllViews()
         tabs.clear()
         for (season in seasons) {
             val tab = Tab(context, season)
-            tab.setOnFocusChangeListener { _, focused -> tab.focusChanged(focused); if (focused) onPick(season, true) }
+            tab.setOnFocusChangeListener { _, focused ->
+                tab.focusChanged(focused)
+                if (focused) onPick(season, true) else onLeave()
+            }
             tab.setOnClickListener { onPick(season, false) }
             tabs += tab
             addView(tab)

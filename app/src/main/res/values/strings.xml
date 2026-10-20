@@ -92,7 +92,21 @@
     <string name="time_left">%1$s left</string>
     <string name="watched">Watched</string>
     <string name="favorite">Favorite</string>
-    <string name="player_soon">The player comes in the next version</string>
     <string name="page_error">Couldn\'t load this page.</string>
     <string name="action_failed">That didn\'t work. Try again.</string>
+
+    <string name="skip_intro">Skip intro</string>
+    <string name="skip_recap">Skip recap</string>
+    <string name="skip_credits">Skip credits</string>
+    <string name="skip_preview">Skip preview</string>
+    <string name="next_episode">Next episode</string>
+    <string name="up_next_in">Next episode in %1$d s</string>
+    <string name="play_now">Play now</string>
+    <string name="subtitles">Subtitles</string>
+    <string name="audio">Audio</string>
+    <string name="subtitles_off">Off</string>
+    <string name="playback_error">Couldn\'t play this video (%1$s).</string>
+    <string name="rewind">Back 10 seconds</string>
+    <string name="forward">Forward 30 seconds</string>
+    <string name="play_pause">Play or pause</string>
 </resources>

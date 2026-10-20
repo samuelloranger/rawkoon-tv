@@ -102,6 +102,17 @@ android {
         buildConfig = true
     }
 
+    // The ffmpeg decoders are native: one APK per ABI keeps each download small, plus a universal one.
+    // The names match what the first RawkoonTV's updater looks for.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     lint {
         abortOnError = true
         checkReleaseBuilds = true
@@ -116,6 +127,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("org.jellyfin.sdk:jellyfin-core:1.7.1")
     implementation("com.google.zxing:core:3.5.3")
+
+    // The player: media3 at the version the Jellyfin ffmpeg decoders are built against
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.8.0+1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")

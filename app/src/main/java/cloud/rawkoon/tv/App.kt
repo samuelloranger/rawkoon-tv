@@ -9,6 +9,9 @@ import cloud.rawkoon.tv.data.LegacyImport
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.ProfileStore
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /** App-wide singletons, built once: no dependency injection, nothing hidden. */
 class App : Application() {
@@ -16,6 +19,9 @@ class App : Application() {
         private set
     lateinit var images: Images
         private set
+
+    /** For calls that must finish after their screen is gone, like reporting where playback stopped. */
+    val reportScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun attachBaseContext(base: Context) = super.attachBaseContext(Language.wrap(base))
 

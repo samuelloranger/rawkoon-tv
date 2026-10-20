@@ -43,6 +43,11 @@ abstract class Screen(val activity: MainActivity) {
     /** Keys before the focused view sees them; true when consumed. */
     open fun onKey(event: KeyEvent): Boolean = false
 
+    /** The app went to the background (Home pressed, another app opened), or came back. */
+    open fun onPause() {}
+
+    open fun onResume() {}
+
     open fun destroy() = scope.cancel()
 
     fun string(id: Int, vararg args: Any): String = activity.getString(id, *args)

@@ -86,7 +86,21 @@
     <string name="time_left">%1$s restantes</string>
     <string name="watched">Vu</string>
     <string name="favorite">Favori</string>
-    <string name="player_soon">Le lecteur arrive dans la prochaine version</string>
     <string name="page_error">Impossible de charger cette page.</string>
     <string name="action_failed">Ça n\'a pas fonctionné. Réessaie.</string>
+
+    <string name="skip_intro">Passer l\'intro</string>
+    <string name="skip_recap">Passer le résumé</string>
+    <string name="skip_credits">Passer le générique</string>
+    <string name="skip_preview">Passer l\'aperçu</string>
+    <string name="next_episode">Épisode suivant</string>
+    <string name="up_next_in">Épisode suivant dans %1$d s</string>
+    <string name="play_now">Lire maintenant</string>
+    <string name="subtitles">Sous-titres</string>
+    <string name="audio">Audio</string>
+    <string name="subtitles_off">Aucun</string>
+    <string name="playback_error">Impossible de lire cette vidéo (%1$s).</string>
+    <string name="rewind">Reculer de 10 secondes</string>
+    <string name="forward">Avancer de 30 secondes</string>
+    <string name="play_pause">Lecture ou pause</string>
 </resources>

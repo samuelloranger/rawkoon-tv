@@ -227,16 +227,17 @@ fun oval(color: Int) = GradientDrawable().apply {
 }
 
 /** A round action button with an icon: watched, favorite, more. [setOn] paints the icon apricot. */
-class CircleButton(context: Context, glyph: String, description: String) : Focusable(context) {
+class CircleButton(context: Context, glyph: String, description: String, filled: Boolean = false) : Focusable(context) {
     private val ring = FlatView(context)
-    private val icon: TextView = icon(context, glyph, 14f, Tokens.textPrimary)
+    private val icon: TextView = icon(context, glyph, 14f, if (filled) Tokens.background else Tokens.textPrimary)
+    private val filled = filled
     override val motion = FocusMotion(this, ring)
 
     init {
         contentDescription = description
         val inset = context.dp(Tokens.RING_INSET)
         val size = context.dp(SIZE)
-        icon.background = oval(0x24FFFFFF)
+        icon.background = oval(if (filled) Tokens.textPrimary else 0x24FFFFFF)
         addView(icon, LayoutParams(size, size).apply { setMargins(inset, inset, inset, inset) })
         ring.background = oval(0).apply { setStroke(context.dp(2), Tokens.ring) }
         ring.alpha = 0f
@@ -244,7 +245,11 @@ class CircleButton(context: Context, glyph: String, description: String) : Focus
         listenForFocus()
     }
 
-    fun setOn(on: Boolean) = icon.setTextColor(if (on) Tokens.accent else Tokens.textPrimary)
+    fun setOn(on: Boolean) = icon.setTextColor(if (on) Tokens.accent else if (filled) Tokens.background else Tokens.textPrimary)
+
+    fun setGlyph(glyph: String) {
+        icon.text = glyph
+    }
 
     companion object {
         const val SIZE = 40

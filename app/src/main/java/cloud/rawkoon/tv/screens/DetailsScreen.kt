@@ -192,6 +192,19 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         actions.primary.requestFocus()
     }
 
+    /** Back from the player: the progress and the episode to play next have changed. */
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        if (first) return
+        scope.launch {
+            runCatching {
+                val d = session.details(start.id)
+                actions.next = if (start.kind == MediaItem.Kind.SERIES) session.nextEpisode(start.id) else null
+                actions.bind(d.item)
+            }
+        }
+    }
+
     private companion object {
         const val TOP = 50
         const val POSTER_W = 135
@@ -234,7 +247,7 @@ class ActionBar(private val screen: RailScreen) {
         view.addView(primary)
         view.addView(watched, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(6) })
         view.addView(favorite, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(2) })
-        primary.setOnClickListener { Toast.makeText(context, R.string.player_soon, Toast.LENGTH_SHORT).show() }
+        primary.setOnClickListener { play() }
         watched.setOnClickListener { toggle(watched = true) }
         favorite.setOnClickListener { toggle(watched = false) }
     }
@@ -244,6 +257,17 @@ class ActionBar(private val screen: RailScreen) {
         primary.label.text = playLabel(item)
         watched.setOn(item.played)
         favorite.setOn(item.favorite)
+    }
+
+    /** Plays the item, or for a show the episode it is at. */
+    private fun play() {
+        val current = item ?: return
+        val target = if (current.kind == MediaItem.Kind.SERIES) next else current
+        if (target == null) {
+            Toast.makeText(context, R.string.page_error, Toast.LENGTH_SHORT).show()
+            return
+        }
+        screen.activity.push(PlayerScreen(screen.activity, screen.session, target))
     }
 
     private fun playLabel(item: MediaItem): String {

@@ -44,6 +44,8 @@ data class MediaItem(
     val media: MediaInfo? = null,
     /** Episodes in a season, seasons in a show. */
     val childCount: Int? = null,
+    /** Where playback resumes, 0 to start over. */
+    val resumeMs: Long = 0L,
 ) {
     enum class Kind { MOVIE, SERIES, SEASON, EPISODE, OTHER }
 
@@ -80,7 +82,7 @@ data class MediaItem(
         .putOpt("thumbUrl", thumbUrl).putOpt("backdropUrl", backdropUrl).putOpt("logoUrl", logoUrl)
         .putOpt("progress", progress?.toDouble()).put("played", played).putOpt("seriesId", seriesId)
         .putOpt("seasonId", seasonId).putOpt("seasonNumber", seasonNumber).putOpt("episodeNumber", episodeNumber)
-        .put("favorite", favorite)
+        .put("favorite", favorite).put("resumeMs", resumeMs)
 
     companion object {
         fun duration(minutes: Int) = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} min" else "$minutes min"
@@ -111,6 +113,7 @@ data class MediaItem(
                 seasonNumber = int("seasonNumber"),
                 episodeNumber = int("episodeNumber"),
                 favorite = json.optBoolean("favorite"),
+                resumeMs = json.optLong("resumeMs"),
             )
         }
 
@@ -162,6 +165,7 @@ data class MediaItem(
                 favorite = dto.userData?.isFavorite == true,
                 media = MediaInfo.from(dto.mediaStreams ?: dto.mediaSources?.firstOrNull()?.mediaStreams),
                 childCount = dto.childCount,
+                resumeMs = (dto.userData?.playbackPositionTicks ?: 0L) / 10_000L,
             )
         }
     }

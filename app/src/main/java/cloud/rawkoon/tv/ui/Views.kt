@@ -103,6 +103,13 @@ object Icon {
     const val CHECK = "\uf00c"
     const val XMARK = "\uf00d"
     const val TRASH = "\uf1f8"
+    const val PAUSE = "\uf04c"
+    const val SUBTITLES = "\uf20a"
+    const val AUDIO = "\uf028"
+    const val REWIND = "\uf2ea"
+    const val FORWARD = "\uf2f9"
+    const val NEXT_TRACK = "\uf051"
+    const val SKIP = "\uf04e"
 }
 
 /** Text filled with a top-to-bottom gradient, like the "TV" of the brand. */
@@ -145,4 +152,28 @@ fun View.whileAttachedOnFocusChange(listener: (View?) -> Unit) {
         override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalFocusChangeListener(global)
         override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalFocusChangeListener(global)
     })
+}
+
+/**
+ * Holds focus while a container swaps its children. Removing the focused view makes Android
+ * hand focus to the first focusable it finds (and every view added after that may take it), so
+ * a rebuild parks focus here, then puts it back on the right card. Never reachable with the D-pad.
+ */
+class FocusParking(context: Context) : View(context) {
+    init {
+        isFocusable = false
+    }
+
+    /** Runs [rebuild] with focus parked if [parked] (the container had focus), then lets [restore] place it. */
+    fun around(parked: Boolean, rebuild: () -> Unit, restore: () -> Unit) {
+        if (parked) {
+            isFocusable = true
+            requestFocus()
+        }
+        rebuild()
+        if (parked) {
+            restore()
+            isFocusable = false
+        }
+    }
 }

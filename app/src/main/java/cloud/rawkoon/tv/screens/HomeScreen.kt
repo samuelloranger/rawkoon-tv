@@ -14,6 +14,7 @@ import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
+import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Header
 import cloud.rawkoon.tv.ui.PillButton
@@ -46,6 +47,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         visibility = View.GONE
     }
     private val cache = File(context.cacheDir, "home-${profile.id}.json")
+    private val parking = FocusParking(context)
     private var backdropUrl: String? = null
     private val settleBackdrop = Runnable { backdrop.show(backdropUrl) }
 
@@ -58,6 +60,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
             topMargin = context.dp(Tokens.ROWS_TOP - 6)
         })
         content.addView(message, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        content.addView(parking, FrameLayout.LayoutParams(1, 1))
         // The rows are clipped to their area, so rows gliding up never pass over the header
         content.clipChildren = true
         load()
@@ -98,13 +101,16 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
         val focusedRow = rows.focusedSection()?.takeIf { hadFocus }?.id
         val focusedKey = (view.findFocus() as? RowItem)?.key
         val keep = current.associateBy { it.id }
-        rows.column.removeAllViews()
-        for (row in list) rows.column.addView(keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row))
-        if (hadFocus || view.findFocus() == null) {
+        val restore = {
             val section = rows.sections().firstOrNull { it.id == focusedRow } ?: rows.sections().first()
             focusedKey?.let { section.row.remember(it) }
             section.row.restoreFocus()
         }
+        parking.around(hadFocus, rebuild = {
+            rows.column.removeAllViews()
+            for (row in list) rows.column.addView(keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row))
+        }, restore = { restore() })
+        if (!hadFocus && view.findFocus() == null) restore()
         // Sections moved: re-anchor once the new layout is in
         rows.post { rows.focusedSection()?.let { rows.reveal(it) } }
     }
@@ -149,6 +155,12 @@ class HomeScreen(activity: MainActivity, profile: Profile) : RailScreen(activity
 
     override fun focusDefault() {
         rows.sections().firstOrNull()?.row?.restoreFocus()
+    }
+
+    /** Coming back to home (from a page or the player): refresh in place, keeping focus. */
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        if (!first) load()
     }
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */

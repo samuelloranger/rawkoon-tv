@@ -71,11 +71,14 @@ class MainActivity : Activity() {
             return
         }
         // removeAt, not removeLast: the Java 21 list method only exists on Android 15+
-        remove(stack.removeAt(stack.lastIndex))
+        val top = stack.removeAt(stack.lastIndex)
         val below = stack.last()
+        // The page below takes focus back before the top one goes: removing a focused view first
+        // would hand focus to whatever Android finds, and that can start things (a season tab loads)
         below.view.visibility = View.VISIBLE
         below.view.alpha = 1f
         below.onShown(first = false)
+        remove(top)
     }
 
     private fun show(view: View, fresh: Boolean) {
@@ -109,6 +112,16 @@ class MainActivity : Activity() {
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    override fun onPause() {
+        stack.lastOrNull()?.onPause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        stack.lastOrNull()?.onResume()
     }
 
     override fun onDestroy() {
