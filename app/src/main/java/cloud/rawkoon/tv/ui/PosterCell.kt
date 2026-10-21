@@ -47,7 +47,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         addView(frame, frame.frameParams())
         addView(caption, LayoutParams(posterW, context.dp(Tokens.CAPTION_H)).apply {
             leftMargin = inset
-            topMargin = frame.outerH
+            topMargin = frame.outerH + context.dp(Tokens.CAPTION_GAP)
         })
         listenForFocus { onFocused(this) }
         setOnClickListener { item?.let(onOpen) }
@@ -89,6 +89,6 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
 
         /** The vertical gap between the caption and the next row. */
         private const val ROW_GAP = 10
-        const val CELL_H = Tokens.POSTER_H + Tokens.RING_INSET * 2 + Tokens.CAPTION_H + ROW_GAP
+        const val CELL_H = Tokens.POSTER_H + Tokens.RING_INSET * 2 + Tokens.CAPTION_GAP + Tokens.CAPTION_H + ROW_GAP
     }
 }

@@ -42,7 +42,8 @@ class Card(
         contentDescription = item.headerTitle
         val inset = context.dp(Tokens.RING_INSET)
         val captionH = if (caption != null) context.dp(Tokens.CAPTION_H) else 0
-        layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionH)
+        val captionGap = if (caption != null) context.dp(Tokens.CAPTION_GAP) else 0
+        layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionGap + captionH)
         val shownProgress = item.progress?.takeIf { landscape || item.kind == MediaItem.Kind.EPISODE }
         shownProgress?.let { frame.addOverlay(CardProgress(context, it)) }
         // A rewatch keeps Played with a resume position: the bar says more than the badge

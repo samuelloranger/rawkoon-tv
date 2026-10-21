@@ -43,6 +43,9 @@ object Tokens {
     /** Room under a poster's art for its title and subtitle. */
     const val CAPTION_H = 38
 
+    /** Space between the art's ring and its caption, so the ring of a focused card, grown, stays off the title. */
+    const val CAPTION_GAP = 8
+
     const val POSTER_W = 102
     const val POSTER_H = 153
     const val LAND_W = 192
