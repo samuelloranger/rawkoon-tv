@@ -238,7 +238,10 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     override val livePage get() = LivePage.HOME
 
     /** Watched state, progress or new items changed on the server: the same in-place refresh as coming back. */
-    override fun onLive(kinds: Set<LiveKind>) = load()
+    override fun onLive(kinds: Set<LiveKind>) {
+        // Restarting a running load on every event could keep a slow Home from ever finishing
+        if (loadJob?.isActive != true) load()
+    }
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {

@@ -63,7 +63,14 @@ class LiveUpdates(private val scope: CoroutineScope, private val deliver: (Set<L
         val wait = batch.add(kind, SystemClock.elapsedRealtime()) ?: return
         flushing = scope.launch {
             delay(wait)
-            deliver(batch.drain(SystemClock.elapsedRealtime()))
+            try {
+                deliver(batch.drain(SystemClock.elapsedRealtime()))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A page that fails to refresh stays as it was; it must not take the app down
+                Log.w(TAG, "live refresh failed", e)
+            }
         }
     }
 
