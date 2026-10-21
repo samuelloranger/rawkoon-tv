@@ -91,6 +91,8 @@ abstract class RowsPage(
         val focusedKey = (view.findFocus() as? RowItem)?.key
         val keep = current.associateBy { it.id }
         val next = list.map { row -> keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row) }
+        // A rebuilt row would start at its first card: it carries on from where the old one was
+        next.forEach { section -> keep[section.id]?.takeIf { it !== section }?.let { section.row.takeOver(it.row) } }
         val restore = {
             val section = next.firstOrNull { it.id == focusedRow } ?: next.first()
             focusedKey?.let { section.row.remember(it) }

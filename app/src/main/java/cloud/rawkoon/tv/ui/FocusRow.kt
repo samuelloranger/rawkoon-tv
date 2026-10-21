@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Rect
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 
@@ -108,13 +109,54 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         lastIndex = index
     }
 
+    /**
+     * Carries on from [old], the row this one replaces: the same card is remembered (or, when it
+     * is gone, the one now at its position) and shown where [old] showed it.
+     */
+    fun takeOver(old: FocusRow) {
+        val card = old.remembered() ?: return
+        val key = (card as? RowItem)?.key
+        val index = cards().indexOfFirst { key != null && (it as? RowItem)?.key == key }
+            .takeIf { it >= 0 } ?: old.strip.indexOfChild(card)
+        if (strip.childCount == 0) return
+        lastIndex = index.coerceIn(0, strip.childCount - 1)
+        lastKey = (strip.getChildAt(lastIndex) as? RowItem)?.key
+        snapTo(strip.getChildAt(lastIndex))
+    }
+
     /** Glides so [card] sits at the row's start, or as far as the row allows. */
     fun reveal(card: View) {
-        val maxShift = (strip.width - width).coerceAtLeast(0)
-        val target = -(card.left - strip.paddingStart).coerceIn(0, maxShift).toFloat()
+        val target = targetFor(card)
         if (glideTarget == target) return
         glideTarget = target
         strip.animate().translationX(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
+    }
+
+    /**
+     * Puts [card] at the row's start at once, before the next frame: a row rebuilt in place of
+     * another shows its focused card where the old one had it, with no glide from the first card.
+     */
+    private fun snapTo(card: View) {
+        val place = {
+            val target = targetFor(card)
+            strip.animate().cancel()
+            strip.translationX = target
+            glideTarget = target
+        }
+        if (strip.isLaidOut && card.isLaidOut) return place()
+        strip.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                strip.viewTreeObserver.removeOnPreDrawListener(this)
+                // Focus may have moved on before the first frame
+                if (card.parent === strip) place()
+                return true
+            }
+        })
+    }
+
+    private fun targetFor(card: View): Float {
+        val maxShift = (strip.width - width).coerceAtLeast(0)
+        return -(card.left - strip.paddingStart).coerceIn(0, maxShift).toFloat()
     }
 
     /** Left/right never leave the row, except Left on the first card, which goes where [onLeftEdge] says. */
