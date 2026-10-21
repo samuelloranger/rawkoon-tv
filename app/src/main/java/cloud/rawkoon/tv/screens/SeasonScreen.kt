@@ -9,6 +9,8 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
@@ -190,6 +192,19 @@ class SeasonScreen(
         val key = played?.id ?: (episodes.remembered() as? Card)?.item?.id
         shownSeason = null
         select(season, key, focus = episodes.hasFocus() || view.findFocus() == null || played != null)
+    }
+
+    override val livePage get() = LivePage.SEASON
+
+    /**
+     * Reloads the shown season in place: the same episode stays selected, and focus only returns to
+     * the row when it was there (the actions, the tabs and the rail keep theirs).
+     */
+    override fun onLive(kinds: Set<LiveKind>) {
+        val season = seasons.firstOrNull { it.id == shownSeason } ?: return
+        val key = (episodes.remembered() as? Card)?.item?.id
+        shownSeason = null
+        select(season, key, focus = episodes.hasFocus())
     }
 
     private companion object {

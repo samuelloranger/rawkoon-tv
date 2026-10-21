@@ -12,12 +12,20 @@ import android.widget.FrameLayout
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaWords
 import cloud.rawkoon.tv.launcher.LauncherLink
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
+import cloud.rawkoon.tv.live.LiveUpdates
 import cloud.rawkoon.tv.screens.HomeScreen
 import cloud.rawkoon.tv.screens.PinScreen
 import cloud.rawkoon.tv.screens.ProfilesScreen
+import cloud.rawkoon.tv.screens.RailScreen
 import cloud.rawkoon.tv.screens.linkPage
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.fill
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * The only activity. It holds a stack of [Screen]s: a new screen fades in over the one below,
@@ -27,6 +35,9 @@ class MainActivity : Activity() {
     val app: App get() = application as App
     private lateinit var root: FrameLayout
     private val stack = ArrayList<Screen>()
+    private val liveScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val live = LiveUpdates(liveScope, ::deliverLive)
+    private var foreground = false
 
     override fun attachBaseContext(base: Context) {
         val wrapped = Language.wrap(base)
@@ -83,6 +94,7 @@ class MainActivity : Activity() {
         stack += screen
         show(screen.view)
         screen.onShown(first = true)
+        syncLive()
     }
 
     /** Replaces the top screen, e.g. sign-in once it succeeded. */
@@ -105,6 +117,7 @@ class MainActivity : Activity() {
                 s.view.visibility = View.GONE
             }
         }
+        syncLive()
     }
 
     /** Goes back down the stack to the first screen (from the top) that matches, e.g. home from a details page. */
@@ -120,6 +133,7 @@ class MainActivity : Activity() {
         target.view.alpha = 1f
         target.onShown(first = false)
         dropped.forEach { remove(it) }
+        syncLive()
     }
 
     fun pop() {
@@ -137,6 +151,22 @@ class MainActivity : Activity() {
         below.view.alpha = 1f
         below.onShown(first = false)
         remove(top)
+        syncLive()
+    }
+
+    /**
+     * The one socket follows the page on top: open in the foreground while that page reacts to live
+     * events (a profile's library pages), closed otherwise (profiles, settings, the player, the
+     * background), so a profile switch or a sign-out never leaves one behind.
+     */
+    private fun syncLive() {
+        val session = (stack.lastOrNull() as? RailScreen)?.takeIf { foreground && it.livePage != LivePage.OTHER }?.session
+        if (session != null) live.connect(session) else live.disconnect()
+    }
+
+    private fun deliverLive(kinds: Set<LiveKind>) {
+        val top = stack.lastOrNull() ?: return
+        if (foreground && top.livePage.reactsToAny(kinds)) top.onLive(kinds)
     }
 
     /** A keyboard opened on the screen being left would otherwise stay up over the next one. */
@@ -177,16 +207,22 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        foreground = false
+        syncLive()
         stack.lastOrNull()?.onPause()
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
+        foreground = true
+        syncLive()
         stack.lastOrNull()?.onResume()
     }
 
     override fun onDestroy() {
+        live.disconnect()
+        liveScope.cancel()
         stack.forEach { it.destroy() }
         super.onDestroy()
     }

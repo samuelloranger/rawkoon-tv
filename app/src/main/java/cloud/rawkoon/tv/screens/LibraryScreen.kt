@@ -15,6 +15,8 @@ import cloud.rawkoon.tv.jellyfin.LibrarySort
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.PagedItems
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -249,6 +251,16 @@ class LibraryScreen(
     override fun onShown(first: Boolean) {
         super.onShown(first)
         if (!first) refresh()
+    }
+
+    override val livePage get() = LivePage.LIBRARY
+
+    /**
+     * Fetches the posters around the focused one again for their marks. A library whose size changed
+     * starts over only when focus is off the grid: a grid under the user's hands never jumps.
+     */
+    override fun onLive(kinds: Set<LiveKind>) {
+        loader.refresh(grid.lastPosition, PosterGrid.PREFETCH, message.visibility == View.VISIBLE, restartOnResize = !grid.hasFocus())
     }
 
     override fun contentFocus(): View? = grid.focusTarget()

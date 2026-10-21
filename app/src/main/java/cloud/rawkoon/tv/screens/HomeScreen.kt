@@ -12,6 +12,8 @@ import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.arrangeRows
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.jellyfin.playsRightAway
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.rawkoon.RawkoonException
@@ -232,6 +234,11 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             load()
         }
     }
+
+    override val livePage get() = LivePage.HOME
+
+    /** Watched state, progress or new items changed on the server: the same in-place refresh as coming back. */
+    override fun onLive(kinds: Set<LiveKind>) = load()
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {
