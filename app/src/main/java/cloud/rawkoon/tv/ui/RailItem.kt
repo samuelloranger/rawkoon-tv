@@ -92,7 +92,7 @@ class RailItem(
      * the page comes back, so a picture that failed to load or changed since gets another try.
      */
     fun loadAvatar() {
-        val url = avatarUrl?.invoke()?.let { "$it&fillWidth=$avatarSize" } ?: return
+        val url = avatarUrl?.invoke() ?: return
         if (url == avatarShown && avatarArt.bitmap != null) return
         images.load(url, avatarSize, avatarSize, avatarSize / 2f, isCurrent = { alive }) {
             avatarArt.bitmap = it

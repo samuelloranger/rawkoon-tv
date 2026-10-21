@@ -69,7 +69,7 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
     /** Plays [stream] from [startMs], with its chosen audio and subtitle tracks. */
     fun load(stream: Stream, startMs: Long) {
         this.stream = stream
-        val subtitles = stream.subtitles.filter { it.delivery == SubtitleDeliveryMethod.EXTERNAL && it.url != null }.mapNotNull { track ->
+        val subtitles = stream.subtitles.filter(::sideLoads).mapNotNull { track ->
             val mime = subtitleMime(track.codec) ?: return@mapNotNull null
             ExoItem.SubtitleConfiguration.Builder(Uri.parse(track.url))
                 .setId(externalId(track.index))
@@ -91,16 +91,7 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
     }
 
     /** True when the choice can be made here; false when the server must make a new stream (burned-in subtitles, a transcode). */
-    fun canSwitchLocally(audio: Int?, subtitle: Int): Boolean {
-        val s = stream ?: return false
-        if (s.method != PlayMethod.DIRECT_PLAY) {
-            // A transcode can only drop its subtitles here when they aren't burned into the picture
-            val burnedIn = s.subtitles.firstOrNull { it.index == s.subtitleIndex }?.delivery == SubtitleDeliveryMethod.ENCODE
-            return audio == s.audioIndex && (subtitle == s.subtitleIndex || (subtitle == -1 && !burnedIn))
-        }
-        val sub = s.subtitles.firstOrNull { it.index == subtitle }
-        return sub == null || sub.delivery == SubtitleDeliveryMethod.EMBED || sub.delivery == SubtitleDeliveryMethod.EXTERNAL
-    }
+    fun canSwitchLocally(audio: Int?, subtitle: Int): Boolean = stream?.let { canSwitchTracks(it, audio, subtitle) } ?: false
 
     fun select(audio: Int?, subtitle: Int) {
         if (!applyTracks(audio, subtitle)) pending = audio to subtitle
@@ -127,8 +118,8 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
             track.delivery == SubtitleDeliveryMethod.EXTERNAL -> textGroups.firstOrNull { g -> (0 until g.length).any { g.getTrackFormat(it).id?.endsWith(externalId(track.index)) == true } }
             track.delivery == SubtitleDeliveryMethod.EMBED -> textGroups.filter { g -> (0 until g.length).none { g.getTrackFormat(it).id?.contains(EXTERNAL_PREFIX) == true } }
                 .getOrNull(s.subtitles.filter { !it.external && it.delivery == SubtitleDeliveryMethod.EMBED }.indexOf(track))
-            // In an HLS transcode the chosen subtitle is the manifest's only one
-            else -> textGroups.firstOrNull()
+            // In an HLS transcode the chosen subtitle is the manifest's, whatever side-loaded ones sit beside it
+            else -> textGroups.firstOrNull { g -> (0 until g.length).none { g.getTrackFormat(it).id?.contains(EXTERNAL_PREFIX) == true } }
         }
         if (group == null || track == null || track.delivery == SubtitleDeliveryMethod.ENCODE) {
             builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
@@ -145,13 +136,31 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
         const val EXTERNAL_PREFIX = "jf-ext-"
 
         fun externalId(index: Int) = "$EXTERNAL_PREFIX$index"
-
-        fun subtitleMime(codec: String?) = when (codec?.lowercase()) {
-            "srt", "subrip" -> MimeTypes.APPLICATION_SUBRIP
-            "vtt", "webvtt" -> MimeTypes.TEXT_VTT
-            "ttml" -> MimeTypes.APPLICATION_TTML
-            "ass", "ssa" -> MimeTypes.TEXT_SSA
-            else -> null
-        }
     }
+}
+
+private fun subtitleMime(codec: String?) = when (codec?.lowercase()) {
+    "srt", "subrip" -> MimeTypes.APPLICATION_SUBRIP
+    "vtt", "webvtt" -> MimeTypes.TEXT_VTT
+    "ttml" -> MimeTypes.APPLICATION_TTML
+    "ass", "ssa" -> MimeTypes.TEXT_SSA
+    else -> null
+}
+
+/** True for a subtitle [VideoPlayer.load] hands to ExoPlayer as its own file, so selecting it needs no new stream. */
+internal fun sideLoads(track: Track) = track.delivery == SubtitleDeliveryMethod.EXTERNAL && track.url != null && subtitleMime(track.codec) != null
+
+/**
+ * Whether [stream] can take [audio] and [subtitle] without a new one. A transcode keeps its audio;
+ * its subtitles change here when they go off or to a side-loaded file, but not when they are burned
+ * into the picture (the picture would keep them) and not to a kind that needs the server.
+ */
+internal fun canSwitchTracks(stream: Stream, audio: Int?, subtitle: Int): Boolean {
+    if (stream.method != PlayMethod.DIRECT_PLAY) {
+        val burnedIn = stream.subtitles.firstOrNull { it.index == stream.subtitleIndex }?.delivery == SubtitleDeliveryMethod.ENCODE
+        val target = stream.subtitles.firstOrNull { it.index == subtitle }
+        return audio == stream.audioIndex && (subtitle == stream.subtitleIndex || (!burnedIn && (subtitle == -1 || (target != null && sideLoads(target)))))
+    }
+    val sub = stream.subtitles.firstOrNull { it.index == subtitle }
+    return sub == null || sub.delivery == SubtitleDeliveryMethod.EMBED || sub.delivery == SubtitleDeliveryMethod.EXTERNAL
 }

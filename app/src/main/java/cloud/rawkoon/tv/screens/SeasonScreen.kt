@@ -117,6 +117,7 @@ class SeasonScreen(
         loadJob?.cancel()
         loadJob = launchLoading {
             try {
+                app.awaitStop()
                 val list = session.episodes(seriesId, season.id)
                 val refocus = focus && episodes.hasFocus()
                 parking.isFocusable = refocus

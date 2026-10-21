@@ -141,19 +141,27 @@ class JellyfinSession(context: Context, val profile: Profile) {
     }
 
     suspend fun seasons(seriesId: String): List<MediaItem> =
-        api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
+        api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
             .map { MediaItem.from(it, images) }
 
     /** A season's episodes, with the media streams the chips need. */
     suspend fun episodes(seriesId: String, seasonId: String): List<MediaItem> =
         api.tvShowsApi.getEpisodes(
-            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = parseId(seasonId), fields = FIELDS + ItemFields.MEDIA_STREAMS),
+            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = parseId(seasonId), isMissing = false, fields = FIELDS + ItemFields.MEDIA_STREAMS),
         ).content.items.map { MediaItem.from(it, images) }
 
-    /** The episode a show resumes at: the one in progress or the next unwatched one. */
-    suspend fun nextEpisode(seriesId: String): MediaItem? =
-        api.tvShowsApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
-            .content.items.firstOrNull()?.let { MediaItem.from(it, images) }
+    /**
+     * The episode a show resumes at: the one in progress or the next unwatched one. A show watched
+     * to the end has none, so it starts over at its first episode (not a special).
+     */
+    suspend fun nextEpisode(seriesId: String): MediaItem? {
+        val next = api.tvShowsApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
+            .content.items.firstOrNull()
+        val dto = next ?: api.tvShowsApi.getEpisodes(
+            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, limit = FIRST_EPISODE_SCAN, fields = FIELDS),
+        ).content.items.let { episodes -> episodes.firstOrNull { it.parentIndexNumber != 0 } ?: episodes.firstOrNull() }
+        return dto?.let { MediaItem.from(it, images) }
+    }
 
     suspend fun similar(id: String): List<MediaItem> =
         api.libraryApi.getSimilarItems(GetSimilarItemsRequest(itemId = parseId(id), userId = userId, limit = ROW_LIMIT, fields = FIELDS))
@@ -170,6 +178,9 @@ class JellyfinSession(context: Context, val profile: Profile) {
     companion object {
         private const val PEOPLE_LIMIT = 12
         private const val ROW_LIMIT = 20
+
+        /** Episodes read to find a show's first: specials sort ahead of season 1. */
+        private const val FIRST_EPISODE_SCAN = 50
         private val FIELDS = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO)
 
         /** Jellyfin ids come with or without dashes. */

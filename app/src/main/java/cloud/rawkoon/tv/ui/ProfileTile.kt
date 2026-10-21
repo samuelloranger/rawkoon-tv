@@ -43,7 +43,7 @@ class ProfileTile(context: Context, val profile: Profile?, images: Images, manag
             }, fill())
             avatar.addView(image, fill())
             profile.avatarTag?.let { tag ->
-                val url = ImageUrls(profile.jellyfinUrl).user(profile.jellyfinUserId, tag) + "&fillWidth=$size"
+                val url = ImageUrls(profile.jellyfinUrl).user(profile.jellyfinUserId, tag)
                 images.load(url, size, size, size / 2f, isCurrent = { alive }) { image.setImageBitmap(it) }
             } ?: run { image.visibility = View.GONE }
             val badge = when {

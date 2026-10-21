@@ -7,5 +7,6 @@ import java.util.UUID
 class ImageUrls(private val base: String) {
     fun item(id: UUID, type: ImageType, tag: String) = "$base/Items/$id/Images/${type.serialName}?tag=$tag&quality=90"
 
+    /** The server sends a user's picture at full size whatever size is asked (it has no resize for it); [cloud.rawkoon.tv.data.Images] downsamples on decode. */
     fun user(userId: String, tag: String) = "$base/Users/$userId/Images/Primary?tag=$tag&quality=90"
 }

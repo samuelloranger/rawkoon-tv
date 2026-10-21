@@ -124,6 +124,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         refreshJob?.cancel()
         refreshJob = scope.launch {
             runCatching {
+                app.awaitStop()
                 val d = session.details(start.id)
                 actions.next = if (start.kind == MediaItem.Kind.SERIES) session.nextEpisode(start.id) else null
                 actions.bind(d.item)

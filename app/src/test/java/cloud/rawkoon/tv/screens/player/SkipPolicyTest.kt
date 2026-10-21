@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.screens.player
 
 import cloud.rawkoon.tv.data.SkipMode
+import cloud.rawkoon.tv.playback.Segment
 import org.jellyfin.sdk.model.api.MediaSegmentType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -80,5 +81,28 @@ class SkipPolicyTest {
         tracker.onAutoStarted()
         assertEquals(UpNextPlan(null, stillWatching = true), tracker.plan(autoplay = true, countdownSeconds = 8))
         assertEquals(UpNextPlan(null, stillWatching = true), tracker.plan(autoplay = false, countdownSeconds = 8))
+    }
+
+    private val outro = Segment(credits, startMs = 2_400_000, endMs = 2_700_000)
+
+    @Test
+    fun `leaving from the credits reports the end`() {
+        assertEquals(2_700_000L, advanceStopPosition(2_450_000, 2_700_000, auto = false, upNextShown = false, segments = listOf(outro)))
+    }
+
+    @Test
+    fun `the countdown and the up-next button report the end`() {
+        assertEquals(2_700_000L, advanceStopPosition(2_450_000, 2_700_000, auto = true, upNextShown = false, segments = emptyList()))
+        assertEquals(2_700_000L, advanceStopPosition(2_450_000, 2_700_000, auto = false, upNextShown = true, segments = emptyList()))
+    }
+
+    @Test
+    fun `a manual jump mid-episode keeps the position`() {
+        assertEquals(600_000L, advanceStopPosition(600_000, 2_700_000, auto = false, upNextShown = false, segments = listOf(outro)))
+    }
+
+    @Test
+    fun `an unknown duration keeps the position`() {
+        assertEquals(2_450_000L, advanceStopPosition(2_450_000, 0, auto = true, upNextShown = false, segments = listOf(outro)))
     }
 }

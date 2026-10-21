@@ -55,12 +55,16 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         )
     }
 
-    /** [direct] false asks for a transcode, after a file the TV couldn't play after all. */
+    /**
+     * [direct] false asks for a transcode, after a file the TV couldn't play after all. Jellyfin
+     * ignores [audioIndex] and [subtitleIndex] unless [mediaSourceId] names the source they belong to.
+     */
     suspend fun stream(
         item: MediaItem,
         startMs: Long,
         audioIndex: Int? = null,
         subtitleIndex: Int? = null,
+        mediaSourceId: String? = null,
         direct: Boolean = true,
     ): Stream {
         val itemId = JellyfinSession.parseId(item.id)
@@ -70,6 +74,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             data = PlaybackInfoDto(
                 userId = session.userId,
                 startTimeTicks = startMs * TICKS_PER_MS,
+                mediaSourceId = mediaSourceId,
                 deviceProfile = profile(quality),
                 maxStreamingBitrate = quality.maxBitrate,
                 enableDirectPlay = direct,
@@ -204,6 +209,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
                     seriesId = JellyfinSession.parseId(series),
                     userId = session.userId,
                     startItemId = JellyfinSession.parseId(episode.id),
+                    isMissing = false,
                     limit = 2,
                     fields = listOf(ItemFields.OVERVIEW),
                 ),

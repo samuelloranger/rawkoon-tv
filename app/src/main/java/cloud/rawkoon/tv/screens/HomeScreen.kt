@@ -85,6 +85,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             // Rawkoon is asked at the same time but never waited for: Jellyfin's rows show as soon as they arrive
             val rawkoon = if (rawkoonIsFresh()) null else async { rawkoonOutcome() }
             try {
+                app.awaitStop()
                 val jellyfin = session.homeRows(Prefs.homeFetch(context))
                 app.launcher.syncAfterHome(profile(), jellyfin)
                 val previous = rawkoonRowsOnScreen(cached)

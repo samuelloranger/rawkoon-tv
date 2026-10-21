@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.screens.player
 
 import android.os.Handler
 import androidx.media3.common.Player
+import cloud.rawkoon.tv.App
 import cloud.rawkoon.tv.playback.PlaybackService
 import cloud.rawkoon.tv.playback.Stream
 import kotlinx.coroutines.CoroutineScope
@@ -13,14 +14,14 @@ import org.jellyfin.sdk.model.api.PlayMethod
 /**
  * What the player tells Jellyfin: that a stream started, where it is every few seconds, and that
  * it stopped, so "Continue watching" picks up where you left. Owns the [stream] being reported.
- * [scope] is the screen's; stops go through [stopScope] instead, which outlives it.
+ * [scope] is the screen's; stops go through [App.reportScope] instead, which outlives it.
  */
 class ProgressReporter(
     private val service: PlaybackService,
     private val exo: Player,
     private val main: Handler,
     private val scope: CoroutineScope,
-    private val stopScope: CoroutineScope,
+    private val app: App,
 ) {
     /** The stream playing now, or null between streams. */
     var stream: Stream? = null
@@ -61,13 +62,14 @@ class ProgressReporter(
     /**
      * Reports the stop of the current stream and forgets it. Every way a stream ends goes through
      * here: the report must outlive the screen's scope (leaving the screen cancels it), and a
-     * transcode that never got to play still has to be ended on the server.
+     * transcode that never got to play still has to be ended on the server. The job is kept in
+     * [App.pendingStop] for the page below to wait on.
      */
     fun stop(positionMs: Long) {
         val s = stream ?: return
         stream = null
         if (started || s.method != PlayMethod.DIRECT_PLAY) {
-            stopScope.launch { withContext(NonCancellable) { service.reportStop(s, positionMs) } }
+            app.pendingStop = app.reportScope.launch { withContext(NonCancellable) { service.reportStop(s, positionMs) } }
         }
     }
 
