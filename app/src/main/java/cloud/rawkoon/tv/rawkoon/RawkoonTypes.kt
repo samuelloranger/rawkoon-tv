@@ -12,6 +12,12 @@ sealed class RawkoonException(cause: Throwable? = null) : Exception(cause) {
     class NotLinked : RawkoonException()
     class QuickConnectExpired : RawkoonException()
 
+    /** Rawkoon answered, but its call to Jellyfin failed. */
+    class JellyfinUnreachable : RawkoonException()
+
+    /** The server has no route for the call: it predates it. */
+    class ServerTooOld : RawkoonException()
+
     /** The token was refused: the Rawkoon session ended, so the profile has to link its account again. */
     class Unauthorized : RawkoonException()
 }

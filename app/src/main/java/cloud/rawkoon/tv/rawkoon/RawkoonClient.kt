@@ -39,13 +39,7 @@ class RawkoonClient(baseUrl: String) {
         // Rate limited: same as being told to slow down
         if (response.code == 429) return DevicePoll.SlowDown
         if (response.code != 400) throw RawkoonException.Http(response.code)
-        return when (runCatching { JSONObject(response.body).optString("error") }.getOrDefault("")) {
-            "authorization_pending" -> DevicePoll.Pending
-            "slow_down" -> DevicePoll.SlowDown
-            "expired_token" -> DevicePoll.Expired
-            "access_denied" -> DevicePoll.Denied
-            else -> throw RawkoonException.Http(response.code)
-        }
+        return devicePollOf(response.body) ?: throw RawkoonException.Http(response.code)
     }
 
     /** The token comes back in the `set-auth-token` header. */
@@ -74,13 +68,7 @@ class RawkoonClient(baseUrl: String) {
     /** Asks Rawkoon to approve a Jellyfin Quick Connect [code] for the account's linked user. */
     suspend fun approveQuickConnect(token: String, code: String) {
         val response = send("POST", "api/tv/jellyfin/quick-connect", JSONObject().put("code", code), token)
-        when (response.code) {
-            in 200..299 -> Unit
-            403 -> throw RawkoonException.NotLinked()
-            404 -> throw RawkoonException.QuickConnectExpired()
-            503 -> throw RawkoonException.NoJellyfin()
-            else -> throw RawkoonException.Http(response.code)
-        }
+        quickConnectFailure(response.code, response.body)?.let { throw it }
     }
 
     /** One answer; [RawkoonDiscover] reads its own calls through the same [send]. */
@@ -130,6 +118,33 @@ class RawkoonClient(baseUrl: String) {
         }
 
     companion object {
+        /**
+         * Why a Quick Connect approval failed, or null when it went through. A server too old to
+         * have the route answers with its catch-all "Not found" (or a bare page behind a proxy).
+         */
+        internal fun quickConnectFailure(code: Int, body: String): RawkoonException? = when (code) {
+            in 200..299 -> null
+            401 -> RawkoonException.Unauthorized()
+            403 -> RawkoonException.NotLinked()
+            404 -> when (runCatching { JSONObject(body).optString("error") }.getOrDefault("")) {
+                "", "Not found" -> RawkoonException.ServerTooOld()
+                else -> RawkoonException.QuickConnectExpired()
+            }
+            502 -> RawkoonException.JellyfinUnreachable()
+            503 -> RawkoonException.NoJellyfin()
+            else -> RawkoonException.Http(code)
+        }
+
+        /** The answer a device-token 400 body stands for, or null for an error the flow can't act on. */
+        internal fun devicePollOf(body: String): DevicePoll? = when (runCatching { JSONObject(body).optString("error") }.getOrDefault("")) {
+            "authorization_pending" -> DevicePoll.Pending
+            "slow_down" -> DevicePoll.SlowDown
+            // A code already used or deleted (e.g. polled again after expiring) needs a fresh one too
+            "expired_token", "invalid_grant" -> DevicePoll.Expired
+            "access_denied" -> DevicePoll.Denied
+            else -> null
+        }
+
         const val CLIENT_ID = "rawkoon-tv"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         private const val TIMEOUT_MS = 10_000

@@ -67,8 +67,8 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
 
     suspend fun upcoming(): List<UpcomingEntry> = get("api/dashboard/upcoming", parse = ::parseUpcoming)
 
-    /** The requests of this account (an admin's account gets everyone's). */
-    suspend fun requests(): List<RequestSummary> = get("api/requests", parse = ::parseRequests)
+    /** The requests of this account; `mine` makes the server filter before its cap, which older servers ignore. */
+    suspend fun requests(): List<RequestSummary> = get("api/requests", "mine" to "1", parse = ::parseRequests)
 
     /** The answer, read after the network call and parsed off the main thread, so callers get typed results. */
     private suspend fun <T> get(path: String, vararg params: Pair<String, String>, parse: (JSONObject) -> T): T {
