@@ -5,6 +5,8 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.Details
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
@@ -120,7 +122,15 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     /** Back from the player: the progress and the episode to play next have changed. */
     override fun onShown(first: Boolean) {
         super.onShown(first)
-        if (first) return
+        if (!first) refresh()
+    }
+
+    override val livePage get() = LivePage.DETAILS
+
+    override fun onLive(kinds: Set<LiveKind>) = refresh()
+
+    /** Reads the title again for the progress, the checks and the episode to play next; the rows under it stay. */
+    private fun refresh() {
         refreshJob?.cancel()
         refreshJob = scope.launch {
             runCatching {
@@ -131,5 +141,4 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             }
         }
     }
-
 }

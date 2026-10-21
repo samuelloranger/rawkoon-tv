@@ -6,6 +6,8 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +68,12 @@ abstract class Screen(val activity: MainActivity) {
     open fun onPause() {}
 
     open fun onResume() {}
+
+    /** Which live events reload this page while it is on top; [LivePage.OTHER] opens no socket for it. */
+    open val livePage: LivePage get() = LivePage.OTHER
+
+    /** The server pushed [kinds] while this page is on top: refresh in place, without moving focus. */
+    open fun onLive(kinds: Set<LiveKind>) {}
 
     open fun destroy() {
         alive = false

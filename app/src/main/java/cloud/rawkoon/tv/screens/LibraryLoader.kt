@@ -123,15 +123,17 @@ class LibraryLoader(
      * Coming back to the page: the posters around [position] are fetched again so watched marks
      * are current, without moving anything. The rest are dropped and refetched if scrolled to. If
      * the library's size changed meanwhile, the grid starts over. [prefetch] is how far around the
-     * position to fetch; a visible message just retries the load.
+     * position to fetch; a visible message just retries the load. With [restartOnResize] false the
+     * grid keeps every page (none is refetched at shifted offsets): posters outside the window keep
+     * their marks, and a size change waits, until the next visit.
      */
-    fun refresh(position: Int, prefetch: Int, messageShown: Boolean) {
+    fun refresh(position: Int, prefetch: Int, messageShown: Boolean, restartOnResize: Boolean = true) {
         if (messageShown) return reload()
         if (loading?.isActive == true || paged.total == 0) return
         val gen = paged.generation
         val first = (position - prefetch).coerceAtLeast(0) / paged.pageSize
         val last = (position + prefetch).coerceAtMost(paged.total - 1) / paged.pageSize
-        paged.keepOnly((first..last).toSet())
+        if (restartOnResize) paged.keepOnly((first..last).toSet())
         refreshing?.cancel()
         refreshing = scope.launch {
             for (page in first..last) {
@@ -139,7 +141,7 @@ class LibraryLoader(
                     try {
                         val result = session.libraryPage(types, parentId, query, page * paged.pageSize, paged.pageSize)
                         if (gen != paged.generation) return@launch
-                        if (result.total != paged.total) return@launch reload()
+                        if (result.total != paged.total) return@launch if (restartOnResize) reload() else Unit
                         if (paged.put(gen, page, result.items, result.total)) host.pageRefreshed(page)
                     } catch (e: CancellationException) {
                         throw e

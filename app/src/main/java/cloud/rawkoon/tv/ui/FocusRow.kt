@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Rect
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 
@@ -76,6 +77,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     }
 
     fun setCards(cards: List<View>) {
+        dropPendingSnap()
         strip.removeAllViews()
         val gap = context.dp(Tokens.CARD_GAP) - context.dp(Tokens.RING_INSET) * 2
         cards.forEachIndexed { i, card ->
@@ -108,13 +110,72 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         lastIndex = index
     }
 
+    /**
+     * Carries on from [old], the row this one replaces: the same card is remembered (or, when it
+     * is gone, the one now at its position) and shown where [old] showed it. A row sharing no card
+     * with [old] (new search results) is a new list, and starts at its first card.
+     */
+    fun takeOver(old: FocusRow) {
+        val oldKeys = old.cards().mapNotNullTo(HashSet()) { (it as? RowItem)?.key }
+        if (cards().none { (it as? RowItem)?.key in oldKeys }) return
+        val card = old.remembered() ?: return
+        val key = (card as? RowItem)?.key
+        val index = cards().indexOfFirst { key != null && (it as? RowItem)?.key == key }
+            .takeIf { it >= 0 } ?: old.strip.indexOfChild(card)
+        if (strip.childCount == 0) return
+        lastIndex = index.coerceIn(0, strip.childCount - 1)
+        lastKey = (strip.getChildAt(lastIndex) as? RowItem)?.key
+        snapTo(strip.getChildAt(lastIndex))
+    }
+
     /** Glides so [card] sits at the row's start, or as far as the row allows. */
     fun reveal(card: View) {
-        val maxShift = (strip.width - width).coerceAtLeast(0)
-        val target = -(card.left - strip.paddingStart).coerceIn(0, maxShift).toFloat()
+        val target = targetFor(card)
         if (glideTarget == target) return
         glideTarget = target
         strip.animate().translationX(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
+    }
+
+    /**
+     * Puts [card] at the row's start at once, before the next frame: a row rebuilt in place of
+     * another shows its focused card where the old one had it, with no glide from the first card.
+     */
+    private fun snapTo(card: View) {
+        dropPendingSnap()
+        val place = {
+            val target = targetFor(card)
+            strip.animate().cancel()
+            strip.translationX = target
+            glideTarget = target
+        }
+        if (strip.isLaidOut && card.isLaidOut) return place()
+        pendingSnap = object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                dropPendingSnap()
+                // The cards may have been replaced before the first frame
+                if (card.parent === strip) place()
+                return true
+            }
+        }.also { strip.viewTreeObserver.addOnPreDrawListener(it) }
+    }
+
+    /** A placement waiting for the first frame; dropped when the row goes away first, so no listener outlives it. */
+    private var pendingSnap: ViewTreeObserver.OnPreDrawListener? = null
+
+    private fun dropPendingSnap(observer: ViewTreeObserver = strip.viewTreeObserver) {
+        pendingSnap?.let { observer.removeOnPreDrawListener(it) }
+        pendingSnap = null
+    }
+
+    override fun onDetachedFromWindow() {
+        // The strip detaches before its row, so only the row still holds the window's observer, where the listener was merged
+        dropPendingSnap(viewTreeObserver)
+        super.onDetachedFromWindow()
+    }
+
+    private fun targetFor(card: View): Float {
+        val maxShift = (strip.width - width).coerceAtLeast(0)
+        return -(card.left - strip.paddingStart).coerceIn(0, maxShift).toFloat()
     }
 
     /** Left/right never leave the row, except Left on the first card, which goes where [onLeftEdge] says. */

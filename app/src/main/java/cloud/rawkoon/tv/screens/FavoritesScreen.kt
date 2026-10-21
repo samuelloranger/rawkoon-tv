@@ -4,6 +4,8 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.favorites
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Tokens
 import kotlinx.coroutines.Job
@@ -42,6 +44,10 @@ class FavoritesScreen(activity: MainActivity, session: JellyfinSession) :
     override fun focusDefault() {
         firstFocus()?.requestFocus()
     }
+
+    override val livePage get() = LivePage.FAVORITES
+
+    override fun onLive(kinds: Set<LiveKind>) = load()
 
     /** Coming back from a title's page: refresh in place, keeping focus. */
     override fun onShown(first: Boolean) {

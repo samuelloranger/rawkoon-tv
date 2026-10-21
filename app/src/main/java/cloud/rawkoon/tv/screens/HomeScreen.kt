@@ -12,6 +12,8 @@ import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.arrangeRows
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.jellyfin.playsRightAway
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.rawkoon.RawkoonException
@@ -77,6 +79,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
     private fun load() {
         hideMessage()
+        liveMissed = false
         // A refresh that is still under way is out of date as soon as another starts
         loadJob?.cancel()
         loadJob = scope.launch {
@@ -232,6 +235,24 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             load()
         }
     }
+
+    override val livePage get() = LivePage.HOME
+
+    /** Watched state, progress or new items changed on the server: the same in-place refresh as coming back. */
+    /**
+     * Restarting a running load on every event could keep a slow Home from ever finishing, so an
+     * event during one is kept and answered once it is done: it may have read the server before.
+     */
+    override fun onLive(kinds: Set<LiveKind>) {
+        if (loadJob?.isActive == true) {
+            liveMissed = true
+            loadJob?.invokeOnCompletion { cause -> if (cause == null) mainHandler.post { if (liveMissed) load() } }
+        } else {
+            load()
+        }
+    }
+
+    private var liveMissed = false
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {
