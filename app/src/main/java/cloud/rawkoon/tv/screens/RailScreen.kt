@@ -30,6 +30,9 @@ import cloud.rawkoon.tv.ui.whileAttachedOnFocusChange
  */
 abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, val active: Destination) : Screen(activity) {
     final override val view = FrameLayout(context)
+
+    /** The backdrop and the page's content: what moves between rail pages, under a rail and a clock that stay put. */
+    final override val stage = FrameLayout(context).noClip()
     protected val backdrop = Backdrop(context, app.images.disk)
     protected val content = FrameLayout(context).noClip()
     private val dim = FlatView(context).apply {
@@ -50,8 +53,9 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     private val clockView = clock(context).apply { applyClockSetting() }
 
     init {
-        view.addView(backdrop, fill())
-        view.addView(content, fill())
+        stage.addView(backdrop, fill())
+        stage.addView(content, fill())
+        view.addView(stage, fill())
         view.addView(dim, fill())
         view.addView(rail, FrameLayout.LayoutParams(context.dp(Tokens.RAIL_OPEN_W), ViewGroup.LayoutParams.MATCH_PARENT))
         view.addView(clockView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {

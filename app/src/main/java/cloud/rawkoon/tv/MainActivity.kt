@@ -27,6 +27,7 @@ import cloud.rawkoon.tv.screens.ProfilesScreen
 import cloud.rawkoon.tv.screens.RailScreen
 import cloud.rawkoon.tv.screens.linkPage
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
 /**
- * The only activity. It holds a stack of [Screen]s: a new screen fades in over the one below,
+ * The only activity. It holds a stack of [Screen]s: a new screen slides in over the one below,
  * which stays built (and hidden) until you come back to it.
  */
 class MainActivity : Activity() {
@@ -45,6 +46,9 @@ class MainActivity : Activity() {
     private val live = LiveUpdates(liveScope, ::deliverLive)
     private val rawkoonLive = RawkoonLive(liveScope, ::deliverLive, ::toastLive)
     private var foreground = false
+
+    /** Whether the screen brought in last had a [Screen.stage]: the next one with one shares its chrome. */
+    private var lastHadStage = false
 
     override fun attachBaseContext(base: Context) {
         val wrapped = Language.wrap(base)
@@ -99,7 +103,7 @@ class MainActivity : Activity() {
     fun push(screen: Screen) {
         stack.lastOrNull()?.let { it.onHidden(); hide(it.view) }
         stack += screen
-        show(screen.view)
+        show(screen, back = false)
         screen.onShown(first = true)
         syncLive()
     }
@@ -117,7 +121,7 @@ class MainActivity : Activity() {
         screens.forEachIndexed { i, s ->
             stack += s
             if (i == screens.lastIndex) {
-                show(s.view)
+                show(s, back = false)
                 s.onShown(first = true)
             } else {
                 root.addView(s.view, fill())
@@ -135,9 +139,7 @@ class MainActivity : Activity() {
         // of them reloads on the way out
         val dropped = ArrayList<Screen>()
         while (stack.last() !== target) dropped += stack.removeAt(stack.lastIndex)
-        hideKeyboard()
-        target.view.visibility = View.VISIBLE
-        target.view.alpha = 1f
+        show(target, back = true)
         target.onShown(first = false)
         dropped.forEach { remove(it) }
         syncLive()
@@ -153,9 +155,7 @@ class MainActivity : Activity() {
         val below = stack.last()
         // The page below takes focus back before the top one goes: removing a focused view first
         // would hand focus to whatever Android finds, and that can start things (a season tab loads)
-        hideKeyboard()
-        below.view.visibility = View.VISIBLE
-        below.view.alpha = 1f
+        show(below, back = true)
         below.onShown(first = false)
         remove(top)
         syncLive()
@@ -213,12 +213,35 @@ class MainActivity : Activity() {
         getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(root.windowToken, 0)
     }
 
-    private fun show(view: View) {
+    /**
+     * Brings [screen] in: it fades in while sliding a little from the side it comes from, the right
+     * for a page opened, the left for one gone back to. Coming from a page with the same chrome
+     * (one rail page to another), only its [Screen.stage] moves and the rail stays still. What
+     * moves is one layer, drawn once and then only moved and blended.
+     */
+    private fun show(screen: Screen, back: Boolean) {
         hideKeyboard()
+        val view = screen.view
         if (view.parent == null) root.addView(view, fill())
         view.visibility = View.VISIBLE
-        view.alpha = 0f
-        view.animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).setInterpolator(Tokens.ease).start()
+        val stage = screen.stage
+        // Either part may have been left halfway by an entrance cut short
+        listOfNotNull(view, stage).forEach {
+            it.animate().cancel()
+            it.alpha = 1f
+            it.translationX = 0f
+        }
+        val moving = stage?.takeIf { lastHadStage } ?: view
+        lastHadStage = stage != null
+        moving.alpha = 0f
+        val motion = moving.animate().alpha(1f).setInterpolator(Tokens.ease)
+        if (screen.slides) {
+            moving.translationX = dpf(Tokens.SCREEN_SHIFT) * if (back) -1 else 1
+            motion.translationX(0f).setDuration(Tokens.SCREEN_SLIDE_MS).withLayer()
+        } else {
+            motion.setDuration(Tokens.SCREEN_FADE_MS)
+        }
+        motion.start()
     }
 
     private fun hide(view: View) {

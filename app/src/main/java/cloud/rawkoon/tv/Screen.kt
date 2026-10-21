@@ -38,6 +38,23 @@ abstract class Screen(val activity: MainActivity) {
 
     abstract val view: View
 
+    /** False for a page that only fades in, without sliding: the player, whose video surface should not move. */
+    open val slides: Boolean get() = true
+
+    /**
+     * The part of [view] under chrome every page of its kind shares at the same spot (the rail and
+     * the clock). Between two such pages only this part comes in, so the chrome stays still; null
+     * when the page has none.
+     */
+    open val stage: View? get() = null
+
+    /**
+     * True once the page is on top and done coming in. Content landing before then appears as it
+     * is: it arrives with the page, and motion of its own would redraw the page's layer every frame.
+     */
+    protected val isFullyShown: Boolean
+        get() = view.isShown && listOfNotNull(view, stage).all { it.alpha == 1f && it.translationX == 0f }
+
     private var lastFocus: View? = null
 
     /** Called when the screen comes to the top, the first time and after going back to it. */

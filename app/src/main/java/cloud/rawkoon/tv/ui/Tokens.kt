@@ -81,6 +81,10 @@ object Tokens {
     const val DRAWER_MS = 220L
     const val SCREEN_FADE_MS = 160L
 
+    /** A page opened slides in from the right this far while it fades in; going back, from the left. */
+    const val SCREEN_SHIFT = 24f
+    const val SCREEN_SLIDE_MS = 240L
+
     /** Expo-out: fast start, long soft landing. */
     val ease = PathInterpolator(0.16f, 1f, 0.3f, 1f)
 }
