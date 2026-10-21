@@ -19,3 +19,12 @@ fun Profile.rawkoonDiscover(context: Context): RawkoonDiscover? {
     val url = serverUrl(context) ?: return null
     return RawkoonDiscover(RawkoonClient(url), token, Locale.getDefault().toLanguageTag())
 }
+
+/** Where a profile's Rawkoon streams are read from: its server and the token that session holds. */
+data class RawkoonEndpoint(val profileId: String, val baseUrl: String, val token: String)
+
+fun Profile.rawkoonEndpoint(context: Context): RawkoonEndpoint? {
+    val token = rawkoonToken ?: return null
+    val url = serverUrl(context) ?: return null
+    return RawkoonEndpoint(id, url.trim().trimEnd('/'), token)
+}

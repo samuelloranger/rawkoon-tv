@@ -59,6 +59,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private val opener = TitleOpener(this)
     private val text = ResourceText(context)
     private var loadJob: Job? = null
+    private var rawkoonJob: Job? = null
     private var backdropJob: Job? = null
 
     /**
@@ -77,16 +78,21 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         load()
     }
 
-    private fun load() {
+    private fun load() = refresh(forceRawkoon = false)
+
+    /** The full home refresh; [forceRawkoon]: the server just said something about the requests, so the minute's reuse of the Rawkoon rows doesn't apply. */
+    private fun refresh(forceRawkoon: Boolean) {
         hideMessage()
         liveMissed = false
+        missedRawkoon = false
         // A refresh that is still under way is out of date as soon as another starts
         loadJob?.cancel()
+        rawkoonJob?.cancel()
         loadJob = scope.launch {
             val cached = withContext(Dispatchers.IO) { runCatching { HomeRow.listFromJson(cache.readText()) }.getOrNull() }
             if (cached != null && !hasRows()) showHome(refreshedDates(cached))
             // Rawkoon is asked at the same time but never waited for: Jellyfin's rows show as soon as they arrive
-            val rawkoon = if (rawkoonIsFresh()) null else async { rawkoonOutcome() }
+            val rawkoon = if (!forceRawkoon && rawkoonIsFresh()) null else async { rawkoonOutcome() }
             try {
                 app.awaitStop()
                 val jellyfin = session.homeRows(Prefs.homeFetch(context))
@@ -100,14 +106,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 }
                 val fresh = RawkoonHome.merge(jellyfin, outcome?.let { RawkoonHome.rowsFor(it, previous) } ?: previous)
                 showHome(fresh)
-                // Written aside then swapped in, so the home rows setting never reads half a file
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        val partial = File(cache.path + ".tmp")
-                        partial.writeText(HomeRow.listToJson(fresh))
-                        partial.renameTo(cache)
-                    }
-                }
+                saveCache(fresh)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -119,6 +118,15 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                     showMessage(text, messageAction(if (expired) null else ::load), takeFocus = true)
                 }
             }
+        }
+    }
+
+    /** Written aside then swapped in, so the home rows setting never reads half a file. */
+    private suspend fun saveCache(rows: List<HomeRow>) = withContext(Dispatchers.IO) {
+        runCatching {
+            val partial = File(cache.path + ".tmp")
+            partial.writeText(HomeRow.listToJson(rows))
+            partial.renameTo(cache)
         }
     }
 
@@ -214,6 +222,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
     override fun destroy() {
         backdropJob?.cancel()
+        rawkoonJob?.cancel()
         super.destroy()
     }
 
@@ -238,21 +247,43 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
     override val livePage get() = LivePage.HOME
 
-    /** Watched state, progress or new items changed on the server: the same in-place refresh as coming back. */
     /**
-     * Restarting a running load on every event could keep a slow Home from ever finishing, so an
-     * event during one is kept and answered once it is done: it may have read the server before.
+     * Watched state, progress or new items changed on Jellyfin: the same in-place refresh as coming
+     * back. Rawkoon news alone (a title landed, a request changed) asks Rawkoon again and leaves
+     * Jellyfin's rows as they are. Restarting a running refresh on every event could keep a slow
+     * Home from ever finishing, so an event during one is kept and answered once it is done.
      */
     override fun onLive(kinds: Set<LiveKind>) {
+        val rawkoon = kinds.any { it.fromRawkoon }
         if (loadJob?.isActive == true) {
             liveMissed = true
-            loadJob?.invokeOnCompletion { cause -> if (cause == null) mainHandler.post { if (liveMissed) load() } }
+            missedRawkoon = missedRawkoon || rawkoon
+            loadJob?.invokeOnCompletion { cause -> if (cause == null) mainHandler.post { if (liveMissed) refresh(forceRawkoon = missedRawkoon) } }
+        } else if (kinds.any { !it.fromRawkoon } || shown.isEmpty()) {
+            refresh(forceRawkoon = rawkoon)
         } else {
-            load()
+            refreshRawkoon()
         }
     }
 
     private var liveMissed = false
+    private var missedRawkoon = false
+
+    /** Coming soon and My requests again, merged into the rows on screen. */
+    private fun refreshRawkoon() {
+        rawkoonJob?.cancel()
+        rawkoonJob = scope.launch {
+            val outcome = rawkoonOutcome()
+            if (outcome is RawkoonOutcome.Loaded) {
+                rawkoonLoadedAt = SystemClock.elapsedRealtime()
+                rawkoonLoadedWith = profile().rawkoonToken
+            }
+            val jellyfin = shown.filterNot(RawkoonHome::isRawkoonRow)
+            val fresh = RawkoonHome.merge(jellyfin, RawkoonHome.rowsFor(outcome, shown.filter(RawkoonHome::isRawkoonRow)))
+            showHome(fresh)
+            saveCache(fresh)
+        }
+    }
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {

@@ -12,6 +12,7 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.Find
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.rawkoon.DiscoverRows
 import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.RawkoonException
@@ -93,6 +94,9 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
     }
 
     private fun profile() = app.profiles.get(session.profile.id) ?: session.profile
+
+    /** Only for Rawkoon's toasts: a reload would drop the search and the focused row. */
+    override val livePage get() = LivePage.DISCOVER
 
     private fun load() {
         loading?.cancel()

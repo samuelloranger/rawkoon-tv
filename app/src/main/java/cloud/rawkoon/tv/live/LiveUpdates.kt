@@ -1,12 +1,10 @@
 package cloud.rawkoon.tv.live
 
-import android.os.SystemClock
 import android.util.Log
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -21,10 +19,9 @@ import org.jellyfin.sdk.model.api.UserDataChangedMessage
  * collected, so this only collects and cancels: no reconnect loop of its own. [deliver] gets the
  * kinds of a burst of events, once, on the main thread.
  */
-class LiveUpdates(private val scope: CoroutineScope, private val deliver: (Set<LiveKind>) -> Unit) {
-    private val batch = LiveBatch()
+class LiveUpdates(private val scope: CoroutineScope, deliver: (Set<LiveKind>) -> Unit) {
+    private val feed = LiveFeed(scope, deliver)
     private var listening: Job? = null
-    private var flushing: Job? = null
     private var key: List<String>? = null
 
     /** Listens for [session]'s user; a no-op while it already does, a switch to the new one otherwise. */
@@ -40,7 +37,7 @@ class LiveUpdates(private val scope: CoroutineScope, private val deliver: (Set<L
                 merge(
                     sockets.subscribe<UserDataChangedMessage>().filter { it.data.concerns(session.userId) }.map { LiveKind.USER_DATA },
                     sockets.subscribe<LibraryChangedMessage>().filter { it.data.concernsLibrary() }.map { LiveKind.LIBRARY },
-                ).collect(::onEvent)
+                ).collect(feed::post)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -52,26 +49,9 @@ class LiveUpdates(private val scope: CoroutineScope, private val deliver: (Set<L
 
     fun disconnect() {
         listening?.cancel()
-        flushing?.cancel()
         listening = null
-        flushing = null
         key = null
-        batch.clear()
-    }
-
-    private fun onEvent(kind: LiveKind) {
-        val wait = batch.add(kind, SystemClock.elapsedRealtime()) ?: return
-        flushing = scope.launch {
-            delay(wait)
-            try {
-                deliver(batch.drain(SystemClock.elapsedRealtime()))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // A page that fails to refresh stays as it was; it must not take the app down
-                Log.w(TAG, "live refresh failed", e)
-            }
-        }
+        feed.clear()
     }
 
     private companion object {

@@ -9,12 +9,18 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
+import android.widget.Toast
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaWords
 import cloud.rawkoon.tv.launcher.LauncherLink
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.live.LiveUpdates
+import cloud.rawkoon.tv.live.RawkoonLive
+import cloud.rawkoon.tv.live.RawkoonLiveSession
+import cloud.rawkoon.tv.live.RawkoonToast
+import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
+import cloud.rawkoon.tv.rawkoon.rawkoonEndpoint
 import cloud.rawkoon.tv.screens.HomeScreen
 import cloud.rawkoon.tv.screens.PinScreen
 import cloud.rawkoon.tv.screens.ProfilesScreen
@@ -37,6 +43,7 @@ class MainActivity : Activity() {
     private val stack = ArrayList<Screen>()
     private val liveScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val live = LiveUpdates(liveScope, ::deliverLive)
+    private val rawkoonLive = RawkoonLive(liveScope, ::deliverLive, ::toastLive)
     private var foreground = false
 
     override fun attachBaseContext(base: Context) {
@@ -155,13 +162,45 @@ class MainActivity : Activity() {
     }
 
     /**
-     * The one socket follows the page on top: open in the foreground while that page reacts to live
-     * events (a profile's library pages), closed otherwise (profiles, settings, the player, the
-     * background), so a profile switch or a sign-out never leaves one behind.
+     * The live connections follow the page on top: Jellyfin's socket while that page reacts to its
+     * events, Rawkoon's two streams (when the profile has a Rawkoon sign-in) on every page of a
+     * profile, so a "ready" toast reaches any of them. All close on profiles, settings, the player and
+     * in the background, so a profile switch or a sign-out never leaves one behind.
      */
     private fun syncLive() {
-        val session = (stack.lastOrNull() as? RailScreen)?.takeIf { foreground && it.livePage != LivePage.OTHER }?.session
-        if (session != null) live.connect(session) else live.disconnect()
+        val page = (stack.lastOrNull() as? RailScreen)?.takeIf { foreground && it.livePage != LivePage.OTHER }
+        val jellyfin = page?.takeIf { it.livePage.followsJellyfin }?.session
+        if (jellyfin != null) live.connect(jellyfin) else live.disconnect()
+        val rawkoon = page?.takeIf { it.livePage.followsRawkoon }?.let { rawkoonSession(it.session.profile) }
+        if (rawkoon != null) rawkoonLive.connect(rawkoon) else rawkoonLive.disconnect()
+    }
+
+    /** Read from the store: linking the account changes the saved profile, not the page's copy. */
+    private fun rawkoonSession(shown: Profile): RawkoonLiveSession? {
+        val profile = app.profiles.get(shown.id) ?: shown
+        val endpoint = profile.rawkoonEndpoint(this) ?: return null
+        val api = profile.rawkoonDiscover(this) ?: return null
+        // The session outlives this call (the same endpoint is not reconnected), so it keeps the id it learns
+        var userId = profile.rawkoonUserId
+        return RawkoonLiveSession(
+            endpoint,
+            requests = { api.requests() },
+            userId = {
+                userId ?: api.userId().ifBlank { null }?.also { id ->
+                    userId = id
+                    app.profiles.get(profile.id)?.let { app.profiles.save(it.copy(rawkoonUserId = id)) }
+                }
+            },
+        )
+    }
+
+    private fun toastLive(toast: RawkoonToast) {
+        if (!foreground) return
+        val text = when (toast) {
+            is RawkoonToast.Ready -> getString(R.string.rk_title_ready, toast.title)
+            is RawkoonToast.Server -> toast.text
+        }
+        Toast.makeText(this, text, Toast.LENGTH_LONG).show()
     }
 
     private fun deliverLive(kinds: Set<LiveKind>) {
@@ -222,6 +261,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         live.disconnect()
+        rawkoonLive.disconnect()
         liveScope.cancel()
         stack.forEach { it.destroy() }
         super.onDestroy()

@@ -112,6 +112,7 @@ internal fun parseRequests(json: JSONObject): List<RequestSummary> = json.object
         requestedBy = it.optJSONObject("requested_by")?.optStringOrNull("id"),
         createdAt = it.optStringOrNull("created_at"),
         decidedAt = it.optStringOrNull("decided_at"),
+        libraryMediaId = it.optIntOrNull("library_media_id"),
     )
 }
 
