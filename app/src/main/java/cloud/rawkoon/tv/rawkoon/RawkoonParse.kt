@@ -70,7 +70,7 @@ internal fun parseStatus(json: JSONObject): TitleStatus = TitleStatus(
         LibraryEntry(it.optString("status"), it.optIntOrNull("episode_count"), it.optIntOrNull("downloaded_episode_count"))
     },
     request = json.optJSONObject("request")?.let {
-        RequestEntry(it.optInt("id"), it.optString("status"), it.optStringOrNull("deny_reason"))
+        RequestEntry(it.optInt("id"), it.optString("status"), it.optStringOrNull("deny_reason"), it.optBoolean("mine"))
     },
 )
 

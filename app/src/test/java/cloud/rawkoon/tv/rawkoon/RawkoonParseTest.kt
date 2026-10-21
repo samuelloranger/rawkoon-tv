@@ -116,6 +116,15 @@ class RawkoonParseTest {
     }
 
     @Test
+    fun `a status says whether the request is the account's own`() {
+        val mine = parseStatus(JSONObject("""{"library":null,"request":{"id":5,"status":"pending","deny_reason":null,"mine":true}}"""))
+        assertEquals(RequestEntry(5, "pending", null, mine = true), mine.request)
+        // An older Rawkoon sends no mine: nothing offers to withdraw
+        val older = parseStatus(JSONObject("""{"library":null,"request":{"id":5,"status":"pending","deny_reason":null}}"""))
+        assertEquals(false, older.request!!.mine)
+    }
+
+    @Test
     fun `the upcoming list is empty when the server has it disabled`() {
         assertTrue(parseUpcoming(JSONObject("""{"enabled":false,"items":[]}""")).isEmpty())
     }

@@ -40,7 +40,8 @@ data class TitleModal(
 
 data class LibraryEntry(val status: String, val episodeCount: Int?, val downloadedEpisodeCount: Int?)
 
-data class RequestEntry(val id: Int, val status: String, val denyReason: String?)
+/** [mine] is true when this account made the request. */
+data class RequestEntry(val id: Int, val status: String, val denyReason: String?, val mine: Boolean = false)
 
 /** What Rawkoon knows about a title: its library entry and the request on it; either may be absent. */
 data class TitleStatus(val library: LibraryEntry?, val request: RequestEntry?)
