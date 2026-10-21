@@ -80,6 +80,8 @@ class SeasonScreen(
         content.addView(episodes, at(0, 228, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         content.addView(actions.view, at(start - Tokens.RING_INSET, 412, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         actions.beforeUse = ::describePending
+        // The episode's card follows the watched button at once, before the server's refresh
+        actions.onChanged = { changed -> episodes.cards().firstNotNullOfOrNull { (it as? Card)?.takeIf { card -> card.item.id == changed.id } }?.update(changed) }
         episodes.onLeftEdge = { rail.activeItem() }
         content.addView(parking, FrameLayout.LayoutParams(1, 1))
         load()

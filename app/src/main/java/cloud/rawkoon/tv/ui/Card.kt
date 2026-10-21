@@ -22,13 +22,16 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 @SuppressLint("ViewConstructor")
 class Card(
     context: Context,
-    val item: MediaItem,
+    item: MediaItem,
     val landscape: Boolean,
     private val images: Images,
     private val onFocused: (Card) -> Unit,
     private val onClick: (Card) -> Unit,
     caption: Pair<String, String?>? = null,
 ) : Focusable(context), RowItem {
+    /** The item shown; [update] changes it when the page changes it before the server confirms. */
+    var item: MediaItem = item
+        private set
     override val key: String get() = item.id
     private val artW = context.dp(if (landscape) Tokens.LAND_W else Tokens.POSTER_W)
     private val artH = context.dp(if (landscape) Tokens.LAND_H else Tokens.POSTER_H)
@@ -48,10 +51,7 @@ class Card(
         val captionH = if (caption != null) context.dp(Tokens.CAPTION_H) else 0
         val captionGap = if (caption != null) context.dp(Tokens.CAPTION_GAP) else 0
         layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionGap + captionH)
-        val shownProgress = item.progress?.takeIf { landscape || item.kind == MediaItem.Kind.EPISODE }
-        shownProgress?.let { progressBar = CardProgress(context, it).also(frame::addOverlay) }
-        // A rewatch keeps Played with a resume position: the bar says more than the badge
-        if (item.played && shownProgress == null) watchedBadge = WatchedBadge(context).also(frame::addOverlay)
+        showMarks(item, animate = false)
         item.tmdb?.badge?.let {
             frame.addOverlay(badgeLabel(it, artW - context.dp(12)), FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START,
@@ -61,6 +61,29 @@ class Card(
         if (caption != null) addView(CaptionColumn(context, caption.first, caption.second), LayoutParams(artW, captionH, Gravity.BOTTOM).apply { leftMargin = inset })
         listenForFocus { onFocused(this) }
         setOnClickListener { onClick(this) }
+    }
+
+    /**
+     * Shows [updated], this card's item as the page just changed it (marked watched or not): the
+     * check pops in or goes and the progress bar follows, without waiting for the server.
+     */
+    fun update(updated: MediaItem) {
+        item = updated
+        showMarks(updated, animate = true)
+    }
+
+    /** The progress bar and the watched check for [item]; a check that appears pops in when [animate]. */
+    private fun showMarks(item: MediaItem, animate: Boolean) {
+        val progress = item.progress?.takeIf { landscape || item.kind == MediaItem.Kind.EPISODE }
+        if (progress != progressBar?.progress) {
+            progressBar?.let(frame::removeView)
+            progressBar = progress?.let { CardProgress(context, it).also(frame::addOverlay) }
+        }
+        // A rewatch keeps Played with a resume position: the bar says more than the badge
+        val checked = item.played && progress == null
+        if (checked == (watchedBadge != null)) return
+        watchedBadge?.let(frame::removeView)
+        watchedBadge = if (checked) WatchedBadge(context).also { badge -> frame.addOverlay(badge); if (animate) badge.popIn(delay = 0) } else null
     }
 
     /**
