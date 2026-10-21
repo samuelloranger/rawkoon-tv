@@ -25,6 +25,7 @@ import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
@@ -141,19 +142,33 @@ class JellyfinSession(context: Context, val profile: Profile) {
     }
 
     suspend fun seasons(seriesId: String): List<MediaItem> =
-        api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
+        api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
             .map { MediaItem.from(it, images) }
 
     /** A season's episodes, with the media streams the chips need. */
     suspend fun episodes(seriesId: String, seasonId: String): List<MediaItem> =
         api.tvShowsApi.getEpisodes(
-            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = parseId(seasonId), fields = FIELDS + ItemFields.MEDIA_STREAMS),
+            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = parseId(seasonId), isMissing = false, fields = FIELDS + ItemFields.MEDIA_STREAMS),
         ).content.items.map { MediaItem.from(it, images) }
 
-    /** The episode a show resumes at: the one in progress or the next unwatched one. */
-    suspend fun nextEpisode(seriesId: String): MediaItem? =
-        api.tvShowsApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
-            .content.items.firstOrNull()?.let { MediaItem.from(it, images) }
+    /**
+     * The episode a show resumes at: the one in progress or the next unwatched one. A show watched
+     * to the end has none, so it starts over at its first episode (not a special).
+     */
+    suspend fun nextEpisode(seriesId: String): MediaItem? {
+        val next = api.tvShowsApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
+            .content.items.firstOrNull()
+        return (next ?: firstEpisode(seriesId))?.let { MediaItem.from(it, images) }
+    }
+
+    /** The first episode of a show's first season that isn't the specials (or of the specials, when that's all it has). */
+    private suspend fun firstEpisode(seriesId: String): BaseItemDto? {
+        val seasons = api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false)).content.items
+        val season = seasons.firstOrNull { it.indexNumber != 0 } ?: seasons.firstOrNull() ?: return null
+        return api.tvShowsApi.getEpisodes(
+            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = season.id, isMissing = false, limit = 1, fields = FIELDS),
+        ).content.items.firstOrNull()
+    }
 
     suspend fun similar(id: String): List<MediaItem> =
         api.libraryApi.getSimilarItems(GetSimilarItemsRequest(itemId = parseId(id), userId = userId, limit = ROW_LIMIT, fields = FIELDS))
@@ -170,6 +185,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
     companion object {
         private const val PEOPLE_LIMIT = 12
         private const val ROW_LIMIT = 20
+
         private val FIELDS = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO)
 
         /** Jellyfin ids come with or without dashes. */

@@ -31,6 +31,7 @@ import cloud.rawkoon.tv.screens.player.ProgressReporter
 import cloud.rawkoon.tv.screens.player.ScrubController
 import cloud.rawkoon.tv.screens.player.SegmentSkipper
 import cloud.rawkoon.tv.screens.player.TrackMenus
+import cloud.rawkoon.tv.screens.player.advanceStopPosition
 import cloud.rawkoon.tv.screens.player.isEpisode
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Icon
@@ -94,7 +95,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         skipBackSeconds = (settings.skipBackMs / 1000).toInt(),
         skipForwardSeconds = (settings.skipForwardMs / 1000).toInt(),
     )
-    private val reporter = ProgressReporter(service, player.exo, mainHandler, scope, app.reportScope)
+    private val reporter = ProgressReporter(service, player.exo, mainHandler, scope, app)
     private val scrub = ScrubController(context, chrome, player.exo, trickplayLoader, mainHandler, refresh = { updateProgress() })
     private val skipper = SegmentSkipper(
         context, chrome, player.exo, mainHandler, settings,
@@ -103,7 +104,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         plan = { autoplay.plan(settings.autoplayNext, settings.countdownSeconds) },
     )
     private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter) { position, audio, subtitleIndex, previous ->
-        start(item, position, audio, subtitleIndex, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
+        start(item, position, audio, subtitleIndex, previous.mediaSourceId, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
 
     init {
@@ -115,7 +116,14 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     // --- Loading -------------------------------------------------------------------------------
 
-    private fun start(target: MediaItem, startMs: Long, audio: Int? = null, subtitleIndex: Int? = null, direct: Boolean = true) {
+    private fun start(
+        target: MediaItem,
+        startMs: Long,
+        audio: Int? = null,
+        subtitleIndex: Int? = null,
+        mediaSourceId: String? = null,
+        direct: Boolean = true,
+    ) {
         item = target
         app.lastPlayed = target
         reporter.reset()
@@ -127,7 +135,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         loadJob?.cancel()
         loadJob = scope.launch {
             try {
-                val s = service.stream(target, startMs, audio, subtitleIndex, direct = direct)
+                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct)
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
@@ -183,7 +191,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             if (s != null && s.method == PlayMethod.DIRECT_PLAY && !triedTranscode) {
                 triedTranscode = true
                 reporter.stop(player.exo.currentPosition)
-                start(item, player.exo.currentPosition, s.audioIndex, s.subtitleIndex, direct = false)
+                start(item, player.exo.currentPosition, s.audioIndex, s.subtitleIndex, s.mediaSourceId, direct = false)
                 return
             }
             fail(error.errorCodeName)
@@ -203,11 +211,12 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         val exo = player.exo
         val position = exo.currentPosition
         if (chrome.shown) {
-            val duration = exo.duration.takeIf { it > 0 } ?: reporter.stream?.durationMs ?: 0L
-            chrome.showProgress(duration, position, exo.bufferedPosition)
+            chrome.showProgress(durationMs(), position, exo.bufferedPosition)
         }
         skipper.update(position)
     }
+
+    private fun durationMs() = player.exo.duration.takeIf { it > 0 } ?: reporter.stream?.durationMs ?: 0L
 
     /**
      * Schedules the next [updateProgress]: often while the controls show a playing film, and with
@@ -235,7 +244,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         val target = next ?: return
         if (auto) autoplay.onAutoStarted()
         skipper.stopCountdown()
-        reporter.stop(player.exo.currentPosition)
+        val position = player.exo.currentPosition
+        reporter.stop(advanceStopPosition(position, durationMs(), auto, skipper.upNextShown, skipper.segments))
         scrub.reset()
         next = null
         skipper.reset()

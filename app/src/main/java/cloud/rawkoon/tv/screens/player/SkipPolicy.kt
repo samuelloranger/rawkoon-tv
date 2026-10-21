@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.screens.player
 
 import cloud.rawkoon.tv.data.SkipMode
+import cloud.rawkoon.tv.playback.Segment
 import org.jellyfin.sdk.model.api.MediaSegmentType
 
 /** What the player does as the playhead sits inside a segment. */
@@ -31,6 +32,17 @@ fun skipAction(type: MediaSegmentType, mode: SkipMode, alreadySkipped: Boolean, 
         type == MediaSegmentType.OUTRO && hasNext -> SkipAction.GO_TO_NEXT_EPISODE
         else -> SkipAction.SKIP
     }
+}
+
+/**
+ * Where to report the stop when moving on to the next episode. From the credits (the countdown,
+ * the up-next button, or the credits segment) it is the end: the server marks an episode played
+ * only at or past its resume threshold, and the credits can start before it. A manual jump
+ * mid-episode keeps the real position, so the episode stays resumable.
+ */
+fun advanceStopPosition(positionMs: Long, durationMs: Long, auto: Boolean, upNextShown: Boolean, segments: List<Segment>): Long {
+    val inCredits = segments.any { it.type == MediaSegmentType.OUTRO && positionMs >= it.startMs && positionMs < it.endMs }
+    return if ((auto || upNextShown || inCredits) && durationMs > 0) durationMs else positionMs
 }
 
 /** How the up-next button shows: counting down to the next episode, or waiting for OK. */

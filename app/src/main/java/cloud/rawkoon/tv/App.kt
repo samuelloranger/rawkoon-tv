@@ -16,7 +16,9 @@ import cloud.rawkoon.tv.update.UpdateCheck
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** App-wide singletons, built once: no dependency injection, nothing hidden. */
 class App : Application() {
@@ -33,6 +35,14 @@ class App : Application() {
     /** For calls that must finish after their screen is gone, like reporting where playback stopped. */
     val reportScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    /** The latest stop report still going out. Reports run one at a time, so when it ends the earlier ones have. */
+    var pendingStop: Job? = null
+
+    /** Waits for [pendingStop], so a page reading progress sees it: the server saves it only after ending a transcode. Capped so the UI never hangs. */
+    suspend fun awaitStop() {
+        withTimeoutOrNull(STOP_WAIT_MS) { pendingStop?.join() }
+    }
+
     override fun attachBaseContext(base: Context) = super.attachBaseContext(Language.wrap(base))
 
     override fun onCreate() {
@@ -45,6 +55,11 @@ class App : Application() {
         LauncherSyncJob.schedule(this)
         // Once a day at most, off the main thread; settings offer what it finds.
         if (Prefs.autoUpdateCheck(this)) UpdateCheck(this, Fetcher(this)).refreshAsync()
+    }
+
+    private companion object {
+        /** The server waits a second or two for a transcode to die before it saves progress. */
+        const val STOP_WAIT_MS = 3_000L
     }
 }
 

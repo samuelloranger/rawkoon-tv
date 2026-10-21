@@ -27,6 +27,7 @@ class FavoritesScreen(activity: MainActivity, session: JellyfinSession) :
         loading?.cancel()
         loading = scope.launch {
             try {
+                app.awaitStop()
                 val found = session.favorites()
                 if (found.isEmpty()) showEmpty(string(R.string.favorites_empty)) else show(rowsFor(found))
             } catch (e: Exception) {
