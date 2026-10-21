@@ -58,4 +58,19 @@ class TrackSwitchTest {
         assertTrue(canSwitchTracks(direct, 1, -1))
         assertFalse(canSwitchTracks(direct, 1, 7))
     }
+
+    private fun directPlay(subtitleIndex: Int) = transcode(subtitleIndex).copy(method = PlayMethod.DIRECT_PLAY)
+
+    @Test
+    fun `direct play switches to embedded and side-loaded subtitles`() {
+        assertTrue(canSwitchTracks(directPlay(-1), 1, 2))
+        assertTrue(canSwitchTracks(directPlay(-1), 1, 3))
+        assertTrue(canSwitchTracks(directPlay(3), 1, -1))
+    }
+
+    @Test
+    fun `direct play asks the server for an external subtitle it cannot side-load`() {
+        assertFalse(canSwitchTracks(directPlay(-1), 1, 5))
+        assertFalse(canSwitchTracks(directPlay(-1), 1, 6))
+    }
 }

@@ -162,5 +162,5 @@ internal fun canSwitchTracks(stream: Stream, audio: Int?, subtitle: Int): Boolea
         return audio == stream.audioIndex && (subtitle == stream.subtitleIndex || (!burnedIn && (subtitle == -1 || (target != null && sideLoads(target)))))
     }
     val sub = stream.subtitles.firstOrNull { it.index == subtitle }
-    return sub == null || sub.delivery == SubtitleDeliveryMethod.EMBED || sub.delivery == SubtitleDeliveryMethod.EXTERNAL
+    return sub == null || sub.delivery == SubtitleDeliveryMethod.EMBED || sideLoads(sub)
 }

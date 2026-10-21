@@ -25,6 +25,7 @@ import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
@@ -157,10 +158,16 @@ class JellyfinSession(context: Context, val profile: Profile) {
     suspend fun nextEpisode(seriesId: String): MediaItem? {
         val next = api.tvShowsApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
             .content.items.firstOrNull()
-        val dto = next ?: api.tvShowsApi.getEpisodes(
-            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, limit = FIRST_EPISODE_SCAN, fields = FIELDS),
-        ).content.items.let { episodes -> episodes.firstOrNull { it.parentIndexNumber != 0 } ?: episodes.firstOrNull() }
-        return dto?.let { MediaItem.from(it, images) }
+        return (next ?: firstEpisode(seriesId))?.let { MediaItem.from(it, images) }
+    }
+
+    /** The first episode of a show's first season that isn't the specials (or of the specials, when that's all it has). */
+    private suspend fun firstEpisode(seriesId: String): BaseItemDto? {
+        val seasons = api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false)).content.items
+        val season = seasons.firstOrNull { it.indexNumber != 0 } ?: seasons.firstOrNull() ?: return null
+        return api.tvShowsApi.getEpisodes(
+            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = season.id, isMissing = false, limit = 1, fields = FIELDS),
+        ).content.items.firstOrNull()
     }
 
     suspend fun similar(id: String): List<MediaItem> =
@@ -179,8 +186,6 @@ class JellyfinSession(context: Context, val profile: Profile) {
         private const val PEOPLE_LIMIT = 12
         private const val ROW_LIMIT = 20
 
-        /** Episodes read to find a show's first: specials sort ahead of season 1. */
-        private const val FIRST_EPISODE_SCAN = 50
         private val FIELDS = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO)
 
         /** Jellyfin ids come with or without dashes. */
