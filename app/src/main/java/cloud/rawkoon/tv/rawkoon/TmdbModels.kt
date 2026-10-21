@@ -77,4 +77,6 @@ data class RequestSummary(
     val requestedBy: String?,
     val createdAt: String?,
     val decidedAt: String?,
+    /** The library entry the request was approved into; null before approval. */
+    val libraryMediaId: Int? = null,
 )

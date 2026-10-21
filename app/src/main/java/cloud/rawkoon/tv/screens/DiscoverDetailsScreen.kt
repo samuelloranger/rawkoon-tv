@@ -11,6 +11,8 @@ import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.JellyfinTmdbLookup
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.Person
+import cloud.rawkoon.tv.live.LiveKind
+import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.rawkoon.AlreadyInLibrary
 import cloud.rawkoon.tv.rawkoon.AlreadyRequested
 import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
@@ -331,6 +333,16 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         if (first) return
         val token = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonToken
         if (token != null && token != loadedWith) load()
+    }
+
+    override val livePage get() = LivePage.DISCOVER_DETAILS
+
+    /**
+     * The request moved (decided, landed), or Jellyfin's library changed so the title may be there
+     * to open: ask again where the title stands. Focus stays on the buttons, as after a request.
+     */
+    override fun onLive(kinds: Set<LiveKind>) {
+        if (!busy && !withdrawing) refreshStatus()
     }
 
     private companion object {

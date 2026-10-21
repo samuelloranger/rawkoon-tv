@@ -63,6 +63,35 @@ class LiveEventsTest {
     }
 
     @Test
+    fun `rawkoon news reaches home and the title page, and no jellyfin library page`() {
+        for (kind in listOf(LiveKind.RAWKOON_LANDED, LiveKind.REQUEST_CHANGED)) {
+            assertTrue(LivePage.HOME.reactsTo(kind))
+            assertTrue(LivePage.DISCOVER_DETAILS.reactsTo(kind))
+            for (page in listOf(LivePage.DETAILS, LivePage.SEASON, LivePage.LIBRARY, LivePage.FAVORITES, LivePage.DISCOVER, LivePage.OTHER)) {
+                assertFalse("$page $kind", page.reactsTo(kind))
+            }
+        }
+    }
+
+    @Test
+    fun `the discover title page follows the library to find its jellyfin item, not watched state`() {
+        assertTrue(LivePage.DISCOVER_DETAILS.reactsTo(LiveKind.LIBRARY))
+        assertFalse(LivePage.DISCOVER_DETAILS.reactsTo(LiveKind.USER_DATA))
+    }
+
+    @Test
+    fun `each page opens only the connections it follows`() {
+        val jellyfin = LivePage.entries.filter { it.followsJellyfin }.toSet()
+        assertEquals(setOf(LivePage.HOME, LivePage.DETAILS, LivePage.SEASON, LivePage.FAVORITES, LivePage.LIBRARY, LivePage.DISCOVER_DETAILS), jellyfin)
+        // Discover keeps Rawkoon's streams for toasts without a Jellyfin socket; the player has neither
+        assertFalse(LivePage.DISCOVER.followsJellyfin)
+        assertTrue(LivePage.DISCOVER.followsRawkoon)
+        assertFalse(LivePage.OTHER.followsJellyfin)
+        assertFalse(LivePage.OTHER.followsRawkoon)
+        assertEquals(setOf(LiveKind.USER_DATA, LiveKind.LIBRARY), LiveKind.JELLYFIN)
+    }
+
+    @Test
     fun `screens that only reload when shown never react`() {
         assertFalse(LivePage.OTHER.reactsTo(LiveKind.USER_DATA))
         assertFalse(LivePage.OTHER.reactsTo(LiveKind.LIBRARY))

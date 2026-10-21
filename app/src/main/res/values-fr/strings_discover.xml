@@ -39,6 +39,7 @@
     <string name="rk_requesting">Envoi…</string>
     <string name="rk_open">Ouvrir</string>
     <string name="rk_request_sent">Demande envoyée</string>
+    <string name="rk_title_ready">%1$s est prêt</string>
     <string name="rk_already_requested">Déjà demandé</string>
     <string name="rk_already_in_library">Déjà dans la bibliothèque</string>
     <string name="rk_refused_reason">Raison : %1$s</string>

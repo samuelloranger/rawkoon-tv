@@ -39,6 +39,7 @@
     <string name="rk_requesting">Sending…</string>
     <string name="rk_open">Open</string>
     <string name="rk_request_sent">Request sent</string>
+    <string name="rk_title_ready">%1$s is ready</string>
     <string name="rk_already_requested">Already requested</string>
     <string name="rk_already_in_library">Already in the library</string>
     <string name="rk_refused_reason">Reason: %1$s</string>

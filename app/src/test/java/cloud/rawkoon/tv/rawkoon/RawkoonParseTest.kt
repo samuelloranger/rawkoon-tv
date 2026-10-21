@@ -167,4 +167,10 @@ class RawkoonParseTest {
         assertNull(requests[1].tmdbId)
         assertEquals("book", requests[1].type)
     }
+
+    @Test
+    fun `a request carries the library entry it was approved into`() {
+        val request = parseRequests(JSONObject("""{"requests":[{"id":5,"type":"movie","status":"approved","library_media_id":42}]}""")).single()
+        assertEquals(42, request.libraryMediaId)
+    }
 }
