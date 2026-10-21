@@ -52,6 +52,9 @@ class SeasonScreen(
     private var seasons: List<MediaItem> = emptyList()
     private var shownSeason: String? = null
     private var loadJob: Job? = null
+
+    /** Whether the season loading now takes focus once its episodes are in. */
+    private var focusOnLoad = false
     private var pendingTab: MediaItem? = null
     private val settleTab = Runnable { pendingTab?.let { select(it, null, focus = false) } }
     private var pendingEpisode: MediaItem? = null
@@ -115,16 +118,22 @@ class SeasonScreen(
     private fun select(season: MediaItem, episodeId: String?, focus: Boolean, quiet: Boolean = false) {
         tabs.select(season.id)
         if (season.id == shownSeason) {
-            if (focus) episodes.restoreFocus()
+            // Its episodes may still be on their way (the tab was rested on, then pressed): focus waits
+            // for them, as the cards on screen now are the last season's and about to go
+            if (focus && loadJob?.isActive == true) focusOnLoad = true else if (focus) episodes.restoreFocus()
             return
         }
         shownSeason = season.id
+        focusOnLoad = focus
         loadJob?.cancel()
         val job = launchLoading(onError = { if (!quiet) toastPageError() }) {
             try {
                 app.awaitStop()
                 val list = session.episodes(seriesId, season.id)
-                val refocus = focus && episodes.hasFocus()
+                // Focus that went down to the old cards meanwhile is parked too: losing it with them
+                // would hand it to the first tab, and resting there switches to the first season
+                val refocus = episodes.hasFocus()
+                val focus = focusOnLoad || refocus
                 parking.isFocusable = refocus
                 if (refocus) parking.requestFocus()
                 episodes.setCards(
