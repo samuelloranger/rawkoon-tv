@@ -79,6 +79,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
     private fun load() {
         hideMessage()
+        liveMissed = false
         // A refresh that is still under way is out of date as soon as another starts
         loadJob?.cancel()
         loadJob = scope.launch {
@@ -238,10 +239,20 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     override val livePage get() = LivePage.HOME
 
     /** Watched state, progress or new items changed on the server: the same in-place refresh as coming back. */
+    /**
+     * Restarting a running load on every event could keep a slow Home from ever finishing, so an
+     * event during one is kept and answered once it is done: it may have read the server before.
+     */
     override fun onLive(kinds: Set<LiveKind>) {
-        // Restarting a running load on every event could keep a slow Home from ever finishing
-        if (loadJob?.isActive != true) load()
+        if (loadJob?.isActive == true) {
+            liveMissed = true
+            loadJob?.invokeOnCompletion { cause -> if (cause == null) mainHandler.post { if (liveMissed) load() } }
+        } else {
+            load()
+        }
     }
+
+    private var liveMissed = false
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {

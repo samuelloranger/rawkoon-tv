@@ -90,7 +90,7 @@ class SeasonScreen(
             val details = async { session.details(seriesId) }
             seasons = session.seasons(seriesId)
             // A tab only switches the season if focus stays on it; leaving it cancels the switch
-            tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab) }) { season, focused ->
+            tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab); mainHandler.post(::catchUpLive) }) { season, focused ->
                 mainHandler.removeCallbacks(settleTab)
                 if (focused) {
                     // Moving along the tabs only switches once focus rests on one
@@ -108,8 +108,10 @@ class SeasonScreen(
         }
     }
 
-    /** Shows [season]'s episodes, focusing [episodeId] (or the first unwatched one) when [focus] is set. */
-    /** [quiet] for a refresh nobody asked for: a failure leaves the page as it was, with no error toast. */
+    /**
+     * Shows [season]'s episodes, focusing [episodeId] (or the first unwatched one) when [focus] is
+     * set. [quiet] for a refresh nobody asked for: a failure leaves the page as it was, with no toast.
+     */
     private fun select(season: MediaItem, episodeId: String?, focus: Boolean, quiet: Boolean = false) {
         tabs.select(season.id)
         if (season.id == shownSeason) {
@@ -118,7 +120,7 @@ class SeasonScreen(
         }
         shownSeason = season.id
         loadJob?.cancel()
-        loadJob = launchLoading(onError = { if (!quiet) toastPageError() }) {
+        val job = launchLoading(onError = { if (!quiet) toastPageError() }) {
             try {
                 app.awaitStop()
                 val list = session.episodes(seriesId, season.id)
@@ -141,6 +143,8 @@ class SeasonScreen(
                 parking.isFocusable = false
             }
         }
+        loadJob = job
+        job.invokeOnCompletion { cause -> if (cause == null) mainHandler.post(::catchUpLive) }
     }
 
     private fun episodeTag(e: MediaItem) = e.episodeNumber?.let { "E$it" }
@@ -202,12 +206,23 @@ class SeasonScreen(
      * the row when it was there (the actions, the tabs and the rail keep theirs).
      */
     override fun onLive(kinds: Set<LiveKind>) {
-        // A load still running (the first one, or a tab switch) or a tab being chosen would lose its target and focus
-        if (loadJob?.isActive == true || tabs.hasFocus()) return
+        // A load still running (the first one, or a tab switch) or a tab being chosen would lose its
+        // target and focus: the event waits for it to end, or for focus to leave the tabs
+        if (loadJob?.isActive == true || tabs.hasFocus()) {
+            liveMissed = true
+            return
+        }
+        liveMissed = false
         val season = seasons.firstOrNull { it.id == shownSeason } ?: return
         val key = (episodes.remembered() as? Card)?.item?.id
         shownSeason = null
         select(season, key, focus = episodes.hasFocus(), quiet = true)
+    }
+
+    private var liveMissed = false
+
+    private fun catchUpLive() {
+        if (liveMissed) onLive(emptySet())
     }
 
     private companion object {

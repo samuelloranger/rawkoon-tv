@@ -124,8 +124,8 @@ class LibraryLoader(
      * are current, without moving anything. The rest are dropped and refetched if scrolled to. If
      * the library's size changed meanwhile, the grid starts over. [prefetch] is how far around the
      * position to fetch; a visible message just retries the load. With [restartOnResize] false the
-     * grid keeps every page (none is refetched at shifted offsets) and a size change waits for the
-     * next visit.
+     * grid keeps every page (none is refetched at shifted offsets): posters outside the window keep
+     * their marks, and a size change waits, until the next visit.
      */
     fun refresh(position: Int, prefetch: Int, messageShown: Boolean, restartOnResize: Boolean = true) {
         if (messageShown) return reload()
