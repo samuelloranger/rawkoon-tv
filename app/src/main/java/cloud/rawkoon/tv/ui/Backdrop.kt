@@ -61,6 +61,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     var drifts = false
         set(value) {
             field = value
+            // A breath ended before the zoom was wanted again doesn't count for this rest
+            breathed = false
             syncDrift()
         }
 

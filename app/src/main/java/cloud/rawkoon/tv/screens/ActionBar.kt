@@ -48,8 +48,11 @@ class ActionBar(private val screen: RailScreen) {
     /** For a show: the episode the play button resumes or starts. */
     var next: MediaItem? = null
 
-    /** A toggle changed the item on screen, or put it back after a refusal: a page showing it elsewhere (its card) follows. */
-    var onChanged: (MediaItem) -> Unit = {}
+    /**
+     * A toggle changed item [id] on screen, or put it back after a refusal: a page showing it
+     * elsewhere (its card) applies [change] to its own copy, which a refresh may have made newer.
+     */
+    var onChanged: (id: String, change: (MediaItem) -> MediaItem) -> Unit = { _, _ -> }
 
     init {
         view.addView(primary)
@@ -94,13 +97,14 @@ class ActionBar(private val screen: RailScreen) {
         beforeUse()
         val current = item ?: return
         // Marking watched clears the resume point on the server: the page shows it at once, "Play" included
-        val updated = when {
-            !watched -> current.copy(favorite = !current.favorite)
-            current.played -> current.copy(played = false)
-            else -> current.copy(played = true, progress = null, resumeMs = 0)
+        fun change(now: MediaItem) = when {
+            !watched -> now.copy(favorite = !current.favorite)
+            current.played -> now.copy(played = false)
+            else -> now.copy(played = true, progress = null, resumeMs = 0)
         }
+        val updated = change(current)
         bind(updated)
-        onChanged(updated)
+        onChanged(current.id, ::change)
         screen.scope.launch {
             try {
                 if (watched) screen.session.setPlayed(current.id, updated.played) else screen.session.setFavorite(current.id, updated.favorite)
@@ -110,10 +114,9 @@ class ActionBar(private val screen: RailScreen) {
                 // Put back only this field: another toggle may have changed the item meanwhile
                 fun restore(now: MediaItem) =
                     if (watched) now.copy(played = current.played, progress = current.progress, resumeMs = current.resumeMs) else now.copy(favorite = current.favorite)
-                val shown = item?.takeIf { it.id == current.id }
-                shown?.let { bind(restore(it)) }
+                item?.takeIf { it.id == current.id }?.let { bind(restore(it)) }
                 // The item's card goes back too, even once the bar has moved on to another item
-                onChanged(restore(shown ?: updated))
+                onChanged(current.id, ::restore)
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
         }
