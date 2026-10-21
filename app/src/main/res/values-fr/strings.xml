@@ -35,6 +35,9 @@
     <string name="error_denied">La connexion a été refusée sur l\'autre appareil.</string>
     <string name="error_generic">Quelque chose a échoué (%1$s).</string>
     <string name="error_session">La session Jellyfin de ce profil a pris fin. Retire le profil et ajoute-le de nouveau.</string>
+    <string name="error_rawkoon_session">Ta session Rawkoon a pris fin. Reconnecte-toi.</string>
+    <string name="error_jellyfin_unreachable">Rawkoon n\'a pas pu joindre Jellyfin. Réessaie dans un instant.</string>
+    <string name="error_server_old">Ce serveur Rawkoon est trop ancien pour cette connexion. Mets Rawkoon à jour.</string>
 
     <string name="pin_title">Entre le NIP de %1$s</string>
     <string name="pin_new">Choisis un NIP</string>

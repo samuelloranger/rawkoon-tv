@@ -39,6 +39,9 @@
     <string name="error_denied">The sign-in was refused on the other device.</string>
     <string name="error_generic">Something went wrong (%1$s).</string>
     <string name="error_session">This profile\'s Jellyfin session ended. Remove the profile and add it again.</string>
+    <string name="error_rawkoon_session">Your Rawkoon session ended. Sign in again.</string>
+    <string name="error_jellyfin_unreachable">Rawkoon couldn\'t reach Jellyfin. Try again in a moment.</string>
+    <string name="error_server_old">This Rawkoon server is too old for this sign-in. Update Rawkoon.</string>
 
     <string name="pin_title">Enter %1$s\'s PIN</string>
     <string name="pin_new">Choose a PIN</string>
