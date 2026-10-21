@@ -23,9 +23,10 @@ class RawkoonLiveSession(
 /**
  * Rawkoon's two event streams for the profile on screen: `/api/library/events` (a title landed)
  * and `/api/notifications/stream` (a request was decided or became available). Each is one
- * [SseConnection] in a loop that reconnects with a capped, jittered backoff, and stops for good when
- * the server refuses the token: the session ended, which the pages already handle by asking to link
- * the account again. Events go through a [LiveFeed], so [deliver] gets a burst once, on the main
+ * [SseConnection] in a loop that reconnects with a capped, jittered backoff, and stops when the
+ * server refuses the token: the session ended, which the pages already handle by asking to link the
+ * account again. It stays stopped until the streams are next opened (another page set, the app
+ * coming back to the foreground, or a new token). Events go through a [LiveFeed], so [deliver] gets a burst once, on the main
  * thread; [toast] gets the words for what the user should be told.
  */
 class RawkoonLive(
@@ -45,8 +46,8 @@ class RawkoonLive(
         disconnect()
         key = session.endpoint
         jobs = listOf(
-            stream(session, "api/library/events") { event -> RawkoonSignals.library(event) },
-            stream(session, "api/notifications/stream") { event -> RawkoonSignals.notification(event, userIdIfKnown(session)) },
+            stream(session, "api/library/events", keep = RawkoonSignals::mayMatterOnLibrary) { event -> RawkoonSignals.library(event) },
+            stream(session, "api/notifications/stream", keep = { true }) { event -> RawkoonSignals.notification(event, userIdIfKnown(session)) },
         )
     }
 
@@ -59,7 +60,16 @@ class RawkoonLive(
         toasts.clear()
     }
 
-    private fun stream(session: RawkoonLiveSession, path: String, parse: suspend (SseEvent) -> RawkoonSignal?): Job = scope.launch {
+    /**
+     * [keep] runs on the reading thread and lets through only what may matter: the library stream
+     * also carries frequent download and seeding updates the TV has no use for.
+     */
+    private fun stream(
+        session: RawkoonLiveSession,
+        path: String,
+        keep: (String) -> Boolean,
+        parse: suspend (SseEvent) -> RawkoonSignal?,
+    ): Job = scope.launch {
         val url = "${session.endpoint.baseUrl}/$path"
         val backoff = Backoff()
         var connectedBefore = false
@@ -72,7 +82,20 @@ class RawkoonLive(
                     url, session.endpoint.token,
                     onOpen = { opened = true },
                     // From the IO thread: the main thread takes the events in order, and a closed stream drops them
-                    onEvent = { event -> launch { parse(event)?.let { handle(session, it, resumed) } } },
+                    onEvent = { event ->
+                        if (keep(event.data)) {
+                            launch {
+                                try {
+                                    parse(event)?.let { handle(session, it, resumed) }
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    // One bad event must neither crash the app nor end the stream
+                                    Log.w(TAG, "$path: event dropped", e)
+                                }
+                            }
+                        }
+                    },
                 )
             } catch (e: CancellationException) {
                 throw e

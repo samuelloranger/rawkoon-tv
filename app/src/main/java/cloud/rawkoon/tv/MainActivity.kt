@@ -180,11 +180,14 @@ class MainActivity : Activity() {
         val profile = app.profiles.get(shown.id) ?: shown
         val endpoint = profile.rawkoonEndpoint(this) ?: return null
         val api = profile.rawkoonDiscover(this) ?: return null
+        // The session outlives this call (the same endpoint is not reconnected), so it keeps the id it learns
+        var userId = profile.rawkoonUserId
         return RawkoonLiveSession(
             endpoint,
             requests = { api.requests() },
             userId = {
-                profile.rawkoonUserId ?: api.userId().ifBlank { null }?.also { id ->
+                userId ?: api.userId().ifBlank { null }?.also { id ->
+                    userId = id
                     app.profiles.get(profile.id)?.let { app.profiles.save(it.copy(rawkoonUserId = id)) }
                 }
             },

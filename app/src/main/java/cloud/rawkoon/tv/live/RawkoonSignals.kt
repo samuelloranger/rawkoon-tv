@@ -32,6 +32,9 @@ object RawkoonSignals {
         return runCatching { JSONObject(event.data) }.getOrNull()
     }
 
+    /** A cheap look before parsing: only arrivals and the handshake matter, not progress or seeding ticks. */
+    fun mayMatterOnLibrary(data: String): Boolean = "\"landed\"" in data || "\"connected\"" in data
+
     /** `landed` by its `kind`; the handshake has `connected` and `ts`; every other kind (progress, media updates) is not ours. */
     fun library(event: SseEvent): RawkoonSignal? {
         val json = json(event) ?: return null

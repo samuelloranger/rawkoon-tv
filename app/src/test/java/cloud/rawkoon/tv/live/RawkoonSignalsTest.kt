@@ -131,4 +131,12 @@ class RawkoonSignalsTest {
         gate.clear()
         assertTrue(gate.allow(2, now = 1_001))
     }
+
+    @Test
+    fun `only arrivals and the handshake are parsed from the library stream`() {
+        assertTrue(RawkoonSignals.mayMatterOnLibrary("""{"kind":"landed","mediaId":1}"""))
+        assertTrue(RawkoonSignals.mayMatterOnLibrary("""{"connected":true,"ts":1}"""))
+        assertFalse(RawkoonSignals.mayMatterOnLibrary("""{"kind":"download-progress","mediaId":1,"downloads":[]}"""))
+        assertFalse(RawkoonSignals.mayMatterOnLibrary("""{"kind":"seed-state","torrents":[]}"""))
+    }
 }
