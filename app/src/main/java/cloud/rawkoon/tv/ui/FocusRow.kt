@@ -77,6 +77,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     }
 
     fun setCards(cards: List<View>) {
+        dropPendingSnap()
         strip.removeAllViews()
         val gap = context.dp(Tokens.CARD_GAP) - context.dp(Tokens.RING_INSET) * 2
         cards.forEachIndexed { i, card ->
@@ -111,9 +112,12 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
     /**
      * Carries on from [old], the row this one replaces: the same card is remembered (or, when it
-     * is gone, the one now at its position) and shown where [old] showed it.
+     * is gone, the one now at its position) and shown where [old] showed it. A row sharing no card
+     * with [old] (new search results) is a new list, and starts at its first card.
      */
     fun takeOver(old: FocusRow) {
+        val oldKeys = old.cards().mapNotNullTo(HashSet()) { (it as? RowItem)?.key }
+        if (cards().none { (it as? RowItem)?.key in oldKeys }) return
         val card = old.remembered() ?: return
         val key = (card as? RowItem)?.key
         val index = cards().indexOfFirst { key != null && (it as? RowItem)?.key == key }
@@ -137,6 +141,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
      * another shows its focused card where the old one had it, with no glide from the first card.
      */
     private fun snapTo(card: View) {
+        dropPendingSnap()
         val place = {
             val target = targetFor(card)
             strip.animate().cancel()
@@ -144,14 +149,28 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
             glideTarget = target
         }
         if (strip.isLaidOut && card.isLaidOut) return place()
-        strip.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+        pendingSnap = object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
-                strip.viewTreeObserver.removeOnPreDrawListener(this)
-                // Focus may have moved on before the first frame
+                dropPendingSnap()
+                // The cards may have been replaced before the first frame
                 if (card.parent === strip) place()
                 return true
             }
-        })
+        }.also { strip.viewTreeObserver.addOnPreDrawListener(it) }
+    }
+
+    /** A placement waiting for the first frame; dropped when the row goes away first, so no listener outlives it. */
+    private var pendingSnap: ViewTreeObserver.OnPreDrawListener? = null
+
+    private fun dropPendingSnap() {
+        pendingSnap?.let { strip.viewTreeObserver.removeOnPreDrawListener(it) }
+        pendingSnap = null
+    }
+
+    override fun onDetachedFromWindow() {
+        // Still attached here, so this is the window's observer the listener was merged into
+        dropPendingSnap()
+        super.onDetachedFromWindow()
     }
 
     private fun targetFor(card: View): Float {
