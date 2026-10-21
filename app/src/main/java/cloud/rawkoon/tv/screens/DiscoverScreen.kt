@@ -30,6 +30,7 @@ import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.SearchField
 import cloud.rawkoon.tv.ui.Section
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.arrive
 import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.dp
 import kotlinx.coroutines.CancellationException
@@ -164,7 +165,10 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         message.hide()
         search.visibility = View.VISIBLE
         browse = sections
-        if (!searching) place(sections)
+        if (!searching) {
+            place(sections)
+            if (isFullyShown) sections.arrive()
+        }
         if (refocus || (landOnRows && search.hasFocus() && search.text.isEmpty())) focusDefault()
         landOnRows = false
         if (!searching) firstItem()?.let(header::show)

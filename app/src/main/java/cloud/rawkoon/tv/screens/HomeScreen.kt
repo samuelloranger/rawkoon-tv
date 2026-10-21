@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.screens
 import android.content.Context
 import android.os.SystemClock
 import android.util.LruCache
+import android.view.KeyEvent
 import android.view.View
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
@@ -75,6 +76,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private var rawkoonLoadedWith: String? = null
 
     init {
+        backdrop.drifts = true
         load()
     }
 
@@ -224,6 +226,12 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         backdropJob?.cancel()
         rawkoonJob?.cancel()
         super.destroy()
+    }
+
+    /** Every key holds the backdrop's zoom, so it never runs during a glide. */
+    override fun onKey(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) backdrop.holdDrift()
+        return false
     }
 
     /** Home keeps the header where it was when rows change under the rail. */

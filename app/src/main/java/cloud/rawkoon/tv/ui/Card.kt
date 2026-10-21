@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.ui
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
@@ -21,13 +22,16 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 @SuppressLint("ViewConstructor")
 class Card(
     context: Context,
-    val item: MediaItem,
+    item: MediaItem,
     val landscape: Boolean,
     private val images: Images,
     private val onFocused: (Card) -> Unit,
     private val onClick: (Card) -> Unit,
     caption: Pair<String, String?>? = null,
 ) : Focusable(context), RowItem {
+    /** The item shown; [update] changes it when the page changes it before the server confirms. */
+    var item: MediaItem = item
+        private set
     override val key: String get() = item.id
     private val artW = context.dp(if (landscape) Tokens.LAND_W else Tokens.POSTER_W)
     private val artH = context.dp(if (landscape) Tokens.LAND_H else Tokens.POSTER_H)
@@ -38,15 +42,16 @@ class Card(
     @Volatile
     private var alive = false
 
+    private var progressBar: CardProgress? = null
+    private var watchedBadge: WatchedBadge? = null
+
     init {
         contentDescription = item.headerTitle
         val inset = context.dp(Tokens.RING_INSET)
         val captionH = if (caption != null) context.dp(Tokens.CAPTION_H) else 0
-        layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionH)
-        val shownProgress = item.progress?.takeIf { landscape || item.kind == MediaItem.Kind.EPISODE }
-        shownProgress?.let { frame.addOverlay(CardProgress(context, it)) }
-        // A rewatch keeps Played with a resume position: the bar says more than the badge
-        if (item.played && shownProgress == null) frame.addOverlay(WatchedBadge(context))
+        val captionGap = if (caption != null) context.dp(Tokens.CAPTION_GAP) else 0
+        layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionGap + captionH)
+        showMarks(item, animate = false)
         item.tmdb?.badge?.let {
             frame.addOverlay(badgeLabel(it, artW - context.dp(12)), FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START,
@@ -56,6 +61,39 @@ class Card(
         if (caption != null) addView(CaptionColumn(context, caption.first, caption.second), LayoutParams(artW, captionH, Gravity.BOTTOM).apply { leftMargin = inset })
         listenForFocus { onFocused(this) }
         setOnClickListener { onClick(this) }
+    }
+
+    /**
+     * Shows [updated], this card's item as the page just changed it (marked watched or not): the
+     * check pops in or goes and the progress bar follows, without waiting for the server.
+     */
+    fun update(updated: MediaItem) {
+        item = updated
+        showMarks(updated, animate = true)
+    }
+
+    /** The progress bar and the watched check for [item]; a check that appears pops in when [animate]. */
+    private fun showMarks(item: MediaItem, animate: Boolean) {
+        val progress = item.progress?.takeIf { landscape || item.kind == MediaItem.Kind.EPISODE }
+        if (progress != progressBar?.progress) {
+            progressBar?.let(frame::removeView)
+            progressBar = progress?.let { CardProgress(context, it).also(frame::addOverlay) }
+        }
+        // A rewatch keeps Played with a resume position: the bar says more than the badge
+        val checked = item.played && progress == null
+        if (checked == (watchedBadge != null)) return
+        watchedBadge?.let(frame::removeView)
+        watchedBadge = if (checked) WatchedBadge(context).also { badge -> frame.addOverlay(badge); if (animate) badge.popIn(delay = 0) } else null
+    }
+
+    /**
+     * This card replaces [old], the same item's card before a refresh: progress made since grows
+     * the bar from where [old] had it, and a check [old] did not have pops in.
+     */
+    fun changedFrom(old: Card) {
+        val was = old.progressBar?.progress ?: 0f
+        progressBar?.growFrom(was)
+        if (old.watchedBadge == null) watchedBadge?.popIn()
     }
 
     private fun badgeLabel(badge: Badge, maxWidth: Int): View {
@@ -109,9 +147,13 @@ fun badgeColors(tone: Badge.Tone): Pair<Int, Int> = when (tone) {
     Badge.Tone.REFUSED -> 0xFFC8564D.toInt() to Tokens.textPrimary
 }
 
-/** Watch progress along the bottom edge; drawn once, never animated. */
+/**
+ * Watch progress along the bottom edge; drawn once, except while [growFrom] runs: the bar then
+ * redraws, but it is two small rectangles, for under a second.
+ */
 @SuppressLint("ViewConstructor")
-class CardProgress(context: Context, private val progress: Float) : View(context) {
+class CardProgress(context: Context, val progress: Float) : View(context) {
+    private var drawn = progress
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x40FFFFFF }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.accent }
     private val barHeight = context.dpf(3.5f)
@@ -123,8 +165,24 @@ class CardProgress(context: Context, private val progress: Float) : View(context
         val bottom = getHeight() - margin
         rect.set(margin, bottom - barHeight, width - margin, bottom)
         canvas.drawRoundRect(rect, r, r, track)
-        rect.right = margin + (width - margin * 2) * progress
+        rect.right = margin + (width - margin * 2) * drawn
         canvas.drawRoundRect(rect, r, r, fill)
+    }
+
+    /** Grows the fill from [from] to the progress, a moment after the page settles; a bar that went back stays as it is. */
+    fun growFrom(from: Float) {
+        if (from >= progress) return
+        drawn = from
+        ValueAnimator.ofFloat(from, progress).apply {
+            startDelay = Tokens.CHANGE_DELAY_MS
+            duration = Tokens.GROW_MS
+            interpolator = Tokens.ease
+            addUpdateListener {
+                drawn = it.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
     }
 }
 
@@ -139,6 +197,12 @@ class WatchedBadge(context: Context) : View(context) {
     }
     private val size = context.dpf(19f)
     private val margin = context.dpf(5f)
+
+    /** The view covers the art, the check sits in its corner: it grows from there when it pops in, not from the art's middle. */
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        pivotX = w - margin - size / 2
+        pivotY = margin + size / 2
+    }
 
     override fun onDraw(canvas: Canvas) {
         val cx = width - margin - size / 2

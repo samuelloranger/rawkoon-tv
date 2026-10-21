@@ -53,6 +53,7 @@ import org.jellyfin.sdk.model.api.PlayMethod
 @OptIn(UnstableApi::class)
 class PlayerScreen(activity: MainActivity, private val session: JellyfinSession, private var item: MediaItem) : Screen(activity) {
     override val view = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
+    override val slides get() = false
     private val service = PlaybackService(context, session)
     private val settings = PlayerSettings.read(context)
     private val player = VideoPlayer(context, service.authorization, settings.skipBackMs, settings.skipForwardMs)

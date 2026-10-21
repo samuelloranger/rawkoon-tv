@@ -8,6 +8,7 @@ import android.widget.Toast
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.SkipMode
 import cloud.rawkoon.tv.playback.Segment
+import cloud.rawkoon.tv.ui.showRising
 import org.jellyfin.sdk.model.api.MediaSegmentType
 
 /**
@@ -98,7 +99,7 @@ class SegmentSkipper(
                         else -> R.string.skip_credits
                     },
                 )
-                skip.visibility = View.VISIBLE
+                skip.showRising()
                 if (!chrome.shown) skip.requestFocus()
             }
         }
@@ -155,7 +156,7 @@ class SegmentSkipper(
                 main.postDelayed(countdownStep, 1_000)
             }
         }
-        upNext.visibility = View.VISIBLE
+        upNext.showRising()
         upNext.requestFocus()
     }
 

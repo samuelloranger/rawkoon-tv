@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 
 /**
  * The actions under a title: play or resume (the player comes in the next milestone), watched and
- * favorite. The toggles change on screen at once and go back if the server refuses.
+ * favorite. The toggles change on screen at once, [onChanged] included, and go back if the server
+ * refuses.
  */
 class ActionBar(private val screen: RailScreen) {
     private val context = screen.context
@@ -46,6 +47,12 @@ class ActionBar(private val screen: RailScreen) {
 
     /** For a show: the episode the play button resumes or starts. */
     var next: MediaItem? = null
+
+    /**
+     * A toggle changed item [id] on screen, or put it back after a refusal: a page showing it
+     * elsewhere (its card) applies [change] to its own copy, which a refresh may have made newer.
+     */
+    var onChanged: (id: String, change: (MediaItem) -> MediaItem) -> Unit = { _, _ -> }
 
     init {
         view.addView(primary)
@@ -89,8 +96,15 @@ class ActionBar(private val screen: RailScreen) {
     private fun toggle(watched: Boolean) {
         beforeUse()
         val current = item ?: return
-        val updated = if (watched) current.copy(played = !current.played) else current.copy(favorite = !current.favorite)
+        // Marking watched clears the resume point on the server: the page shows it at once, "Play" included
+        fun change(now: MediaItem) = when {
+            !watched -> now.copy(favorite = !current.favorite)
+            current.played -> now.copy(played = false)
+            else -> now.copy(played = true, progress = null, resumeMs = 0)
+        }
+        val updated = change(current)
         bind(updated)
+        onChanged(current.id, ::change)
         screen.scope.launch {
             try {
                 if (watched) screen.session.setPlayed(current.id, updated.played) else screen.session.setFavorite(current.id, updated.favorite)
@@ -98,9 +112,11 @@ class ActionBar(private val screen: RailScreen) {
                 throw e
             } catch (e: Exception) {
                 // Put back only this field: another toggle may have changed the item meanwhile
-                item?.takeIf { it.id == current.id }?.let { now ->
-                    bind(if (watched) now.copy(played = current.played) else now.copy(favorite = current.favorite))
-                }
+                fun restore(now: MediaItem) =
+                    if (watched) now.copy(played = current.played, progress = current.progress, resumeMs = current.resumeMs) else now.copy(favorite = current.favorite)
+                item?.takeIf { it.id == current.id }?.let { bind(restore(it)) }
+                // The item's card goes back too, even once the bar has moved on to another item
+                onChanged(current.id, ::restore)
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
         }

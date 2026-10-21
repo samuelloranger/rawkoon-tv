@@ -24,7 +24,9 @@ import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.chipRow
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.slideIn
 import java.util.Date
+import kotlin.math.sign
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 
@@ -52,6 +54,9 @@ class SeasonScreen(
     private var seasons: List<MediaItem> = emptyList()
     private var shownSeason: String? = null
     private var loadJob: Job? = null
+
+    /** Whether the season loading now takes focus once its episodes are in. */
+    private var focusOnLoad = false
     private var pendingTab: MediaItem? = null
     private val settleTab = Runnable { pendingTab?.let { select(it, null, focus = false) } }
     private var pendingEpisode: MediaItem? = null
@@ -75,6 +80,10 @@ class SeasonScreen(
         content.addView(episodes, at(0, 228, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         content.addView(actions.view, at(start - Tokens.RING_INSET, 412, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         actions.beforeUse = ::describePending
+        // The episode's card follows the watched button at once, before the server's refresh
+        actions.onChanged = { id, change ->
+            episodes.cards().firstNotNullOfOrNull { (it as? Card)?.takeIf { card -> card.item.id == id } }?.let { card -> card.update(change(card.item)) }
+        }
         episodes.onLeftEdge = { rail.activeItem() }
         content.addView(parking, FrameLayout.LayoutParams(1, 1))
         load()
@@ -90,7 +99,8 @@ class SeasonScreen(
             val details = async { session.details(seriesId) }
             seasons = session.seasons(seriesId)
             // A tab only switches the season if focus stays on it; leaving it cancels the switch
-            tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab); mainHandler.post(::catchUpLive) }) { season, focused ->
+            // Leaving the tabs also drops a pressed tab's claim on focus: its load must not pull focus back from the rail
+            tabs.set(seasons, onLeave = { focusOnLoad = false; mainHandler.removeCallbacks(settleTab); mainHandler.post(::catchUpLive) }) { season, focused ->
                 mainHandler.removeCallbacks(settleTab)
                 if (focused) {
                     // Moving along the tabs only switches once focus rests on one
@@ -115,18 +125,29 @@ class SeasonScreen(
     private fun select(season: MediaItem, episodeId: String?, focus: Boolean, quiet: Boolean = false) {
         tabs.select(season.id)
         if (season.id == shownSeason) {
-            if (focus) episodes.restoreFocus()
+            // Its episodes may still be on their way (the tab was rested on, then pressed): focus waits
+            // for them, as the cards on screen now are the last season's and about to go
+            if (focus && loadJob?.isActive == true) focusOnLoad = true else if (focus) episodes.restoreFocus()
             return
         }
+        // Another season picked on the tabs slides in from its side; a reload of the shown one (it was
+        // set aside for it) and the first load don't move
+        val from = seasons.indexOfFirst { it.id == shownSeason }
+        val direction = if (quiet || from < 0) 0 else (seasons.indexOfFirst { it.id == season.id } - from).sign
         shownSeason = season.id
+        focusOnLoad = focus
         loadJob?.cancel()
         val job = launchLoading(onError = { if (!quiet) toastPageError() }) {
             try {
                 app.awaitStop()
                 val list = session.episodes(seriesId, season.id)
-                val refocus = focus && episodes.hasFocus()
+                // Focus that went down to the old cards meanwhile is parked too: losing it with them
+                // would hand it to the first tab, and resting there switches to the first season
+                val refocus = episodes.hasFocus()
+                val focus = focusOnLoad || refocus
                 parking.isFocusable = refocus
                 if (refocus) parking.requestFocus()
+                val before = episodes.cards()
                 episodes.setCards(
                     list.map { e ->
                         val name = listOfNotNull(episodeTag(e), e.title).joinToString(" · ")
@@ -137,8 +158,11 @@ class SeasonScreen(
                 episodes.remember(target.id)
                 showEpisode(target, settle = false)
                 if (focus) episodes.restoreFocus()
-                // Glide to the remembered card once the row is laid out
-                episodes.post { episodes.remembered()?.let { episodes.reveal(it) } }
+                // New episodes open on the remembered one: the row's first frame already shows it, with no glide from E1
+                episodes.remembered()?.let(episodes::snapTo)
+                if (isFullyShown) {
+                    if (direction != 0) episodes.slideIn(direction) else episodes.carryOver(before)
+                }
             } finally {
                 parking.isFocusable = false
             }

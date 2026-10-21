@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Rect
 import android.os.Looper
 import android.view.View
+import android.view.ViewTreeObserver
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cloud.rawkoon.tv.data.Images
@@ -121,15 +122,50 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         manager.scrollToPositionWithOffset(position, 0)
     }
 
-    /** The posters of [page] have arrived: shows them. */
-    fun pageLoaded(page: Int, firstLoad: Boolean) {
+    /** The posters of [page] have arrived: shows them; a first page [arriving] staggers in. */
+    fun pageLoaded(page: Int, firstLoad: Boolean, arriving: Boolean = false) {
         if (firstLoad) {
             posters.notifyDataSetChanged()
+            if (arriving) arriveOnNextLayout()
             warmPool()
             return
         }
         val start = page * paged.pageSize
         posters.notifyItemRangeChanged(start, minOf(paged.pageSize, paged.total - start))
+    }
+
+    /** An arrival waiting for the layout that binds the first page; dropped if the grid goes first. */
+    private var pendingArrival: ViewTreeObserver.OnPreDrawListener? = null
+
+    /**
+     * The cells only exist once the next layout binds them: just before that frame draws, the
+     * posters on screen fade in and rise, row by row and left to right. The rest appear as they are.
+     */
+    private fun arriveOnNextLayout() {
+        dropPendingArrival()
+        pendingArrival = object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                dropPendingArrival()
+                val firstRow = getChildAt(0)?.let { getChildAdapterPosition(it) / SPAN } ?: return true
+                for (i in 0 until childCount) {
+                    val cell = getChildAt(i)
+                    if (cell.top >= height) continue
+                    val position = getChildAdapterPosition(cell).takeIf { it >= 0 } ?: continue
+                    cell.riseIn((position / SPAN - firstRow) * Tokens.ARRIVE_ROW_MS + position % SPAN * Tokens.ARRIVE_STAGGER_MS)
+                }
+                return true
+            }
+        }.also { viewTreeObserver.addOnPreDrawListener(it) }
+    }
+
+    private fun dropPendingArrival() {
+        pendingArrival?.let { viewTreeObserver.removeOnPreDrawListener(it) }
+        pendingArrival = null
+    }
+
+    override fun onDetachedFromWindow() {
+        dropPendingArrival()
+        super.onDetachedFromWindow()
     }
 
     /**

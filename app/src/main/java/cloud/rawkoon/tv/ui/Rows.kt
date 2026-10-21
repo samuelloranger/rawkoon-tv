@@ -53,6 +53,12 @@ class Section(context: Context, val id: String, title: String) : LinearLayout(co
 }
 
 /**
+ * The first [visible] rows (those on screen) stagger in, each a little after the one above; the
+ * rest appear as they are.
+ */
+fun List<Section>.arrive(visible: Int = 3) = take(visible).forEachIndexed { i, section -> section.row.arrive(i * Tokens.ARRIVE_ROW_MS) }
+
+/**
  * The vertical stack of sections. Like the rows, it glides by translation and anchors: the
  * focused section always sits at the top of the rows area, just under the header.
  */

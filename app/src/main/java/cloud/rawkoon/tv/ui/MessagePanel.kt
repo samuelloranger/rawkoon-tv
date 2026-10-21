@@ -9,7 +9,8 @@ import android.widget.LinearLayout
 
 /**
  * A centered message for a page with nothing to show: an empty page, an error, an account to
- * link. It can carry one button, which a page may ask to take focus. Hidden until shown.
+ * link. It can carry one button, which a page may ask to take focus. Hidden until shown, then it
+ * fades in; a message replaced while up changes in place.
  */
 class MessagePanel(context: Context) : LinearLayout(context) {
     /** The button of the message on screen, if it has one. */
@@ -31,7 +32,7 @@ class MessagePanel(context: Context) : LinearLayout(context) {
         button = null
         addView(label(context, TEXT_SP, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
         if (action != null) addButton(action, upId, gap = BUTTON_GAP)
-        visibility = VISIBLE
+        showFading()
         if (takeFocus) button?.requestFocus()
     }
 
@@ -42,7 +43,7 @@ class MessagePanel(context: Context) : LinearLayout(context) {
         addView(label(context, NOTICE_TITLE_SP, Tokens.textPrimary, Fonts.title(context)).apply { text = title })
         hint?.let { addView(label(context, NOTICE_HINT_SP, Tokens.textSoft, Fonts.medium(context)).apply { text = it }, spaced(NOTICE_HINT_GAP)) }
         addButton(action, View.NO_ID, gap = NOTICE_BUTTON_GAP)
-        visibility = VISIBLE
+        showFading()
         button?.requestFocus()
     }
 
