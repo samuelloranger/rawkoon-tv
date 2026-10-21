@@ -1,5 +1,7 @@
 package cloud.rawkoon.tv.ui
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
@@ -65,6 +67,9 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private var drift: ObjectAnimator? = null
     private var aggregatedVisible = false
     private var resting = false
+
+    /** Whether this rest's breath is done: an image arriving after it doesn't start another. */
+    private var breathed = false
     private val rest = Runnable {
         resting = true
         syncDrift()
@@ -79,6 +84,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     fun holdDrift() {
         if (!drifts) return
         resting = false
+        breathed = false
         syncDrift()
         main.removeCallbacks(rest)
         main.postDelayed(rest, Tokens.DRIFT_REST_MS)
@@ -96,12 +102,14 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         main.removeCallbacks(rest)
         drift?.cancel()
         drift = null
+        scaleX = 1f
+        scaleY = 1f
         super.onDetachedFromWindow()
     }
 
     /** Runs the zoom only while it is wanted, seen, at rest and has an image to move; pauses it otherwise, where it was. */
     private fun syncDrift() {
-        val run = drifts && aggregatedVisible && resting && shown != null && isAttachedToWindow
+        val run = drifts && aggregatedVisible && resting && !breathed && shown != null && isAttachedToWindow
         val animator = drift
         when {
             run && animator == null -> drift = ObjectAnimator.ofPropertyValuesHolder(
@@ -114,6 +122,11 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
                 // One breath in and out per rest: a page left alone stops drawing frames once it is done
                 repeatCount = 1
                 repeatMode = ValueAnimator.REVERSE
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        breathed = true
+                    }
+                })
                 start()
             }
             run && animator?.isPaused == true -> animator.resume()

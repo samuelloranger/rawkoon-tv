@@ -97,7 +97,8 @@ class SeasonScreen(
             val details = async { session.details(seriesId) }
             seasons = session.seasons(seriesId)
             // A tab only switches the season if focus stays on it; leaving it cancels the switch
-            tabs.set(seasons, onLeave = { mainHandler.removeCallbacks(settleTab); mainHandler.post(::catchUpLive) }) { season, focused ->
+            // Leaving the tabs also drops a pressed tab's claim on focus: its load must not pull focus back from the rail
+            tabs.set(seasons, onLeave = { focusOnLoad = false; mainHandler.removeCallbacks(settleTab); mainHandler.post(::catchUpLive) }) { season, focused ->
                 mainHandler.removeCallbacks(settleTab)
                 if (focused) {
                     // Moving along the tabs only switches once focus rests on one

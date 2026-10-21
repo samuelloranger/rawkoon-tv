@@ -101,7 +101,7 @@ class MainActivity : Activity() {
     }
 
     fun push(screen: Screen) {
-        stack.lastOrNull()?.let { it.onHidden(); hide(it.view) }
+        stack.lastOrNull()?.let { it.onHidden(); hide(it) }
         stack += screen
         show(screen, back = false)
         screen.onShown(first = true)
@@ -118,6 +118,8 @@ class MainActivity : Activity() {
     fun resetTo(vararg screens: Screen) {
         stack.toList().forEach { remove(it) }
         stack.clear()
+        // The screens that were up are gone: the new top has no chrome to keep, and comes in whole
+        lastHadStage = false
         screens.forEachIndexed { i, s ->
             stack += s
             if (i == screens.lastIndex) {
@@ -244,9 +246,10 @@ class MainActivity : Activity() {
         motion.start()
     }
 
-    private fun hide(view: View) {
-        view.animate().cancel()
-        view.visibility = View.GONE
+    private fun hide(screen: Screen) {
+        screen.view.animate().cancel()
+        screen.stage?.animate()?.cancel()
+        screen.view.visibility = View.GONE
     }
 
     private fun remove(screen: Screen) {

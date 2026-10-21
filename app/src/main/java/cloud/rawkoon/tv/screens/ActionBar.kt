@@ -108,11 +108,12 @@ class ActionBar(private val screen: RailScreen) {
                 throw e
             } catch (e: Exception) {
                 // Put back only this field: another toggle may have changed the item meanwhile
-                item?.takeIf { it.id == current.id }?.let { now ->
-                    val restored = if (watched) now.copy(played = current.played, progress = current.progress, resumeMs = current.resumeMs) else now.copy(favorite = current.favorite)
-                    bind(restored)
-                    onChanged(restored)
-                }
+                fun restore(now: MediaItem) =
+                    if (watched) now.copy(played = current.played, progress = current.progress, resumeMs = current.resumeMs) else now.copy(favorite = current.favorite)
+                val shown = item?.takeIf { it.id == current.id }
+                shown?.let { bind(restore(it)) }
+                // The item's card goes back too, even once the bar has moved on to another item
+                onChanged(restore(shown ?: updated))
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
         }
