@@ -162,14 +162,14 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     /** A placement waiting for the first frame; dropped when the row goes away first, so no listener outlives it. */
     private var pendingSnap: ViewTreeObserver.OnPreDrawListener? = null
 
-    private fun dropPendingSnap() {
-        pendingSnap?.let { strip.viewTreeObserver.removeOnPreDrawListener(it) }
+    private fun dropPendingSnap(observer: ViewTreeObserver = strip.viewTreeObserver) {
+        pendingSnap?.let { observer.removeOnPreDrawListener(it) }
         pendingSnap = null
     }
 
     override fun onDetachedFromWindow() {
-        // Still attached here, so this is the window's observer the listener was merged into
-        dropPendingSnap()
+        // The strip detaches before its row, so only the row still holds the window's observer, where the listener was merged
+        dropPendingSnap(viewTreeObserver)
         super.onDetachedFromWindow()
     }
 
