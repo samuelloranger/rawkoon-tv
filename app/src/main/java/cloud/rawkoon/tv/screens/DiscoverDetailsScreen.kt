@@ -248,8 +248,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
             string(if (refused) R.string.rk_clear_confirm else R.string.rk_withdraw_confirm),
             listOf(
                 string(if (refused) R.string.rk_clear else R.string.rk_withdraw) to { withdraw(own.id) },
-                // A refresh may have hidden the button the dialog hands focus back to
-                string(R.string.cancel) to { if (withdraw.visibility != View.VISIBLE) focusDefault() },
+                string(R.string.cancel) to ::refocusAfterDialog,
             ),
         ).also { it.open(view) }
     }
@@ -257,7 +256,6 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private fun withdraw(requestId: Int) {
         val api = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return reconnect()
         withdrawing = true
-        withdraw.isEnabled = false
         scope.launch {
             try {
                 api.withdraw(requestId)
@@ -266,13 +264,11 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
                 throw e
             } catch (e: RawkoonException.Unauthorized) {
                 withdrawing = false
-                withdraw.isEnabled = true
                 return@launch reconnect()
             } catch (e: Exception) {
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
             withdrawing = false
-            withdraw.isEnabled = true
             refreshStatus()
         }
     }
@@ -315,9 +311,15 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         (if (open.visibility == View.VISIBLE) open else request).requestFocus()
     }
 
+    /** A refresh while the dialog was open may have hidden the button it hands focus back to. */
+    private fun refocusAfterDialog() {
+        if (withdraw.visibility != View.VISIBLE) focusDefault()
+    }
+
     override fun onBack(): Boolean {
         dialog?.takeIf { it.isAttachedToWindow }?.let {
             it.close()
+            refocusAfterDialog()
             return true
         }
         return super.onBack()
