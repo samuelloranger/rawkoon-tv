@@ -38,7 +38,9 @@ class RawkoonClientErrorsTest {
 
     @Test
     fun `an invalid grant asks for a fresh code like an expired one`() {
-        assertEquals(DevicePoll.Expired, RawkoonClient.devicePollOf("""{"error":"invalid_grant"}"""))
+        assertEquals(DevicePoll.Expired, RawkoonClient.devicePollOf("""{"error":"invalid_grant","error_description":"Invalid device code"}"""))
+        assertNull(RawkoonClient.devicePollOf("""{"error":"invalid_grant","error_description":"Invalid client ID"}"""))
+        assertNull(RawkoonClient.devicePollOf("""{"error":"invalid_grant","error_description":"Client ID mismatch"}"""))
         assertEquals(DevicePoll.Expired, RawkoonClient.devicePollOf("""{"error":"expired_token"}"""))
         assertEquals(DevicePoll.Pending, RawkoonClient.devicePollOf("""{"error":"authorization_pending"}"""))
         assertNull(RawkoonClient.devicePollOf("""{"error":"invalid_request"}"""))

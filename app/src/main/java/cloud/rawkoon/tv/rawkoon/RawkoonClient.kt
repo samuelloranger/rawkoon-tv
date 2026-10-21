@@ -136,14 +136,21 @@ class RawkoonClient(baseUrl: String) {
         }
 
         /** The answer a device-token 400 body stands for, or null for an error the flow can't act on. */
-        internal fun devicePollOf(body: String): DevicePoll? = when (runCatching { JSONObject(body).optString("error") }.getOrDefault("")) {
-            "authorization_pending" -> DevicePoll.Pending
-            "slow_down" -> DevicePoll.SlowDown
-            // A code already used or deleted (e.g. polled again after expiring) needs a fresh one too
-            "expired_token", "invalid_grant" -> DevicePoll.Expired
-            "access_denied" -> DevicePoll.Denied
-            else -> null
+        internal fun devicePollOf(body: String): DevicePoll? {
+            val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
+            return when (json.optString("error")) {
+                "authorization_pending" -> DevicePoll.Pending
+                "slow_down" -> DevicePoll.SlowDown
+                "expired_token" -> DevicePoll.Expired
+                // A code already used or deleted needs a fresh one; a refused client id never gets better
+                "invalid_grant" -> if (json.optString("error_description") == INVALID_DEVICE_CODE) DevicePoll.Expired else null
+                "access_denied" -> DevicePoll.Denied
+                else -> null
+            }
         }
+
+        /** better-auth's description for a device code it no longer knows. */
+        private const val INVALID_DEVICE_CODE = "Invalid device code"
 
         const val CLIENT_ID = "rawkoon-tv"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
