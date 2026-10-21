@@ -94,7 +94,7 @@ class LibraryScreen(
         }
 
         override fun firstPageLoaded(total: Int, jumpIndex: Int?) {
-            grid.pageLoaded(0, firstLoad = true)
+            grid.pageLoaded(0, firstLoad = true, arriving = isFullyShown && total > 0)
             count.text = context.resources.getQuantityString(R.plurals.library_count, total, total)
             if (total == 0) {
                 showMessage(string(if (loader.query.filter == LibraryFilter.ALL) R.string.library_empty else R.string.library_empty_filtered), retry = true)

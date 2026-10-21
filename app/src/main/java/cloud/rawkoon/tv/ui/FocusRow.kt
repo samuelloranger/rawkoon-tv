@@ -92,6 +92,24 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         lastKey = null
     }
 
+    /**
+     * Fades the first cards in one after another, each rising a little, for a row that just landed
+     * on a page already on screen. Only alpha and translation move, each card through its own
+     * layer, so the stagger redraws no card. The cards past the screen edge appear as they are.
+     */
+    fun arrive(delay: Long = 0) {
+        cards().take(ARRIVING).forEachIndexed { i, card -> card.riseIn(delay + i * Tokens.ARRIVE_STAGGER_MS) }
+    }
+
+    /**
+     * Shows what changed on the cards since [before] (the cards this row had): a progress bar grows
+     * from where it was, a new watched check pops in. Cards are matched by key; new ones stay still.
+     */
+    fun carryOver(before: List<View>) {
+        val old = before.mapNotNull { it as? Card }.associateBy { it.key }
+        cards().forEach { card -> (card as? Card)?.let { new -> old[new.key]?.let(new::changedFrom) } }
+    }
+
     fun cards(): List<View> = (0 until strip.childCount).map { strip.getChildAt(it) }
 
     fun restoreFocus(): Boolean = remembered()?.requestFocus() == true
@@ -113,9 +131,11 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     /**
      * Carries on from [old], the row this one replaces: the same card is remembered (or, when it
      * is gone, the one now at its position) and shown where [old] showed it. A row sharing no card
-     * with [old] (new search results) is a new list, and starts at its first card.
+     * with [old] (new search results) is a new list, and starts at its first card. With
+     * [showChanges], cards that changed since (progress, watched) show it.
      */
-    fun takeOver(old: FocusRow) {
+    fun takeOver(old: FocusRow, showChanges: Boolean = false) {
+        if (showChanges) carryOver(old.cards())
         val oldKeys = old.cards().mapNotNullTo(HashSet()) { (it as? RowItem)?.key }
         if (cards().none { (it as? RowItem)?.key in oldKeys }) return
         val card = old.remembered() ?: return
@@ -138,9 +158,10 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
     /**
      * Puts [card] at the row's start at once, before the next frame: a row rebuilt in place of
-     * another shows its focused card where the old one had it, with no glide from the first card.
+     * another shows its focused card where the old one had it, and new cards open on the one
+     * asked for, with no glide from the first card.
      */
-    private fun snapTo(card: View) {
+    fun snapTo(card: View) {
         dropPendingSnap()
         val place = {
             val target = targetFor(card)
@@ -209,5 +230,10 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
             parent = parent.parent
         }
         return false
+    }
+
+    private companion object {
+        /** More posters than fit across the screen; landscape cards fit fewer. */
+        const val ARRIVING = 9
     }
 }

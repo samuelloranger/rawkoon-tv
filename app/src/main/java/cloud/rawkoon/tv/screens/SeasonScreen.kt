@@ -24,7 +24,9 @@ import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.chipRow
 import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.label
+import cloud.rawkoon.tv.ui.slideIn
 import java.util.Date
+import kotlin.math.sign
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 
@@ -123,6 +125,10 @@ class SeasonScreen(
             if (focus && loadJob?.isActive == true) focusOnLoad = true else if (focus) episodes.restoreFocus()
             return
         }
+        // Another season picked on the tabs slides in from its side; a reload of the shown one (it was
+        // set aside for it) and the first load don't move
+        val from = seasons.indexOfFirst { it.id == shownSeason }
+        val direction = if (quiet || from < 0) 0 else (seasons.indexOfFirst { it.id == season.id } - from).sign
         shownSeason = season.id
         focusOnLoad = focus
         loadJob?.cancel()
@@ -136,6 +142,7 @@ class SeasonScreen(
                 val focus = focusOnLoad || refocus
                 parking.isFocusable = refocus
                 if (refocus) parking.requestFocus()
+                val before = episodes.cards()
                 episodes.setCards(
                     list.map { e ->
                         val name = listOfNotNull(episodeTag(e), e.title).joinToString(" · ")
@@ -146,8 +153,11 @@ class SeasonScreen(
                 episodes.remember(target.id)
                 showEpisode(target, settle = false)
                 if (focus) episodes.restoreFocus()
-                // Glide to the remembered card once the row is laid out
-                episodes.post { episodes.remembered()?.let { episodes.reveal(it) } }
+                // New episodes open on the remembered one: the row's first frame already shows it, with no glide from E1
+                episodes.remembered()?.let(episodes::snapTo)
+                if (isFullyShown) {
+                    if (direction != 0) episodes.slideIn(direction) else episodes.carryOver(before)
+                }
             } finally {
                 parking.isFocusable = false
             }

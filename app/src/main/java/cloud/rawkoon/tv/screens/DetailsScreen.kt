@@ -113,6 +113,8 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     private fun addSection(section: Section) {
         section.row.onLeftEdge = { rail.activeItem() }
         page.column.addView(section)
+        // Only the first row peeks in under the title block
+        if (page.column.childCount == 2 && isFullyShown) section.row.arrive()
     }
 
     override fun focusDefault() {

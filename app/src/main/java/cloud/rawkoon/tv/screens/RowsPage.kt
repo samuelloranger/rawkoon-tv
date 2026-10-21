@@ -19,6 +19,7 @@ import cloud.rawkoon.tv.ui.RowItem
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
 import cloud.rawkoon.tv.ui.Tokens
+import cloud.rawkoon.tv.ui.arrive
 import cloud.rawkoon.tv.ui.backdropRequest
 import cloud.rawkoon.tv.ui.cardCaption
 import cloud.rawkoon.tv.ui.dp
@@ -87,12 +88,16 @@ abstract class RowsPage(
         val current = rows.sections()
         if (current.map { it.id to it.signature } == list.map { it.id to it.signature }) return
         val hadFocus = rows.hasFocus()
+        // Rows landing on an empty page arrive; rows refreshed in place stay still
+        val arriving = current.isEmpty() && isFullyShown
         val focusedRow = (rows.column.focusedChild as? Section)?.id?.takeIf { hadFocus }
         val focusedKey = (view.findFocus() as? RowItem)?.key
         val keep = current.associateBy { it.id }
         val next = list.map { row -> keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row) }
-        // A rebuilt row would start at its first card: it carries on from where the old one was
-        next.forEach { section -> keep[section.id]?.takeIf { it !== section }?.let { section.row.takeOver(it.row) } }
+        // A rebuilt row would start at its first card: it carries on from where the old one was, and
+        // shows what changed on its cards too, when the page is there to see it
+        val showChanges = isFullyShown
+        next.forEach { section -> keep[section.id]?.takeIf { it !== section }?.let { section.row.takeOver(it.row, showChanges) } }
         val restore = {
             val section = next.firstOrNull { it.id == focusedRow } ?: next.first()
             focusedKey?.let { section.row.remember(it) }
@@ -100,6 +105,7 @@ abstract class RowsPage(
         }
         parking.around(hadFocus, rebuild = { replaceRows(next) }, restore = { restore() })
         if (!hadFocus && view.findFocus() == null) restore()
+        if (arriving) next.arrive()
         rewireUp(current.firstOrNull(), next.first())
         if (previewsFirstItem && !hadFocus && view.findFocus() !is Card) list.first().items.firstOrNull()?.let(::preview)
         rows.post { ((rows.column.focusedChild as? Section) ?: next.first()).let { rows.reveal(it) } }

@@ -1,5 +1,8 @@
 package cloud.rawkoon.tv.ui
 
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -12,6 +15,8 @@ import android.graphics.Shader
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import cloud.rawkoon.tv.data.DiskCache
 import java.util.concurrent.Executors
@@ -46,9 +51,76 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     /** How much of the image shows: 1 on home, lower behind denser pages. Part of the cache key. */
     var strength = 1f
 
+    /**
+     * Whether the image slowly zooms in and back out once the page rests (home). The whole
+     * backdrop scales as one render property, so the GPU moves the same textured quad it already
+     * draws; it holds while keys are pressed, and stops while the page is hidden.
+     */
+    var drifts = false
+        set(value) {
+            field = value
+            syncDrift()
+        }
+
+    private var drift: ObjectAnimator? = null
+    private var aggregatedVisible = false
+    private var resting = false
+    private val rest = Runnable {
+        resting = true
+        syncDrift()
+    }
+
     init {
         addView(bottom, fill())
         addView(top, fill())
+    }
+
+    /** A key was pressed: the zoom holds until no key has come for a moment. */
+    fun holdDrift() {
+        if (!drifts) return
+        resting = false
+        syncDrift()
+        main.removeCallbacks(rest)
+        main.postDelayed(rest, Tokens.DRIFT_REST_MS)
+    }
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        aggregatedVisible = isVisible
+        // Coming into view (a page opened over it, or the app back from the background) rests first,
+        // so the zoom never runs under a page's entrance
+        if (isVisible) holdDrift() else syncDrift()
+    }
+
+    override fun onDetachedFromWindow() {
+        main.removeCallbacks(rest)
+        drift?.cancel()
+        drift = null
+        super.onDetachedFromWindow()
+    }
+
+    /** Runs the zoom only while it is wanted, seen, at rest and has an image to move; pauses it otherwise, where it was. */
+    private fun syncDrift() {
+        val run = drifts && aggregatedVisible && resting && shown != null && isAttachedToWindow
+        val animator = drift
+        when {
+            run && animator == null -> drift = ObjectAnimator.ofPropertyValuesHolder(
+                this,
+                PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, Tokens.DRIFT_SCALE),
+                PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, Tokens.DRIFT_SCALE),
+            ).apply {
+                duration = Tokens.DRIFT_MS
+                interpolator = AccelerateDecelerateInterpolator()
+                // One breath in and out per rest: a page left alone stops drawing frames once it is done
+                repeatCount = 1
+                repeatMode = ValueAnimator.REVERSE
+                start()
+            }
+            run && animator?.isPaused == true -> animator.resume()
+            // The last breath ended back at full size, so the next one starts where it left off
+            run && animator?.isStarted == false -> animator.start()
+            !run -> animator?.pause()
+        }
     }
 
     private fun layer() = BitmapView(context)
@@ -94,6 +166,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private fun crossfade(key: String?, bitmap: Bitmap?) {
         if (key == shown) return
         shown = key
+        syncDrift()
         val id = ++fadeId
         top.animate().cancel()
         bottom.animate().cancel()

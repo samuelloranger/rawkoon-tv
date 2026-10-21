@@ -81,6 +81,34 @@ object Tokens {
     /** How much every backdrop is darkened before the scrims, for readable text over any image. */
     const val BACKDROP_DIM = 0.35f
 
+    /**
+     * Home's backdrop zooms this far in and back out, [DRIFT_MS] each way: a few pixels a second,
+     * slow enough to read as stillness that breathes. It holds while keys are pressed and for
+     * [DRIFT_REST_MS] after, so it never shares a frame with a glide, and breathes once per rest.
+     */
+    const val DRIFT_SCALE = 1.04f
+    const val DRIFT_MS = 20_000L
+    const val DRIFT_REST_MS = 1_500L
+
+    /** Cards of a row that just arrived fade in one after another, each rising [ARRIVE_RISE] dp. */
+    const val ARRIVE_MS = 320L
+    const val ARRIVE_STAGGER_MS = 30L
+    const val ARRIVE_ROW_MS = 70L
+    const val ARRIVE_RISE = 10f
+
+    /** The player's skip and up-next buttons rise this far into place as they appear. */
+    const val RISE = 12f
+    const val RISE_MS = 220L
+
+    /**
+     * A card that changed while the page was away (back from the player): its progress bar grows to
+     * the new position and a new watched check pops in, a moment after the page settles.
+     */
+    const val CHANGE_DELAY_MS = 150L
+    const val GROW_MS = 700L
+    const val POP_MS = 260L
+    const val POP_FROM = 0.6f
+
     const val DRAWER_MS = 220L
     const val SCREEN_FADE_MS = 160L
 
