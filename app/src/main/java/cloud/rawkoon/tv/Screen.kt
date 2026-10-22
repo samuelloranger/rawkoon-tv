@@ -86,6 +86,9 @@ abstract class Screen(val activity: MainActivity) {
 
     open fun onResume() {}
 
+    /** The app is no longer visible: Home pressed, another app in front, or the TV gone to sleep. Follows [onPause]. */
+    open fun onStop() {}
+
     /** Which live events reload this page while it is on top; [LivePage.OTHER] opens no socket for it. */
     open val livePage: LivePage get() = LivePage.OTHER
 
