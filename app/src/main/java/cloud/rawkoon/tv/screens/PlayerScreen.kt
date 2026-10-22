@@ -352,6 +352,15 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         player.exo.pause()
     }
 
+    /**
+     * Leaving the app ends playback: the server saves the position only on a stop report, and a
+     * TV going to sleep never comes back through Back to send one. The page below shows where it
+     * stopped.
+     */
+    override fun onStop() {
+        close()
+    }
+
     /** Stops, reports where it stopped, and goes back. */
     private fun close() {
         if (activity.isFinishing) return

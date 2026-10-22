@@ -278,6 +278,11 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    override fun onStop() {
+        stack.lastOrNull()?.onStop()
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         foreground = true
