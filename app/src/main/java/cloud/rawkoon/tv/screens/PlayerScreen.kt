@@ -83,6 +83,9 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private var triedTranscode = false
     private var loadJob: Job? = null
 
+    /** Where the stream loading now was asked to start. */
+    private var startMs = 0L
+
     private val tick = Runnable {
         updateProgress()
         scheduleTick()
@@ -126,6 +129,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         direct: Boolean = true,
     ) {
         item = target
+        this.startMs = startMs
         app.lastPlayed = target
         reporter.reset()
         chrome.resetProgress()
@@ -164,6 +168,9 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         override fun onPlaybackStateChanged(state: Int) {
             chrome.showSpinner(state == Player.STATE_BUFFERING)
             if (reporter.stream == null) return
+            // A file ExoPlayer can't seek in (its index out of reach) would start at the beginning,
+            // ignore every seek, and report that as the resume point: the server's stream can seek
+            if (state == Player.STATE_READY && !player.exo.isCurrentMediaItemSeekable && !player.exo.isCurrentMediaItemLive && transcodeInstead(startMs)) return
             if (state == Player.STATE_READY && reporter.onReady()) chrome.scheduleHide()
             if (state == Player.STATE_ENDED) ended()
         }
@@ -187,16 +194,22 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            val s = reporter.stream
-            // A file the TV can't play after all: ask Jellyfin for a transcode, once
-            if (s != null && s.method == PlayMethod.DIRECT_PLAY && !triedTranscode) {
-                triedTranscode = true
-                reporter.stop(player.exo.currentPosition)
-                start(item, player.exo.currentPosition, s.audioIndex, s.subtitleIndex, s.mediaSourceId, direct = false)
-                return
-            }
+            // A file the TV can't play after all
+            if (transcodeInstead(player.exo.currentPosition)) return
             fail(error.errorCodeName)
         }
+    }
+
+    /** Asks Jellyfin for a transcode of the file playing directly, from [positionMs], once per item. False when there is nothing to fall back from. */
+    private fun transcodeInstead(positionMs: Long): Boolean {
+        val s = reporter.stream ?: return false
+        if (s.method != PlayMethod.DIRECT_PLAY || triedTranscode) return false
+        triedTranscode = true
+        reporter.stop(positionMs)
+        // Silent while the server prepares the stream, instead of playing on from the start
+        player.exo.stop()
+        start(item, positionMs, s.audioIndex, s.subtitleIndex, s.mediaSourceId, direct = false)
+        return true
     }
 
     private fun fail(reason: String) {
