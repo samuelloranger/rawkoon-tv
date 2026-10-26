@@ -206,6 +206,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         if (s.method != PlayMethod.DIRECT_PLAY || triedTranscode) return false
         triedTranscode = true
         reporter.stop(positionMs)
+        // Silent while the server prepares the stream, instead of playing on from the start
+        player.exo.stop()
         start(item, positionMs, s.audioIndex, s.subtitleIndex, s.mediaSourceId, direct = false)
         return true
     }
