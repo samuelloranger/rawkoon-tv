@@ -47,7 +47,10 @@ class LetterColumn(context: Context, private val onLetter: (Char) -> Unit) : Vie
             main.removeCallbacks(jump)
             choose()
         }
-        setOnFocusChangeListener { _, _ -> invalidate() }
+        setOnFocusChangeListener { _, focused ->
+            if (!focused) main.removeCallbacks(jump)
+            invalidate()
+        }
     }
 
     private fun choose() {

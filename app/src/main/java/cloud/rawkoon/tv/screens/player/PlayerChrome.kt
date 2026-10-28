@@ -225,7 +225,9 @@ class PlayerChrome(
         if (show) {
             onShow()
             // An open track dialog keeps the focus
-            if (!dialogOpen() && !overlay.hasFocus() && !skip.hasFocus() && !upNext.hasFocus()) playPause.requestFocus()
+            // A new controls session starts at Play/Pause; updates within it keep the current button.
+            if (!dialogOpen() && !upNext.hasFocus() &&
+                (changed || (!overlay.hasFocus() && !skip.hasFocus()))) playPause.requestFocus()
             if (autoHide) scheduleHide() else main.removeCallbacks(hide)
         } else {
             main.removeCallbacks(hide)

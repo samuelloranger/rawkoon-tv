@@ -201,12 +201,19 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
     /** Left/right never leave the row, except Left on the first card, which goes where [onLeftEdge] says. */
     override fun focusSearch(focused: View?, direction: Int): View? {
-        val next = super.focusSearch(focused, direction)
-        if ((direction == FOCUS_LEFT || direction == FOCUS_RIGHT) && (next == null || !contains(next))) {
-            if (direction == FOCUS_LEFT) onLeftEdge?.invoke()?.let { return it }
-            return focused
+        if (direction != FOCUS_LEFT && direction != FOCUS_RIGHT) return super.focusSearch(focused, direction)
+        // Geometry changes throughout a glide. Walk the strip's order instead of its animated bounds.
+        var card = focused ?: return null
+        while (card.parent !== strip) card = card.parent as? View ?: return focused
+        val index = strip.indexOfChild(card)
+        val step = if (direction == FOCUS_LEFT) -1 else 1
+        var next = index + step
+        while (next in 0 until strip.childCount) {
+            val candidate = strip.getChildAt(next)
+            if (candidate.isShown && candidate.isFocusable && candidate.isEnabled) return candidate
+            next += step
         }
-        return next
+        return if (direction == FOCUS_LEFT) onLeftEdge?.invoke() ?: focused else focused
     }
 
     /** Coming from another row, only the card last focused here is a candidate. */
@@ -222,15 +229,6 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     // The stock scrolling is replaced by reveal(): no key-driven paging, no scroll-to-child.
     override fun executeKeyEvent(event: KeyEvent) = false
     override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect) = 0
-
-    private fun contains(view: View): Boolean {
-        var parent = view.parent
-        while (parent != null) {
-            if (parent === this) return true
-            parent = parent.parent
-        }
-        return false
-    }
 
     private companion object {
         /** More posters than fit across the screen; landscape cards fit fewer. */
