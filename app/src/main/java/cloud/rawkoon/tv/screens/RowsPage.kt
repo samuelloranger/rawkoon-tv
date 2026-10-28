@@ -90,7 +90,7 @@ abstract class RowsPage(
         val hadFocus = rows.hasFocus()
         // Rows landing on an empty page arrive; rows refreshed in place stay still
         val arriving = current.isEmpty() && isFullyShown
-        val focusedRow = (rows.column.focusedChild as? Section)?.id?.takeIf { hadFocus }
+        val focusedRow = rows.focusedSection()?.id
         val focusedKey = (view.findFocus() as? RowItem)?.key
         val keep = current.associateBy { it.id }
         val next = list.map { row -> keep[row.id]?.takeIf { it.signature == row.signature } ?: section(row) }
@@ -103,12 +103,15 @@ abstract class RowsPage(
             focusedKey?.let { section.row.remember(it) }
             section.row.restoreFocus()
         }
-        parking.around(hadFocus, rebuild = { replaceRows(next) }, restore = { restore() })
+        parking.around(hadFocus, rebuild = {
+            replaceRows(next)
+            rows.remember(next.firstOrNull { it.id == focusedRow } ?: next.first())
+        }, restore = { restore() })
         if (!hadFocus && view.findFocus() == null) restore()
         if (arriving) next.arrive()
         rewireUp(current.firstOrNull(), next.first())
         if (previewsFirstItem && !hadFocus && view.findFocus() !is Card) list.first().items.firstOrNull()?.let(::preview)
-        rows.post { ((rows.column.focusedChild as? Section) ?: next.first()).let { rows.reveal(it) } }
+        rows.post { rows.focusedSection()?.let(rows::reveal) }
     }
 
     /** Called when the rows are about to be replaced or removed: a page that looks things up for the focused card drops them here. */
@@ -232,6 +235,6 @@ abstract class RowsPage(
         }
     }
 
-    override fun contentFocus(): View? = super.contentFocus() ?: firstFocus()
+    override fun contentFocus(): View? = super.contentFocus() ?: rows.focusedSection()?.row?.remembered() ?: firstFocus()
 
 }

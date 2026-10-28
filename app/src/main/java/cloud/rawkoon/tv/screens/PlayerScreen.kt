@@ -32,6 +32,7 @@ import cloud.rawkoon.tv.screens.player.ScrubController
 import cloud.rawkoon.tv.screens.player.SegmentSkipper
 import cloud.rawkoon.tv.screens.player.TrackMenus
 import cloud.rawkoon.tv.screens.player.advanceStopPosition
+import cloud.rawkoon.tv.screens.player.togglePlayback
 import cloud.rawkoon.tv.screens.player.isEpisode
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.Icon
@@ -52,7 +53,11 @@ import org.jellyfin.sdk.model.api.PlayMethod
  */
 @OptIn(UnstableApi::class)
 class PlayerScreen(activity: MainActivity, private val session: JellyfinSession, private var item: MediaItem) : Screen(activity) {
-    override val view = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
+    override val view = FrameLayout(context).apply {
+        setBackgroundColor(Color.BLACK)
+        // Park focus here while the controls are hidden, rather than on an invisible button.
+        isFocusable = true
+    }
     override val slides get() = false
     private val service = PlaybackService(context, session)
     private val settings = PlayerSettings.read(context)
@@ -180,11 +185,13 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // Buffering changes isPlaying without changing the user's Play/Pause choice.
+            chrome.playPause.setGlyph(if (playWhenReady) Icon.PAUSE else Icon.PLAY)
+            if (!playWhenReady) chrome.setChrome(true, autoHide = false) else chrome.scheduleHide()
             if (reporter.started) reporter.progress()
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            chrome.playPause.setGlyph(if (isPlaying) Icon.PAUSE else Icon.PLAY)
             scheduleTick()
             if (!isPlaying && player.exo.playbackState == Player.STATE_READY) chrome.setChrome(true, autoHide = false) else if (isPlaying) chrome.scheduleHide()
         }
@@ -269,8 +276,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     private fun togglePause() {
         displayMatcher.dropAutoResume()
-        val exo = player.exo
-        if (exo.isPlaying) exo.pause() else exo.play()
+        player.exo.togglePlayback()
     }
 
     private fun seekBy(deltaMs: Long) {
@@ -347,7 +353,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             scrub.cancel()
             return true
         }
-        if (chrome.shown && player.exo.isPlaying) {
+        if (chrome.shown && player.exo.playWhenReady) {
             chrome.setChrome(false)
             return true
         }

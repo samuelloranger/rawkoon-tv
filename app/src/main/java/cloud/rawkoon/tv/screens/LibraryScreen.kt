@@ -263,7 +263,8 @@ class LibraryScreen(
         loader.refresh(grid.lastPosition, PosterGrid.PREFETCH, message.visibility == View.VISIBLE, restartOnResize = !grid.hasFocus())
     }
 
-    override fun contentFocus(): View? = grid.focusTarget()
+    override fun contentFocus(): View? =
+        super.contentFocus()?.takeUnless { it.isWithin(grid) } ?: grid.focusTarget() ?: sortButton
 
     /** The first page may still be on its way: focus goes to the grid as soon as it has posters. */
     override val isRailPage get() = true

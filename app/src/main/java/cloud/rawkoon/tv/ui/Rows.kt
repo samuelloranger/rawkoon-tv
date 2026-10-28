@@ -68,10 +68,12 @@ class Rows(context: Context) : ScrollView(context) {
 
     /** Where the column is gliding to, to tell a repeat of the same move from a new one. */
     private var glideTarget = 0f
+    private var lastSection: Section? = null
 
     val column: LinearLayout = object : LinearLayout(context) {
         override fun requestChildFocus(child: View?, focused: View?) {
             super.requestChildFocus(child, focused)
+            if (child is Section) lastSection = child
             if (child != null) reveal(child)
         }
     }.apply {
@@ -102,13 +104,42 @@ class Rows(context: Context) : ScrollView(context) {
         column.animate().translationY(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
     }
 
-    /** The section holding focus, or the first one. */
-    fun focusedSection(): Section? = (column.focusedChild as? Section) ?: sections().firstOrNull()
+    /** The section holding focus, or the one left for the rail. */
+    fun focusedSection(): Section? = (column.focusedChild as? Section)
+        ?: lastSection?.takeIf { it.parent === column } ?: sections().firstOrNull()
+
+    /** Keeps the same row selected when a refresh replaces it while focus is on the rail. */
+    fun remember(section: Section) {
+        lastSection = section
+    }
 
     fun reset() {
         column.animate().cancel()
         column.translationY = 0f
         glideTarget = 0f
+        lastSection = null
+    }
+
+    /** Vertical moves follow sections even when their animated bounds overlap. */
+    override fun focusSearch(focused: View?, direction: Int): View? {
+        if (direction != FOCUS_UP && direction != FOCUS_DOWN) return super.focusSearch(focused, direction)
+        var block = focused ?: return null
+        while (block.parent !== column) block = block.parent as? View ?: return super.focusSearch(focused, direction)
+        val step = if (direction == FOCUS_DOWN) 1 else -1
+        var index = column.indexOfChild(block) + step
+        while (index in 0 until column.childCount) {
+            val target = column.getChildAt(index)
+            if (target.isShown) {
+                if (target is Section) target.row.remembered()?.let { return it }
+                val candidates = ArrayList<View>()
+                target.addFocusables(candidates, direction, FOCUSABLES_ALL)
+                candidates.firstOrNull { it.isEnabled }?.let { return it }
+            }
+            index += step
+        }
+        // At the top, a search field may live outside this scroll area. Never wrap into another row.
+        val next = super.focusSearch(focused, direction)
+        return if (direction == FOCUS_UP && next != null && !next.isWithin(this)) next else focused
     }
 
     override fun executeKeyEvent(event: KeyEvent) = false

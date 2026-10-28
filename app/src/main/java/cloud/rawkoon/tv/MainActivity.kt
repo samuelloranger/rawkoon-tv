@@ -42,6 +42,7 @@ class MainActivity : Activity() {
     val app: App get() = application as App
     private lateinit var root: FrameLayout
     private val stack = ArrayList<Screen>()
+    private val remoteKeys = RemoteKeyGuard()
     private val liveScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val live = LiveUpdates(liveScope, ::deliverLive)
     private val rawkoonLive = RawkoonLive(liveScope, ::deliverLive, ::toastLive)
@@ -263,9 +264,15 @@ class MainActivity : Activity() {
      */
     @SuppressLint("GestureBackNavigation")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (stack.lastOrNull()?.onKey(event) == true) return true
+        val screen = stack.lastOrNull() ?: return super.dispatchKeyEvent(event)
+        val guarded = event.keyCode == KeyEvent.KEYCODE_BACK ||
+            event.keyCode in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_CENTER ||
+            event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+        if (guarded && (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP) &&
+            !remoteKeys.accepts(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.repeatCount, event.downTime, screen)) return true
+        if (screen.onKey(event)) return true
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && stack.lastOrNull()?.onBack() != true) pop()
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && remoteKeys.backAllowed(event.eventTime) && screen.onBack() != true) pop()
             return true
         }
         return super.dispatchKeyEvent(event)

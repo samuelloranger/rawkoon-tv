@@ -237,8 +237,6 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Home keeps the header where it was when rows change under the rail. */
     override val previewsFirstItem get() = false
 
-    override fun contentFocus(): View? = rows.focusedSection()?.row?.remembered()
-
     override fun focusDefault() {
         rows.sections().firstOrNull()?.row?.restoreFocus()
     }
