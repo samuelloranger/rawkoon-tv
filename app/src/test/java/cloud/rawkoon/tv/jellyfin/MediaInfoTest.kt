@@ -23,4 +23,9 @@ class MediaInfoTest {
         assertNull(MediaInfo.span(emptyList()))
         assertNull(MediaInfo.span(listOf(file(null, null))))
     }
+
+    @Test
+    fun `one resolution with mixed codecs keeps the resolution alone`() {
+        assertEquals(listOf("1080p"), MediaInfo.span(listOf(file("1080p", "HEVC"), file("1080p", "H264")))?.chips())
+    }
 }

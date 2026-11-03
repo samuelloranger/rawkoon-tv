@@ -82,15 +82,15 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             val seasons = async { if (start.kind == MediaItem.Kind.SERIES) session.seasons(start.id) else emptyList() }
             val next = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.nextEpisode(start.id) }.getOrNull() else null }
             val similar = async { runCatching { session.similar(start.id) }.getOrDefault(emptyList()) }
-            val media = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.showMedia(start.id) }.getOrNull() else null }
             val d = details.await()
             showItem(d.item, d)
             actions.next = next.await()
             actions.bind(d.item)
             backdrop.show(backdropRequest(d.item.backdropUrl))
             addRows(d, seasons.await(), similar.await())
-            // Every episode's streams take longer than the page: their chips join the meta line after
-            showMedia = media.await() ?: return@launchLoading
+            // Every episode's streams are the heaviest read, so they wait for the page: their chips join the meta line after
+            if (start.kind != MediaItem.Kind.SERIES) return@launchLoading
+            showMedia = runCatching { session.showMedia(start.id) }.getOrNull() ?: return@launchLoading
             block.setMeta(metaChips(d.item, d))
         }
     }
