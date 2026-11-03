@@ -17,6 +17,23 @@ data class MediaInfo(val resolution: String?, val codec: String?, val audio: Str
             return MediaInfo(json.optStringOrNull("resolution"), json.optStringOrNull("codec"), json.optStringOrNull("audio"))
         }
 
+        /**
+         * A show's files in one: the resolutions they span ("720p – 4K", or "1080p" when they all
+         * share it) and the codec when every file has the same one. The audio varies too much to say.
+         */
+        fun span(files: List<MediaInfo>): MediaInfo? {
+            val ranks = listOf(MediaWords.standardDefinition(), "720p", "1080p", "4K")
+            val resolutions = files.mapNotNull { it.resolution }.distinct().sortedBy { ranks.indexOf(it) }
+            val resolution = when (resolutions.size) {
+                0 -> null
+                1 -> resolutions.first()
+                else -> "${resolutions.first()} – ${resolutions.last()}"
+            }
+            val codec = files.mapNotNull { it.codec }.distinct().singleOrNull()
+            if (resolution == null && codec == null) return null
+            return MediaInfo(resolution, codec, null)
+        }
+
         fun from(streams: List<MediaStream>?): MediaInfo? {
             if (streams.isNullOrEmpty()) return null
             val video = streams.firstOrNull { it.type == MediaStreamType.VIDEO }

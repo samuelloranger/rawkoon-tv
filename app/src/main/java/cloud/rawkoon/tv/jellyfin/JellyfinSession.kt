@@ -152,6 +152,22 @@ class JellyfinSession(context: Context, val profile: Profile) {
         ).content.items.map { MediaItem.from(it, images) }
 
     /**
+     * The quality of a show's files, across its episodes: what its page's chips say. Specials are
+     * left out, so one old extra doesn't turn a 1080p show into "SD – 1080p".
+     */
+    suspend fun showMedia(seriesId: String): MediaInfo? =
+        api.tvShowsApi.getEpisodes(
+            GetEpisodesRequest(
+                seriesId = parseId(seriesId),
+                userId = userId,
+                isMissing = false,
+                fields = listOf(ItemFields.MEDIA_STREAMS),
+                enableImages = false,
+                enableUserData = false,
+            ),
+        ).content.items.filter { it.parentIndexNumber != 0 }.mapNotNull { MediaInfo.from(it.mediaStreams) }.let(MediaInfo::span)
+
+    /**
      * The episode a show resumes at: the one in progress or the next unwatched one. A show watched
      * to the end has none, so it starts over at its first episode (not a special).
      */
