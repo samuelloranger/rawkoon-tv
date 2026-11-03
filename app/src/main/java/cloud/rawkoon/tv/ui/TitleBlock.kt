@@ -61,6 +61,13 @@ class TitleBlock(context: Context, private val images: Images, private val isCur
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(10) })
     }
 
+    /** Swaps the meta chips alone, for what arrives after [bind]. */
+    fun setMeta(meta: List<Chip>) {
+        if (info.childCount < 2) return
+        info.removeViewAt(1)
+        info.addView(chipRow(context, meta), 1, wrapRow(10))
+    }
+
     private fun wrapRow(top: Int) = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(top) }
 
     companion object {

@@ -4,6 +4,7 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.Details
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
+import cloud.rawkoon.tv.jellyfin.MediaInfo
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
@@ -35,6 +36,8 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     private val block = TitleBlock(context, app.images) { alive }
     private val actions = ActionBar(this)
     private var item = start
+    /** A show's files across its episodes; a movie's file comes with the item. */
+    private var showMedia: MediaInfo? = null
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
 
@@ -69,6 +72,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         }
         item.officialRating?.let { add(Chip.Text(it)) }
         item.score()?.let { add(Chip.Score(it)) }
+        (if (show) showMedia else item.media)?.chips()?.forEach { add(Chip.Outline(it)) }
     }
 
     private fun load() {
@@ -78,12 +82,16 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             val seasons = async { if (start.kind == MediaItem.Kind.SERIES) session.seasons(start.id) else emptyList() }
             val next = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.nextEpisode(start.id) }.getOrNull() else null }
             val similar = async { runCatching { session.similar(start.id) }.getOrDefault(emptyList()) }
+            val media = async { if (start.kind == MediaItem.Kind.SERIES) runCatching { session.showMedia(start.id) }.getOrNull() else null }
             val d = details.await()
             showItem(d.item, d)
             actions.next = next.await()
             actions.bind(d.item)
             backdrop.show(backdropRequest(d.item.backdropUrl))
             addRows(d, seasons.await(), similar.await())
+            // Every episode's streams take longer than the page: their chips join the meta line after
+            showMedia = media.await() ?: return@launchLoading
+            block.setMeta(metaChips(d.item, d))
         }
     }
 

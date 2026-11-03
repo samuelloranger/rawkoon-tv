@@ -151,6 +151,12 @@ class JellyfinSession(context: Context, val profile: Profile) {
             GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = parseId(seasonId), isMissing = false, fields = FIELDS + ItemFields.MEDIA_STREAMS),
         ).content.items.map { MediaItem.from(it, images) }
 
+    /** The quality of a show's files, across every episode it has: what its page's chips say. */
+    suspend fun showMedia(seriesId: String): MediaInfo? =
+        api.tvShowsApi.getEpisodes(
+            GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, fields = listOf(ItemFields.MEDIA_STREAMS), enableImages = false),
+        ).content.items.mapNotNull { MediaInfo.from(it.mediaStreams) }.let(MediaInfo::span)
+
     /**
      * The episode a show resumes at: the one in progress or the next unwatched one. A show watched
      * to the end has none, so it starts over at its first episode (not a special).
