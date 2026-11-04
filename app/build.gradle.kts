@@ -137,9 +137,9 @@ android {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("org.jellyfin.sdk:jellyfin-core:1.7.1")
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.jellyfin.sdk:jellyfin-core:1.8.12")
+    implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
 
     // The player: the Media3 and ffmpeg decoder versions used by Jellyfin Android TV.
@@ -149,7 +149,7 @@ dependencies {
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20250517")
+    testImplementation("org.json:json:20260814")
 }
 
 /**
