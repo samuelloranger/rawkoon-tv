@@ -39,12 +39,17 @@ import org.jellyfin.sdk.model.api.request.GetSimilarItemsRequest
 object JellyfinSdk {
     private var instance: Jellyfin? = null
 
-    fun get(context: Context): Jellyfin = instance ?: createJellyfin {
-        this.context = context.applicationContext
-        clientInfo = ClientInfo(name = "Rawkoon TV", version = BuildConfig.VERSION_NAME)
-        // The SDK's own device id: the first RawkoonTV used it too, so its sessions stay valid.
-        deviceInfo = androidDevice(context.applicationContext)
-    }.also { instance = it }
+    fun get(context: Context): Jellyfin {
+        instance?.let { return it }
+        // kotlin-logging defaults to SLF4J, which is not bundled on Android.
+        System.setProperty("kotlin-logging-to-android-native", "true")
+        return createJellyfin {
+            this.context = context.applicationContext
+            clientInfo = ClientInfo(name = "Rawkoon TV", version = BuildConfig.VERSION_NAME)
+            // The SDK's own device id: the first RawkoonTV used it too, so its sessions stay valid.
+            deviceInfo = androidDevice(context.applicationContext)
+        }.also { instance = it }
+    }
 }
 
 /** One profile's connection to its Jellyfin server. */
