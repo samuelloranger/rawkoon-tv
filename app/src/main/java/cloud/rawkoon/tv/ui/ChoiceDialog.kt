@@ -64,8 +64,9 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
     }
 
     fun close() {
-        (parent as? ViewGroup)?.removeView(this)
+        // Removing a focused dialog first lets Android focus the page's first row or category.
         returnFocus?.takeIf { it.isAttachedToWindow }?.requestFocus()
+        (parent as? ViewGroup)?.removeView(this)
     }
 
     /** Keeps focus inside the panel while it is open. */
