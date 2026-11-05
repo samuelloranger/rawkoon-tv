@@ -124,6 +124,8 @@
     <string name="settings_playback">Playback</string>
     <string name="settings_skipping">Skipping</string>
     <string name="settings_display">Display</string>
+    <string name="settings_display_audio">Display &amp; audio</string>
+    <string name="settings_system">System</string>
     <string name="setting_skip_back">Skip back</string>
     <string name="setting_skip_forward">Skip forward</string>
     <string name="setting_resume_rewind">Rewind when resuming</string>

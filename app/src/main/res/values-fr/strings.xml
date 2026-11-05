@@ -118,6 +118,8 @@
     <string name="settings_playback">Lecture</string>
     <string name="settings_skipping">Passage</string>
     <string name="settings_display">Affichage</string>
+    <string name="settings_display_audio">Affichage et audio</string>
+    <string name="settings_system">Système</string>
     <string name="setting_skip_back">Reculer de</string>
     <string name="setting_skip_forward">Avancer de</string>
     <string name="setting_resume_rewind">Reculer à la reprise</string>
