@@ -59,7 +59,7 @@ val signing: Map<String, String> = run {
 
 android {
     namespace = "cloud.rawkoon.tv"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         // Kept from the first RawkoonTV, so installed copies update in place.
@@ -138,7 +138,7 @@ android {
 
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    implementation("org.jellyfin.sdk:jellyfin-core:1.8.12")
+    implementation("org.jellyfin.sdk:jellyfin-core:1.9.4")
     implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
 

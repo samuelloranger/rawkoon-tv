@@ -1,7 +1,7 @@
 package cloud.rawkoon.tv.jellyfin
 
 import kotlinx.coroutines.CancellationException
-import org.jellyfin.sdk.api.client.extensions.itemsApi
+import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
@@ -27,7 +27,7 @@ class JellyfinTmdbLookup(private val session: JellyfinSession) {
         }
     }
 
-    private suspend fun search(title: String, year: Int?, isShow: Boolean) = session.api.itemsApi.getItems(
+    private suspend fun search(title: String, year: Int?, isShow: Boolean) = session.api.libraryApi.getItems(
         GetItemsRequest(
             userId = session.userId,
             searchTerm = title,

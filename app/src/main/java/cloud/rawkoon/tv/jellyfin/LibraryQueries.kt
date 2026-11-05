@@ -2,7 +2,7 @@ package cloud.rawkoon.tv.jellyfin
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jellyfin.sdk.api.client.extensions.itemsApi
+import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
@@ -89,7 +89,7 @@ internal fun libraryRequest(
  */
 suspend fun JellyfinSession.libraryPage(types: List<BaseItemKind>, parentId: String?, query: LibraryQuery, startIndex: Int, limit: Int): LibraryPage =
     withContext(Dispatchers.Default) {
-        val result = api.itemsApi.getItems(libraryRequest(userId, types, parentId?.let(JellyfinSession::parseId), query, startIndex, limit)).content
+        val result = api.libraryApi.getItems(libraryRequest(userId, types, parentId?.let(JellyfinSession::parseId), query, startIndex, limit)).content
         LibraryPage(result.items.map { MediaItem.from(it, images) }, result.totalRecordCount)
     }
 
@@ -98,5 +98,5 @@ suspend fun JellyfinSession.libraryLetterIndex(types: List<BaseItemKind>, parent
     val bound = letterBound(letter, query.descending) ?: return 0
     // One item is enough: only the total is read
     val request = libraryRequest(userId, types, parentId?.let(JellyfinSession::parseId), query, 0, 1, bound)
-    return api.itemsApi.getItems(request).content.totalRecordCount
+    return api.libraryApi.getItems(request).content.totalRecordCount
 }
