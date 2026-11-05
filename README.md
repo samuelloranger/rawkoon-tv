@@ -28,7 +28,7 @@ for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop ch
 - **Languages.** French and English, following the TV, with a setting to force either.
 
 Needs Android 8 or later (Android TV or Fire TV) and a Rawkoon server with its Jellyfin integration
-set up; see the [TV app guide](https://samlo.cloud/rawkoon/tv-app).
+set up against Jellyfin 12 or later; see the [TV app guide](https://samlo.cloud/rawkoon/tv-app).
 
 ## Building
 

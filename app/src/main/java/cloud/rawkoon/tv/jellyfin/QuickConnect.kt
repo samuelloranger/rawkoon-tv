@@ -3,9 +3,8 @@ package cloud.rawkoon.tv.jellyfin
 import android.content.Context
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.Jellyfin
-import org.jellyfin.sdk.api.client.extensions.quickConnectApi
+import org.jellyfin.sdk.api.client.extensions.authenticationApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
-import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.api.QuickConnectDto
 
 /** A Jellyfin account a sign-in just produced, ready to become a profile. */
@@ -16,13 +15,13 @@ suspend fun quickConnect(context: Context, url: String, approve: suspend (code: 
     val api = JellyfinSdk.get(context).createApi(url.trimEnd('/'))
     // Fails fast with a clear error when the server is unreachable or not Jellyfin
     api.systemApi.getPublicSystemInfo()
-    var state = api.quickConnectApi.initiateQuickConnect().content
+    var state = api.authenticationApi.initiateQuickConnect().content
     approve(state.code)
     while (!state.authenticated) {
         delay(1_000)
-        state = api.quickConnectApi.getQuickConnectState(secret = state.secret).content
+        state = api.authenticationApi.getQuickConnectState(secret = state.secret).content
     }
-    val result = api.userApi.authenticateWithQuickConnect(QuickConnectDto(secret = state.secret)).content
+    val result = api.authenticationApi.authenticateWithQuickConnect(QuickConnectDto(secret = state.secret)).content
     val user = checkNotNull(result.user)
     return SignedInUser(
         url = url.trimEnd('/'),

@@ -2,7 +2,7 @@ package cloud.rawkoon.tv.jellyfin
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import org.jellyfin.sdk.api.client.extensions.itemsApi
+import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
@@ -44,7 +44,7 @@ suspend fun JellyfinSession.favorites(): Map<FindGroup, List<MediaItem>> =
 private suspend fun JellyfinSession.fetch(term: String?, favorite: Boolean): Map<FindGroup, List<MediaItem>> = coroutineScope {
     FindGroup.entries.map { group ->
         group to async {
-            api.itemsApi.getItems(
+            api.libraryApi.getItems(
                 GetItemsRequest(
                     userId = userId,
                     searchTerm = term,

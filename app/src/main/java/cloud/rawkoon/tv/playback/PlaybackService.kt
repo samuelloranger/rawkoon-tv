@@ -11,15 +11,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.jellyfin.sdk.api.client.extensions.hlsSegmentApi
+import org.jellyfin.sdk.api.client.extensions.delete
+import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.mediaInfoApi
-import org.jellyfin.sdk.api.client.extensions.mediaSegmentsApi
-import org.jellyfin.sdk.api.client.extensions.playStateApi
+import org.jellyfin.sdk.api.client.extensions.mediaSegmentApi
+import org.jellyfin.sdk.api.client.extensions.sessionApi
+import org.jellyfin.sdk.api.client.extensions.showApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
-import org.jellyfin.sdk.api.client.extensions.trickplayApi
-import org.jellyfin.sdk.api.client.extensions.tvShowsApi
-import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.api.client.extensions.videosApi
+import org.jellyfin.sdk.api.client.extensions.trickPlayApi
+import org.jellyfin.sdk.api.client.extensions.videoApi
 import org.jellyfin.sdk.api.client.util.AuthorizationHeaderBuilder
 import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.DeviceProfile
@@ -92,7 +92,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         val (method, url) = when {
             source.supportsDirectPlay -> PlayMethod.DIRECT_PLAY to (
                 source.path?.takeIf { source.isRemote }
-                    ?: api.videosApi.getVideoStreamUrl(itemId = itemId, container = source.container, mediaSourceId = source.id, static = true, tag = source.eTag)
+                    ?: api.videoApi.getVideoStreamUrl(itemId = itemId, container = source.container, mediaSourceId = source.id, static = true, tag = source.eTag)
                 )
             source.supportsDirectStream && source.transcodingUrl != null ->
                 PlayMethod.DIRECT_STREAM to api.createUrl(source.transcodingUrl!!, ignorePathParameters = true)
@@ -127,7 +127,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
 
     /** Start, progress and stop go out one at a time, in the order they were made, so a late progress can't land after the stop. */
     suspend fun reportStart(stream: Stream, positionMs: Long, paused: Boolean) = reported("start") {
-        api.playStateApi.reportPlaybackStart(
+        api.sessionApi.reportPlaybackStart(
             PlaybackStartInfo(
                 canSeek = true,
                 itemId = JellyfinSession.parseId(stream.itemId),
@@ -146,7 +146,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     }
 
     suspend fun reportProgress(stream: Stream, positionMs: Long, paused: Boolean) = reported("progress") {
-        api.playStateApi.reportPlaybackProgress(
+        api.sessionApi.reportPlaybackProgress(
             PlaybackProgressInfo(
                 canSeek = true,
                 itemId = JellyfinSession.parseId(stream.itemId),
@@ -166,7 +166,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
 
     /** Reports the stop, and ends the server's transcode so it doesn't keep encoding for nobody. */
     suspend fun reportStop(stream: Stream, positionMs: Long) = reported("stop") {
-        api.playStateApi.reportPlaybackStopped(
+        api.sessionApi.reportPlaybackStopped(
             PlaybackStopInfo(
                 itemId = JellyfinSession.parseId(stream.itemId),
                 mediaSourceId = stream.mediaSourceId,
@@ -176,12 +176,16 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             ),
         )
         if (stream.method != PlayMethod.DIRECT_PLAY && stream.playSessionId != null) {
-            api.hlsSegmentApi.stopEncodingProcess(deviceId = api.deviceInfo.id, playSessionId = stream.playSessionId)
+            // Jellyfin 12 hides this endpoint from OpenAPI, so SDK 1.9 has no generated wrapper.
+            api.delete<Unit>(
+                pathTemplate = "/Videos/ActiveEncodings",
+                queryParameters = mapOf("deviceId" to api.deviceInfo.id, "playSessionId" to stream.playSessionId),
+            )
         }
     }
 
     suspend fun segments(itemId: String): List<Segment> = attempt("segments") {
-        api.mediaSegmentsApi.getItemSegments(
+        api.mediaSegmentApi.getItemSegments(
             itemId = JellyfinSession.parseId(itemId),
             includeSegmentTypes = listOf(MediaSegmentType.INTRO, MediaSegmentType.RECAP, MediaSegmentType.OUTRO, MediaSegmentType.PREVIEW),
         ).content.items.map { Segment(it.type, it.startTicks / TICKS_PER_MS, it.endTicks / TICKS_PER_MS) }
@@ -190,13 +194,13 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     /** The smallest set of thumbnails at least [minWidth] pixels wide, or the largest there is. */
     suspend fun trickplay(itemId: String, mediaSourceId: String?, minWidth: Int): Trickplay? = attempt("trickplay") {
         val id = JellyfinSession.parseId(itemId)
-        val dto = api.userLibraryApi.getItem(itemId = id, userId = session.userId).content
+        val dto = api.libraryApi.getItem(itemId = id, userId = session.userId).content
         val byWidth = dto.trickplay?.let { all -> all[mediaSourceId ?: ""] ?: all.values.firstOrNull() } ?: return@attempt null
         val info = byWidth.values.sortedBy { it.width }.let { list -> list.firstOrNull { it.width >= minWidth } ?: list.lastOrNull() } ?: return@attempt null
         if (info.thumbnailCount <= 0 || info.interval <= 0) return@attempt null
         val source = mediaSourceId?.let { JellyfinSession.parseId(it) }
         Trickplay(info.width, info.height, info.tileWidth, info.tileHeight, info.thumbnailCount, info.interval) { tile ->
-            api.trickplayApi.getTrickplayTileImageUrl(itemId = id, width = info.width, index = tile, mediaSourceId = source)
+            api.trickPlayApi.getTrickplayTileImageUrl(itemId = id, width = info.width, index = tile, mediaSourceId = source)
         }
     }
 
@@ -204,7 +208,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     suspend fun nextEpisode(episode: MediaItem): MediaItem? {
         val series = episode.seriesId ?: return null
         return attempt("next episode") {
-            api.tvShowsApi.getEpisodes(
+            api.showApi.getEpisodes(
                 GetEpisodesRequest(
                     seriesId = JellyfinSession.parseId(series),
                     userId = session.userId,

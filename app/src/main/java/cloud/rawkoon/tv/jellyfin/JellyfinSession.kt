@@ -17,12 +17,10 @@ import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
-import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
-import org.jellyfin.sdk.api.client.extensions.playStateApi
-import org.jellyfin.sdk.api.client.extensions.tvShowsApi
-import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.api.client.extensions.userViewsApi
+import org.jellyfin.sdk.api.client.extensions.showApi
+import org.jellyfin.sdk.api.client.extensions.userDataApi
+import org.jellyfin.sdk.api.client.extensions.userViewApi
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -67,7 +65,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
     private suspend fun loadHomeRows(fetch: HomeFetch): List<HomeRow> = coroutineScope {
         val resume = async {
             attempt {
-                val items = api.itemsApi.getResumeItems(
+                val items = api.libraryApi.getResumeItems(
                     GetResumeItemsRequest(userId = userId, limit = fetch.limit, fields = FIELDS, mediaTypes = listOf(MediaType.VIDEO), enableTotalRecordCount = false),
                 ).content.items
                 HomeRow("resume", strings.getString(R.string.row_resume), items.map { MediaItem.from(it, images) }, landscape = true)
@@ -75,7 +73,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
         }
         val nextUp = async {
             attempt {
-                val items = api.tvShowsApi.getNextUp(
+                val items = api.showApi.getNextUp(
                     GetNextUpRequest(
                         userId = userId, limit = fetch.limit, fields = FIELDS, enableResumable = false, enableTotalRecordCount = false,
                         nextUpDateCutoff = fetch.nextUpCutoff(LocalDateTime.now(ZoneOffset.UTC)), enableRewatching = fetch.nextUpRewatching(),
@@ -86,14 +84,14 @@ class JellyfinSession(context: Context, val profile: Profile) {
         }
         val latest = async {
             val views = attempt {
-                api.userViewsApi.getUserViews(userId = userId).content.items
+                api.userViewApi.getUserViews(userId = userId).content.items
                     .filter { it.collectionType == CollectionType.MOVIES || it.collectionType == CollectionType.TVSHOWS }
             }.getOrElse { return@async listOf(Result.failure(it)) }
             coroutineScope {
                 views.map { view ->
                     async {
                         attempt {
-                            val items = api.userLibraryApi.getLatestMedia(
+                            val items = api.libraryApi.getLatestMedia(
                                 GetLatestMediaRequest(userId = userId, parentId = view.id, limit = fetch.limit, fields = FIELDS),
                             ).content
                             HomeRow("latest:${view.id}", strings.getString(R.string.row_latest, view.name.orEmpty()), items.map { MediaItem.from(it, images) }, landscape = false)
@@ -119,7 +117,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
 
     /** A movie's or show's page: the item with its genres, studio, cast, and a show's span and counts. */
     suspend fun details(id: String): Details {
-        val dto = api.userLibraryApi.getItem(itemId = parseId(id), userId = userId).content
+        val dto = api.libraryApi.getItem(itemId = parseId(id), userId = userId).content
         val item = MediaItem.from(dto, images)
         val people = dto.people.orEmpty().take(PEOPLE_LIMIT).map { p ->
             Person(
@@ -142,12 +140,12 @@ class JellyfinSession(context: Context, val profile: Profile) {
     }
 
     suspend fun seasons(seriesId: String): List<MediaItem> =
-        api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
+        api.showApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
             .map { MediaItem.from(it, images) }
 
     /** A season's episodes, with the media streams the chips need. */
     suspend fun episodes(seriesId: String, seasonId: String): List<MediaItem> =
-        api.tvShowsApi.getEpisodes(
+        api.showApi.getEpisodes(
             GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = parseId(seasonId), isMissing = false, fields = FIELDS + ItemFields.MEDIA_STREAMS),
         ).content.items.map { MediaItem.from(it, images) }
 
@@ -156,7 +154,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
      * left out, so one old extra doesn't turn a 1080p show into "SD – 1080p".
      */
     suspend fun showMedia(seriesId: String): MediaInfo? =
-        api.tvShowsApi.getEpisodes(
+        api.showApi.getEpisodes(
             GetEpisodesRequest(
                 seriesId = parseId(seriesId),
                 userId = userId,
@@ -172,16 +170,16 @@ class JellyfinSession(context: Context, val profile: Profile) {
      * to the end has none, so it starts over at its first episode (not a special).
      */
     suspend fun nextEpisode(seriesId: String): MediaItem? {
-        val next = api.tvShowsApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
+        val next = api.showApi.getNextUp(GetNextUpRequest(userId = userId, seriesId = parseId(seriesId), limit = 1, fields = FIELDS, enableResumable = true))
             .content.items.firstOrNull()
         return (next ?: firstEpisode(seriesId))?.let { MediaItem.from(it, images) }
     }
 
     /** The first episode of a show's first season that isn't the specials (or of the specials, when that's all it has). */
     private suspend fun firstEpisode(seriesId: String): BaseItemDto? {
-        val seasons = api.tvShowsApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false)).content.items
+        val seasons = api.showApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false)).content.items
         val season = seasons.firstOrNull { it.indexNumber != 0 } ?: seasons.firstOrNull() ?: return null
-        return api.tvShowsApi.getEpisodes(
+        return api.showApi.getEpisodes(
             GetEpisodesRequest(seriesId = parseId(seriesId), userId = userId, seasonId = season.id, isMissing = false, limit = 1, fields = FIELDS),
         ).content.items.firstOrNull()
     }
@@ -191,11 +189,11 @@ class JellyfinSession(context: Context, val profile: Profile) {
             .content.items.map { MediaItem.from(it, images) }
 
     suspend fun setPlayed(id: String, played: Boolean) {
-        if (played) api.playStateApi.markPlayedItem(itemId = parseId(id), userId = userId) else api.playStateApi.markUnplayedItem(itemId = parseId(id), userId = userId)
+        if (played) api.userDataApi.markPlayedItem(itemId = parseId(id), userId = userId) else api.userDataApi.markUnplayedItem(itemId = parseId(id), userId = userId)
     }
 
     suspend fun setFavorite(id: String, favorite: Boolean) {
-        if (favorite) api.userLibraryApi.markFavoriteItem(itemId = parseId(id), userId = userId) else api.userLibraryApi.unmarkFavoriteItem(itemId = parseId(id), userId = userId)
+        if (favorite) api.userDataApi.markFavoriteItem(itemId = parseId(id), userId = userId) else api.userDataApi.unmarkFavoriteItem(itemId = parseId(id), userId = userId)
     }
 
     companion object {
