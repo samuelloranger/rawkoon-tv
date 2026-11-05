@@ -142,11 +142,11 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
 
-    // The player: media3 at the version the Jellyfin ffmpeg decoders are built against
-    implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
-    implementation("androidx.media3:media3-ui:1.8.0")
-    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.8.0+1")
+    // The player: the Media3 and ffmpeg decoder versions used by Jellyfin Android TV.
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
+    implementation("androidx.media3:media3-ui:1.11.1")
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
