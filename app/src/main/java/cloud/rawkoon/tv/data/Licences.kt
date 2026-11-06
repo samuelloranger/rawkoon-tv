@@ -14,7 +14,7 @@ object Licences {
     val credits = listOf(
         Credit("jellyfin-androidtv", "GPL-2.0"),
         Credit("Couch", null),
-        Credit("Fraunces", "SIL OFL 1.1"),
+        Credit("Bricolage Grotesque", "SIL OFL 1.1"),
         Credit("Hanken Grotesk", "SIL OFL 1.1"),
         // The font is under the OFL, the icon designs in it under CC BY
         Credit("Font Awesome Free", "SIL OFL 1.1, CC BY 4.0"),

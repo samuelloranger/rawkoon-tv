@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/brand/logo-horizontal.svg" width="420" alt="Rawkoon" /></p>
+
 # RawkoonTV
 
 An Android TV client for [Rawkoon](https://github.com/samuelloranger/rawkoon) and Jellyfin, built
@@ -59,7 +61,7 @@ its `.sha256` before handing it to Android's installer.
 The device profile and codec checks in `app/src/main/java/cloud/rawkoon/tv/playback/profile/`
 are adapted from [jellyfin-androidtv](https://github.com/jellyfin/jellyfin-androidtv) (GPL-2.0),
 and the ExoPlayer setup follows its video player. The base app structure (focus rows, the image
-pipeline) comes from [Couch](https://github.com/samuelloranger/couch). Fonts: Fraunces and Hanken
+pipeline) comes from [Couch](https://github.com/samuelloranger/couch). Fonts: Bricolage Grotesque and Hanken
 Grotesk (SIL OFL), icons from Font Awesome Free (SIL OFL).
 
 ## License

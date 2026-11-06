@@ -12,7 +12,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** A row title in Fraunces, with the apricot bar to its left. */
+/** A row title in Bricolage Grotesque, with the apricot bar to its left. */
 @SuppressLint("ViewConstructor")
 class SectionTitle(context: Context, text: String) : TextView(context) {
     private val bar = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.accent }

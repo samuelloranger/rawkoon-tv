@@ -18,7 +18,7 @@ class DeviceCodePanel(context: Context) : LinearLayout(context) {
         val p = context.dp(11)
         setPadding(p, p, p, p)
     }
-    // Never ellipsized: Fraunces draws a little past its measured width, which would cut the last letter
+    // Never ellipsized: Bricolage Grotesque draws a little past its measured width, which would cut the last letter
     private val code = label(context, 46f, Tokens.textPrimary, Fonts.title(context)).apply {
         ellipsize = null
         setPadding(0, 0, context.dp(6), 0)

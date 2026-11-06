@@ -7,7 +7,7 @@ import android.widget.FrameLayout
 import cloud.rawkoon.tv.data.Images
 
 /**
- * A title's logo, or its name in Fraunces when it has none. Long names shrink and wrap instead of
+ * A title's logo, or its name in Bricolage Grotesque when it has none. Long names shrink and wrap instead of
  * being cut. The logo is requested at [logoW] x [logoH] px and drawn at the bottom-left of
  * whatever box the caller gives this view, so a new logo never changes a layout.
  */

@@ -29,7 +29,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/** A centered column: a Fraunces title and a line under it, then whatever the screen adds. */
+/** A centered column: a Bricolage Grotesque title and a line under it, then whatever the screen adds. */
 abstract class FormScreen(activity: MainActivity, title: String, hint: String) : Screen(activity) {
     override val view = FrameLayout(context)
     protected val column = LinearLayout(context).apply {
