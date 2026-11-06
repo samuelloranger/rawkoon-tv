@@ -16,7 +16,7 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 class LogoView(context: Context) : BitmapView(context, Mode.CONTAIN_BOTTOM_START)
 
 /**
- * The top-left of the home screen: the focused item's logo (its title in Fraunces when there is
+ * The top-left of the home screen: the focused item's logo (its title in Bricolage Grotesque when there is
  * none), its meta line and overview. It switches only once focus has rested, fading the old one
  * out and the new one in with a short rise. Every child has a fixed size, so new text never
  * triggers a layout pass.

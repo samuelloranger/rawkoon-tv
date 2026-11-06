@@ -17,7 +17,7 @@ object Fonts {
     private fun get(context: Context, res: Int): Typeface =
         cache[res] ?: context.resources.getFont(res).also { cache = cache + (res to it) }
 
-    fun title(context: Context) = get(context, R.font.fraunces_semibold)
+    fun title(context: Context) = get(context, R.font.bricolage_semibold)
 
     fun body(context: Context) = get(context, R.font.hanken_regular)
 

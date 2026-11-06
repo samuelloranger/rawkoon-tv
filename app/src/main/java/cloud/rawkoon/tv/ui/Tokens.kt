@@ -7,20 +7,20 @@ import android.view.animation.PathInterpolator
  * motion uses one curve so the whole screen shares a rhythm.
  */
 object Tokens {
-    const val background = 0xFF1C1715.toInt()
-    const val surface = 0xFF241E1B.toInt()
-    const val surfaceHigh = 0xFF2B2420.toInt()
-    const val surfaceFocused = 0xFF3A302A.toInt()
-    const val line = 0xFF463A32.toInt()
-    const val textPrimary = 0xFFF4ECE4.toInt()
-    const val textSoft = 0xFFE8E2DB.toInt()
-    const val textMuted = 0xFFAA9A8C.toInt()
-    const val accent = 0xFFE8A06A.toInt()
-    const val ring = 0xFFF0A35E.toInt()
-    const val rail = 0xF0141010.toInt()
+    const val background = 0xFF201F1C.toInt()
+    const val surface = 0xFF2C2B27.toInt()
+    const val surfaceHigh = 0xFF34322D.toInt()
+    const val surfaceFocused = 0xFF4C4941.toInt()
+    const val line = 0xFF625B50.toInt()
+    const val textPrimary = 0xFFF3EEE5.toInt()
+    const val textSoft = 0xFFDDD7CC.toInt()
+    const val textMuted = 0xFFB6AD9E.toInt()
+    const val accent = 0xFFE6D8BF.toInt()
+    const val ring = 0xFFF2EADC.toInt()
+    const val rail = 0xF0171714.toInt()
 
     // Body copy on a page (a title's overview).
-    const val textBody = 0xE6ECE3DB.toInt()
+    const val textBody = 0xE6DDD7CC.toInt()
 
     // TV title-safe area.
     const val OVERSCAN_H = 48

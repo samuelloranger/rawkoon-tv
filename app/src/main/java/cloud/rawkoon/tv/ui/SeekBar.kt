@@ -28,7 +28,7 @@ class SeekBar(context: Context) : View(context) {
     private val buffer = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x66FFFFFF }
     private val played = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.accent }
     private val knob = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Tokens.textPrimary }
-    private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55F0A35E }
+    private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55F2EADC }
     private val rect = RectF()
     private val pad = context.dpf(10f)
     private val idleHeight = context.dpf(3.5f)

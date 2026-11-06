@@ -7,9 +7,9 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowContentOverlay">@null</item>
-        <item name="android:colorAccent">#FFE8A06A</item>
+        <item name="android:colorAccent">#FFE6D8BF</item>
         <item name="android:defaultFocusHighlightEnabled">false</item>
     </style>
 
-    <color name="page">#FF1C1715</color>
+    <color name="page">#FF201F1C</color>
 </resources>
