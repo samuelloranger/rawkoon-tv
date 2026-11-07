@@ -79,6 +79,7 @@ object Icon {
     const val FORWARD = "\uf2f9"
     const val NEXT_TRACK = "\uf051"
     const val SKIP = "\uf04e"
+    const val EPISODES = "\uf0ca"
 }
 
 /**

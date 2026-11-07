@@ -100,7 +100,7 @@ class SegmentSkipper(
                     },
                 )
                 skip.showRising()
-                if (!chrome.shown) skip.requestFocus()
+                if (!chrome.shown && !chrome.held) skip.requestFocus()
             }
         }
     }

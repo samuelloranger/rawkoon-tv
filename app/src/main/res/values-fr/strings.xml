@@ -104,6 +104,9 @@
     <string name="subtitles">Sous-titres</string>
     <string name="audio">Audio</string>
     <string name="quality">Qualité</string>
+    <string name="episodes">Épisodes</string>
+    <string name="now_playing">En cours</string>
+    <string name="episodes_now_playing">En cours · %1$s</string>
     <string name="subtitles_off">Aucun</string>
     <string name="choice_current">✓  %1$s</string>
     <string name="time_remaining">−%1$s</string>
