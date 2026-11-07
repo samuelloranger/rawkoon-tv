@@ -32,6 +32,17 @@ class ServerVersionGateTest {
     }
 
     @Test
+    fun `four-part versions compare like three-part ones`() {
+        assertTrue(ServerVersionGate.isTooOld("10.11.0.0"))
+        assertFalse(ServerVersionGate.isTooOld("12.0.0.0"))
+    }
+
+    @Test
+    fun `a pre-release suffix is unreadable, so it never blocks`() {
+        assertFalse(ServerVersionGate.isTooOld("12.0.0-rc1"))
+    }
+
+    @Test
     fun `an old version is reported with the version found`() {
         val e = runCatching { ServerVersionGate.require("10.11.5") }.exceptionOrNull()
         assertTrue(e is JellyfinTooOldException)

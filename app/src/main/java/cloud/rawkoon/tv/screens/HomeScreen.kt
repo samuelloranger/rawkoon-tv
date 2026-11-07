@@ -119,6 +119,8 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 val tooOld = e is JellyfinTooOldException
                 // With rows already on screen from the cache, a failed refresh stays silent
                 if (expired || tooOld || !hasRows()) {
+                    // Cached rows from a server the app no longer supports must not pass as current
+                    if (tooOld) clear()
                     val text = string(if (tooOld) R.string.error_jellyfin_old else if (expired) R.string.error_session else R.string.home_error)
                     showMessage(text, messageAction(if (expired) null else ::load), takeFocus = true)
                 }
