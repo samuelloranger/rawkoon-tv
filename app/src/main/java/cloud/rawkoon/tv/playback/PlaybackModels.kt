@@ -15,6 +15,11 @@ data class Track(
     val delivery: SubtitleDeliveryMethod?,
     /** For a subtitle delivered as its own file. */
     val url: String?,
+    /** The file's own name for the track ("Commentary", "SDH"), unlike [title], which is built for the menu. */
+    val name: String? = null,
+    val forced: Boolean = false,
+    val hearingImpaired: Boolean = false,
+    val channels: Int? = null,
 )
 
 /** How to play one item: the URL, how it is delivered, and the tracks to choose from. */

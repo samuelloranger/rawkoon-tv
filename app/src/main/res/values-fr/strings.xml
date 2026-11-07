@@ -216,6 +216,39 @@
     <string name="clear_images_action">Vider</string>
     <string name="setting_auto_update">Vérifier les mises à jour automatiquement</string>
     <string name="settings_about">À propos</string>
+    <string name="setting_device_info">Infos de l\'appareil</string>
+    <string name="info_device">Appareil</string>
+    <string name="info_decoders">Décodeurs</string>
+    <string name="info_server">Serveur</string>
+    <string name="info_model">Modèle</string>
+    <string name="info_android">Android</string>
+    <string name="info_android_value">%1$s (API %2$d)</string>
+    <string name="info_abis">Architecture</string>
+    <string name="info_app">Application</string>
+    <string name="info_app_value">%1$s (%2$d)</string>
+    <string name="info_current_mode">Mode actuel</string>
+    <string name="info_rates">%1$s Hz</string>
+    <string name="info_hdr_types">Types de HDR</string>
+    <string name="info_none">Aucun</string>
+    <string name="info_peak_brightness">Luminosité maximale</string>
+    <string name="info_nits">%1$d nits</string>
+    <string name="info_yes">Oui</string>
+    <string name="info_no">Non</string>
+    <string name="info_forced">%1$s (forcé dans les réglages)</string>
+    <string name="info_server_version">Version de Jellyfin</string>
+    <string name="info_hevc" translatable="false">HEVC</string>
+    <string name="info_hevc_10" translatable="false">HEVC 10-bit</string>
+    <string name="info_hevc_hdr10" translatable="false">HEVC HDR10</string>
+    <string name="info_hevc_hdr10_plus" translatable="false">HEVC HDR10+</string>
+    <string name="info_hevc_dolby_vision" translatable="false">HEVC Dolby Vision</string>
+    <string name="info_dolby_vision_7" translatable="false">Dolby Vision profile 7</string>
+    <string name="info_av1" translatable="false">AV1</string>
+    <string name="info_av1_10" translatable="false">AV1 10-bit</string>
+    <string name="info_av1_hdr10" translatable="false">AV1 HDR10</string>
+    <string name="info_av1_hdr10_plus" translatable="false">AV1 HDR10+</string>
+    <string name="info_av1_dolby_vision" translatable="false">AV1 Dolby Vision</string>
+    <string name="info_avc_high_10" translatable="false">H.264 High 10</string>
+    <string name="info_vc1" translatable="false">VC-1</string>
     <string name="setting_licences">Licences open source</string>
     <string name="licence_app">RawkoonTV</string>
     <string name="licence_uses">Construit avec</string>

@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.playback.Stream
+import cloud.rawkoon.tv.playback.TrackMemory
 import cloud.rawkoon.tv.playback.VideoPlayer
 import cloud.rawkoon.tv.ui.ChoiceDialog
 
@@ -12,6 +13,7 @@ import cloud.rawkoon.tv.ui.ChoiceDialog
  * The subtitle, audio and quality menus, and the switch they ask for. A track the player has is
  * switched here; otherwise the stop of the current stream is reported and [restart] asks for a
  * new one from the same spot (it gets the stream that was playing). A new quality always restarts.
+ * A track picked on an episode is kept in [memory] for its show, which [series] names.
  */
 class TrackMenus(
     private val context: Context,
@@ -19,6 +21,8 @@ class TrackMenus(
     private val chrome: PlayerChrome,
     private val player: VideoPlayer,
     private val reporter: ProgressReporter,
+    private val memory: TrackMemory,
+    private val series: () -> String?,
     private val restart: (positionMs: Long, audio: Int?, subtitle: Int, previous: Stream) -> Unit,
 ) {
     private var dialog: ChoiceDialog? = null
@@ -50,12 +54,18 @@ class TrackMenus(
     private fun chooseSubtitles() {
         val s = reporter.stream ?: return
         val options = listOf(-1 to context.getString(R.string.subtitles_off)) + s.subtitles.map { it.index to it.title }
-        choose(context.getString(R.string.subtitles), options, s.subtitleIndex) { index -> switchTracks(s.audioIndex, index) }
+        choose(context.getString(R.string.subtitles), options, s.subtitleIndex) { index ->
+            series()?.let { memory.rememberSubtitle(it, s.subtitles.firstOrNull { t -> t.index == index }) }
+            switchTracks(s.audioIndex, index)
+        }
     }
 
     private fun chooseAudio() {
         val s = reporter.stream ?: return
-        choose(context.getString(R.string.audio), s.audio.map { it.index to it.title }, s.audioIndex ?: -2) { index -> switchTracks(index, s.subtitleIndex) }
+        choose(context.getString(R.string.audio), s.audio.map { it.index to it.title }, s.audioIndex ?: -2) { index ->
+            series()?.let { id -> s.audio.firstOrNull { it.index == index }?.let { memory.rememberAudio(id, it) } }
+            switchTracks(index, s.subtitleIndex)
+        }
     }
 
     private fun chooseQuality() {

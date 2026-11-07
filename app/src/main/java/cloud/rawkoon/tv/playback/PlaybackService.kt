@@ -59,7 +59,8 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     /**
      * [direct] false asks for a transcode, after a file the TV couldn't play after all. Jellyfin
      * ignores [audioIndex] and [subtitleIndex] unless [mediaSourceId] names the source they belong to.
-     * [maxBitrateMbps] replaces the setting's cap.
+     * [remembered], the tracks last picked on the item's show, overrides the server's own choice
+     * when it finds tracks like them. [maxBitrateMbps] replaces the setting's cap.
      */
     suspend fun stream(
         item: MediaItem,
@@ -68,6 +69,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         subtitleIndex: Int? = null,
         mediaSourceId: String? = null,
         direct: Boolean = true,
+        remembered: RememberedTracks? = null,
         maxBitrateMbps: Int = Prefs.maxBitrateMbps(context),
     ): Stream {
         val itemId = JellyfinSession.parseId(item.id)
@@ -104,23 +106,41 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             else -> throw PlaybackFailure("NoCompatibleStream")
         }
         val streams = source.mediaStreams.orEmpty()
+        val audio = streams.filter { it.type == MediaStreamType.AUDIO }.map { s ->
+            Track(
+                s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, null, null,
+                name = s.title, channels = s.channels,
+            )
+        }
+        val subtitles = streams.filter { it.type == MediaStreamType.SUBTITLE }.map { s ->
+            Track(
+                s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, s.deliveryMethod,
+                s.deliveryUrl?.let { api.createUrl(it, ignorePathParameters = true) },
+                name = s.title, forced = s.isForced, hearingImpaired = s.isHearingImpaired,
+            )
+        }
+        val defaultAudio = audioIndex ?: source.defaultAudioStreamIndex
+        val defaultSubtitle = subtitleIndex ?: source.defaultSubtitleStreamIndex ?: -1
+        if (remembered != null) {
+            // The server picked by the profile's languages; ask again when the show's own picks differ
+            val (rememberedAudio, rememberedSubtitle) = rememberedIndices(remembered, audio, subtitles)
+            val wantAudio = rememberedAudio.takeIf { audioIndex == null }
+            val wantSubtitle = rememberedSubtitle.takeIf { subtitleIndex == null }
+            if ((wantAudio != null && wantAudio != defaultAudio) || (wantSubtitle != null && wantSubtitle != defaultSubtitle)) {
+                // Only the remembered kinds are pinned: the server still picks the other, for the new audio
+                return stream(item, startMs, wantAudio ?: audioIndex, wantSubtitle ?: subtitleIndex, source.id, direct, maxBitrateMbps = maxBitrateMbps)
+            }
+        }
         return Stream(
             itemId = item.id,
             mediaSourceId = source.id,
             playSessionId = response.playSessionId,
             url = url,
             method = method,
-            audio = streams.filter { it.type == MediaStreamType.AUDIO }.map { s ->
-                Track(s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, null, null)
-            },
-            subtitles = streams.filter { it.type == MediaStreamType.SUBTITLE }.map { s ->
-                Track(
-                    s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, s.deliveryMethod,
-                    s.deliveryUrl?.let { api.createUrl(it, ignorePathParameters = true) },
-                )
-            },
-            audioIndex = audioIndex ?: source.defaultAudioStreamIndex,
-            subtitleIndex = subtitleIndex ?: source.defaultSubtitleStreamIndex ?: -1,
+            audio = audio,
+            subtitles = subtitles,
+            audioIndex = defaultAudio,
+            subtitleIndex = defaultSubtitle,
             durationMs = source.runTimeTicks?.let { it / TICKS_PER_MS },
         )
     }
