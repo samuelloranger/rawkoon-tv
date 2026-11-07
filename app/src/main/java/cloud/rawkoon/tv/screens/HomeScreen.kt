@@ -11,6 +11,7 @@ import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
+import cloud.rawkoon.tv.jellyfin.JellyfinTooOldException
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.arrangeRows
 import cloud.rawkoon.tv.live.LiveKind
@@ -97,6 +98,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             val rawkoon = if (!forceRawkoon && rawkoonIsFresh()) null else async { rawkoonOutcome() }
             try {
                 app.awaitStop()
+                session.requireSupportedServer()
                 val jellyfin = session.homeRows(Prefs.homeFetch(context))
                 app.launcher.syncAfterHome(profile(), jellyfin)
                 val previous = rawkoonRowsOnScreen(cached)
@@ -114,9 +116,10 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             } catch (e: Exception) {
                 rawkoon?.cancel()
                 val expired = e.isSessionEnded()
+                val tooOld = e is JellyfinTooOldException
                 // With rows already on screen from the cache, a failed refresh stays silent
-                if (expired || !hasRows()) {
-                    val text = string(if (expired) R.string.error_session else R.string.home_error)
+                if (expired || tooOld || !hasRows()) {
+                    val text = string(if (tooOld) R.string.error_jellyfin_old else if (expired) R.string.error_session else R.string.home_error)
                     showMessage(text, messageAction(if (expired) null else ::load), takeFocus = true)
                 }
             }

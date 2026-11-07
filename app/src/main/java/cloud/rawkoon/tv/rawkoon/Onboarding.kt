@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.rawkoon
 import android.content.Context
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Profile
+import cloud.rawkoon.tv.jellyfin.JellyfinTooOldException
 import cloud.rawkoon.tv.jellyfin.quickConnect
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import java.io.IOException
@@ -60,6 +61,7 @@ fun Throwable.signInMessage(context: Context): String = when (this) {
     is RawkoonException.Unauthorized -> context.getString(R.string.error_rawkoon_session)
     is RawkoonException.JellyfinUnreachable -> context.getString(R.string.error_jellyfin_unreachable)
     is RawkoonException.ServerTooOld -> context.getString(R.string.error_server_old)
+    is JellyfinTooOldException -> context.getString(R.string.error_jellyfin_old)
     is RawkoonException.Http -> context.getString(R.string.error_generic, "HTTP $code")
     is IOException -> context.getString(R.string.error_unreachable)
     else -> context.getString(R.string.error_generic, javaClass.simpleName)
