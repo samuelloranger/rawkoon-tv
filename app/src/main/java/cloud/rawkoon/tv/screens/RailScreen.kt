@@ -50,6 +50,9 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     )
 
     private var lastContent: View? = null
+
+    /** Adds [child] over the page, where it stays put as pages slide, and under the dim the open rail lays over them. */
+    protected fun addOverPage(child: View, params: FrameLayout.LayoutParams) = view.addView(child, view.indexOfChild(dim), params)
     private val clockView = clock(context).apply { applyClockSetting() }
 
     init {

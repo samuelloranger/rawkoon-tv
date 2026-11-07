@@ -59,14 +59,16 @@ import kotlinx.coroutines.withContext
 /**
  * App settings, split into two panes: a category column on the left and the active category's
  * options on the right. Focusing a category shows its pane at once; Right or OK steps into the
- * rows, and Left or Back returns to the category list.
+ * rows, and Left or Back returns to the category list. [toUpdate] opens on System with focus on
+ * the update's install button (or Check now), for Home's update pill.
  */
-class SettingsScreen(activity: MainActivity, private val profileId: String? = null) : Screen(activity) {
+class SettingsScreen(activity: MainActivity, private val profileId: String? = null, toUpdate: Boolean = false) : Screen(activity) {
     override val view = FrameLayout(context)
     private val categories = mutableListOf<CategoryTab>()
     private val panes = mutableListOf<LinearLayout>()
     private val paneFirstFocus = mutableListOf<View?>()
     private var activeCategory = 0
+    private var focusUpdate = toUpdate
     private var dialog: ChoiceDialog? = null
     private val clockView = clock(context).apply { applyClockSetting() }
     private val updateCheck = UpdateCheck(context, Fetcher(context))
@@ -100,7 +102,8 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         addCategory(categoryColumn, paneStack, Icon.TV, R.string.settings_display_audio) { addDisplayAndAudioSection(it) }
         addCategory(categoryColumn, paneStack, Icon.GEAR, R.string.settings_system) { addSystemSection(it) }
 
-        selectCategory(0, animate = false)
+        // System is the last category
+        selectCategory(if (toUpdate) categories.lastIndex else 0, animate = false)
 
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -108,7 +111,11 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
             clipToPadding = false
         }
         body.addView(categoryColumn, LinearLayout.LayoutParams(context.dp(CATEGORY_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
-        body.addView(scroll, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+        // The frame clips the list to its own bounds: the page around it doesn't clip, so a scrolled
+        // pane would otherwise draw up over the title and under the clock
+        val paneFrame = FrameLayout(context)
+        paneFrame.addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        body.addView(paneFrame, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
             marginStart = context.dp(PANE_GAP - SCROLL_ROOM)
         })
 
@@ -449,6 +456,9 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         pending?.let { install.label.text = string(R.string.update_install, it.version) }
     }
 
+    /** A check that finished while Settings is open shows here at once. */
+    override fun onUpdateChecked() = showUpdate()
+
     /** Back from the installer's confirmation (declined or not), the status says what is true now. */
     override fun onResume() {
         Installer.acknowledge()
@@ -487,6 +497,12 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
     }
 
     override fun focusDefault() {
+        if (focusUpdate) {
+            focusUpdate = false
+            showUpdate()
+            (install.takeIf { it.visibility == View.VISIBLE } ?: checkNow).requestFocus()
+            return
+        }
         categories.getOrNull(activeCategory)?.requestFocus()
     }
 

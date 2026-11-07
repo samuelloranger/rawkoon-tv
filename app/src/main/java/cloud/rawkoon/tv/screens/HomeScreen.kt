@@ -4,9 +4,13 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.LruCache
 import android.view.KeyEvent
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.data.Fetcher
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.HomeRow
@@ -27,8 +31,14 @@ import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
+import cloud.rawkoon.tv.ui.Icon
+import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.cardCaption
+import cloud.rawkoon.tv.ui.dp
+import cloud.rawkoon.tv.update.InstallState
+import cloud.rawkoon.tv.update.Installer
+import cloud.rawkoon.tv.update.UpdateCheck
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -76,9 +86,41 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** The token those rows were loaded with: linking another account makes them stale at once. */
     private var rawkoonLoadedWith: String? = null
 
+    /**
+     * Up from the top row when a release is waiting: opens Settings on its install button. Settings
+     * is otherwise the only place an update shows, and few open it. It takes focus only through
+     * [onKey], so no other move (from the rail, along a row) lands on it by geometry.
+     */
+    private val updatePill = PillButton(context, "", Icon.DOWNLOAD, height = 30).apply {
+        visibility = View.GONE
+        isFocusable = false
+        setOnClickListener { activity.push(SettingsScreen(activity, session.profile.id, toUpdate = true)) }
+    }
+    private val updateCheck by lazy { UpdateCheck(context, Fetcher(context)) }
+
     init {
         backdrop.drifts = true
+        // Under the clock
+        addOverPage(updatePill, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {
+            topMargin = context.dp(52)
+            marginEnd = context.dp(32 - Tokens.RING_INSET)
+        })
         load()
+    }
+
+    /** Shows the pill while a newer release waits and isn't already installing or waiting for the TV's confirmation. */
+    private fun showUpdatePill() {
+        val release = updateCheck.pending()?.takeUnless { Installer.running || Installer.state is InstallState.Ready }
+        if (release == null && updatePill.hasFocus()) leaveUpdatePill()
+        updatePill.visibility = if (release != null) View.VISIBLE else View.GONE
+        release?.let { updatePill.label.text = string(R.string.update_pill, it.version) }
+    }
+
+    override fun onUpdateChecked() = showUpdatePill()
+
+    private fun leaveUpdatePill() {
+        (firstFocus() ?: rows.sections().firstOrNull()?.row?.remembered())?.requestFocus()
+        updatePill.isFocusable = false
     }
 
     private fun load() = refresh(forceRawkoon = false)
@@ -233,9 +275,29 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         super.destroy()
     }
 
-    /** Every key holds the backdrop's zoom, so it never runs during a glide. */
+    /**
+     * Every key holds the backdrop's zoom, so it never runs during a glide. Up from the top row goes
+     * to the update pill when it shows, and Down from the pill back to the row; the pill sits apart
+     * from the rows, where the focus search can't be trusted to find it.
+     */
     override fun onKey(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) backdrop.holdDrift()
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        backdrop.holdDrift()
+        if (updatePill.hasFocus()) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> leaveUpdatePill()
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> Unit
+                else -> return false
+            }
+            return true
+        }
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP && updatePill.visibility == View.VISIBLE &&
+            rows.sections().firstOrNull()?.row?.hasFocus() == true
+        ) {
+            updatePill.isFocusable = true
+            updatePill.requestFocus()
+            return true
+        }
         return false
     }
 
@@ -249,6 +311,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Coming back to home (from a page or the player): refresh in place, keeping focus. */
     override fun onShown(first: Boolean) {
         super.onShown(first)
+        showUpdatePill()
         if (!first) {
             // Row settings changed meanwhile show at once, from the rows already loaded
             if (shown.isNotEmpty()) showHome(shown)

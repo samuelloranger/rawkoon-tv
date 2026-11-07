@@ -141,3 +141,24 @@ class UpdateTest {
             .flatMap { listOf(it, "$it.sha256") }
     }
 }
+
+class UpdateCheckDueTest {
+    private val hour = 60 * 60_000L
+
+    @Test
+    fun `a check is due six hours after the last one`() {
+        assertFalse(UpdateCheck.isDue(now = 5 * hour, checkedAt = 0, failed = false))
+        assertTrue(UpdateCheck.isDue(now = 6 * hour, checkedAt = 0, failed = false))
+    }
+
+    @Test
+    fun `a failed check is tried again after a quarter of an hour`() {
+        assertFalse(UpdateCheck.isDue(now = 14 * 60_000L, checkedAt = 0, failed = true))
+        assertTrue(UpdateCheck.isDue(now = 15 * 60_000L, checkedAt = 0, failed = true))
+    }
+
+    @Test
+    fun `a clock that went backwards counts as due`() {
+        assertTrue(UpdateCheck.isDue(now = hour, checkedAt = 2 * hour, failed = false))
+    }
+}

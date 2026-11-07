@@ -10,6 +10,8 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.Toast
+import cloud.rawkoon.tv.data.Fetcher
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaWords
 import cloud.rawkoon.tv.launcher.LauncherLink
@@ -29,6 +31,7 @@ import cloud.rawkoon.tv.screens.linkPage
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
+import cloud.rawkoon.tv.update.UpdateCheck
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -276,6 +279,15 @@ class MainActivity : Activity() {
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /**
+     * Each return to the app (a launch, the TV waking, coming back from another app) asks for a
+     * new release once the last check is old enough; the screen on top then shows what it found.
+     */
+    override fun onStart() {
+        super.onStart()
+        if (Prefs.autoUpdateCheck(this)) UpdateCheck(this, Fetcher(this)).refreshAsync { if (!isDestroyed) stack.lastOrNull()?.onUpdateChecked() }
     }
 
     override fun onPause() {
