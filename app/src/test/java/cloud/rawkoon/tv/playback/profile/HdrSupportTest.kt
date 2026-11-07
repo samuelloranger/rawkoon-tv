@@ -72,4 +72,12 @@ class HdrSupportTest {
         // A TV that reports HDR10+ but is set to never allow it
         assertTrue("HDR10Plus" in hevc(plus = HdrOverride.NEVER.resolve(true)))
     }
+
+    @Test
+    fun `dolby vision profile 7 follows the TV, or a model known to decode it without saying so`() {
+        assertTrue(supportsDoviProfile7(reported = true, unreported = false, dolbyVision = false, main10 = false, hdr10 = false))
+        assertTrue(supportsDoviProfile7(reported = false, unreported = true, dolbyVision = true, main10 = true, hdr10 = true))
+        assertFalse(supportsDoviProfile7(reported = false, unreported = true, dolbyVision = true, main10 = true, hdr10 = false))
+        assertFalse(supportsDoviProfile7(reported = false, unreported = false, dolbyVision = true, main10 = true, hdr10 = true))
+    }
 }
