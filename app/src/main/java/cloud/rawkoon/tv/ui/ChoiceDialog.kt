@@ -44,14 +44,22 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
             buttons += button
             list.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
-        val scroll = CappedScrollView(context, context.dp(MAX_LIST_HEIGHT)).apply {
+        // The frame clips the scroll view to its bounds, so a scrolled list doesn't slide over the
+        // title; the padding (taken back by the margins) leaves the focused choice room to grow
+        val room = context.dp(RING_ROOM)
+        val scroll = CappedScrollView(context, context.dp(MAX_LIST_HEIGHT) + 2 * room).apply {
             isFocusable = false
             isVerticalScrollBarEnabled = false
             clipChildren = false
             clipToPadding = false
+            setPadding(room, room, room, room)
         }
         scroll.addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val frame = FrameLayout(context)
+        frame.addView(scroll, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        panel.addView(frame, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            setMargins(-room, -room, -room, -room)
+        })
         addView(panel, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
     }
 
@@ -86,5 +94,8 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
     private companion object {
         /** About seven choices; the panel and its title fit a 540 dp screen with room around them. */
         const val MAX_LIST_HEIGHT = 330
+
+        /** Around the list, for the focused choice's ring and scale. */
+        const val RING_ROOM = 12
     }
 }

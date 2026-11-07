@@ -79,6 +79,7 @@ class TrackMenus(
             context,
             heading,
             options.map { (index, label) -> (if (index == current) context.getString(R.string.choice_current, label) else label) to { pick(index); chrome.scheduleHide() } },
+            selected = options.indexOfFirst { it.first == current }.coerceAtLeast(0),
         ).also { it.open(root) }
     }
 
