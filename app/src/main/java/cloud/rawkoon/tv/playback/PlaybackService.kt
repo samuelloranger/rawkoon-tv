@@ -58,6 +58,8 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
     /**
      * [direct] false asks for a transcode, after a file the TV couldn't play after all. Jellyfin
      * ignores [audioIndex] and [subtitleIndex] unless [mediaSourceId] names the source they belong to.
+     * [remembered], the tracks last picked on the item's show, overrides the server's own choice
+     * when it finds tracks like them.
      */
     suspend fun stream(
         item: MediaItem,
@@ -66,6 +68,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         subtitleIndex: Int? = null,
         mediaSourceId: String? = null,
         direct: Boolean = true,
+        remembered: RememberedTracks? = null,
     ): Stream {
         val itemId = JellyfinSession.parseId(item.id)
         val quality = ProfileSettings.read(context)
@@ -101,23 +104,40 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             else -> throw PlaybackFailure("NoCompatibleStream")
         }
         val streams = source.mediaStreams.orEmpty()
+        val audio = streams.filter { it.type == MediaStreamType.AUDIO }.map { s ->
+            Track(
+                s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, null, null,
+                name = s.title, channels = s.channels,
+            )
+        }
+        val subtitles = streams.filter { it.type == MediaStreamType.SUBTITLE }.map { s ->
+            Track(
+                s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, s.deliveryMethod,
+                s.deliveryUrl?.let { api.createUrl(it, ignorePathParameters = true) },
+                name = s.title, forced = s.isForced, hearingImpaired = s.isHearingImpaired,
+            )
+        }
+        val defaultAudio = audioIndex ?: source.defaultAudioStreamIndex
+        val defaultSubtitle = subtitleIndex ?: source.defaultSubtitleStreamIndex ?: -1
+        if (remembered != null) {
+            // The server picked by the profile's languages; ask again when the show's own picks differ
+            val (rememberedAudio, rememberedSubtitle) = rememberedIndices(remembered, audio, subtitles)
+            val wantAudio = rememberedAudio.takeIf { audioIndex == null } ?: defaultAudio
+            val wantSubtitle = rememberedSubtitle.takeIf { subtitleIndex == null } ?: defaultSubtitle
+            if (wantAudio != defaultAudio || wantSubtitle != defaultSubtitle) {
+                return stream(item, startMs, wantAudio, wantSubtitle, source.id, direct)
+            }
+        }
         return Stream(
             itemId = item.id,
             mediaSourceId = source.id,
             playSessionId = response.playSessionId,
             url = url,
             method = method,
-            audio = streams.filter { it.type == MediaStreamType.AUDIO }.map { s ->
-                Track(s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, null, null)
-            },
-            subtitles = streams.filter { it.type == MediaStreamType.SUBTITLE }.map { s ->
-                Track(
-                    s.index, trackTitle(s.displayTitle, s.language, s.codec), s.language, s.codec, s.isExternal, s.deliveryMethod,
-                    s.deliveryUrl?.let { api.createUrl(it, ignorePathParameters = true) },
-                )
-            },
-            audioIndex = audioIndex ?: source.defaultAudioStreamIndex,
-            subtitleIndex = subtitleIndex ?: source.defaultSubtitleStreamIndex ?: -1,
+            audio = audio,
+            subtitles = subtitles,
+            audioIndex = defaultAudio,
+            subtitleIndex = defaultSubtitle,
             durationMs = source.runTimeTicks?.let { it / TICKS_PER_MS },
         )
     }

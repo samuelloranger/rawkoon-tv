@@ -21,6 +21,7 @@ import cloud.rawkoon.tv.Screen
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.playback.PlaybackService
+import cloud.rawkoon.tv.playback.TrackMemory
 import cloud.rawkoon.tv.playback.TrickplayLoader
 import cloud.rawkoon.tv.playback.VideoPlayer
 import cloud.rawkoon.tv.screens.player.AutoplayTracker
@@ -65,6 +66,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private val autoplay = AutoplayTracker(settings.stillWatchingAfter)
     private val displayMatcher = DisplayMatcher(activity, player.exo, mainHandler, settings.matchDisplay)
     private val trickplayLoader = TrickplayLoader(context, service.authorization)
+    private val trackMemory = TrackMemory(context, session.profile.id)
 
     private val surface = PlayerView(context).apply {
         useController = false
@@ -112,7 +114,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         playNext = { auto -> playNext(auto) },
         plan = { autoplay.plan(settings.autoplayNext, settings.countdownSeconds) },
     )
-    private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter) { position, audio, subtitleIndex, previous ->
+    private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter, trackMemory, series = { item.seriesId.takeIf { item.isEpisode } }) { position, audio, subtitleIndex, previous ->
         start(item, position, audio, subtitleIndex, previous.mediaSourceId, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
 
@@ -145,7 +147,9 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         loadJob?.cancel()
         loadJob = scope.launch {
             try {
-                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct)
+                // A new episode, rather than the same one again with other tracks, gets the show's last picks
+                val remembered = if (audio == null && subtitleIndex == null && target.isEpisode) target.seriesId?.let(trackMemory::read) else null
+                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct, remembered = remembered)
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
