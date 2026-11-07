@@ -79,12 +79,21 @@ class PlayerChrome(
     val playPause = CircleButton(context, Icon.PAUSE, context.getString(R.string.play_pause), filled = true)
     val forward = CircleButton(context, Icon.FORWARD, context.getString(R.string.forward, skipForwardSeconds))
     val nextButton = CircleButton(context, Icon.NEXT_TRACK, context.getString(R.string.next_episode))
+    val episodesButton = CircleButton(context, Icon.EPISODES, context.getString(R.string.episodes))
     val skip = PillButton(context, context.getString(R.string.skip_intro), Icon.SKIP, height = 40)
     val upNext = PillButton(context, context.getString(R.string.play_now), Icon.PLAY, primary = true, height = 40)
 
     /** Whether the controls are up. */
     var shown = true
         private set
+
+    /** While true (the episodes are up over the video), the controls stay hidden and nothing here takes focus. */
+    var held = false
+
+    private lateinit var controls: CenteredRow
+
+    /** Whether focus is on the row of buttons. */
+    val controlsFocused: Boolean get() = shown && controls.hasFocus()
 
     private val hide = Runnable { setChrome(false) }
 
@@ -143,11 +152,11 @@ class PlayerChrome(
                 addView(v)
             }
         }.noClip()
-        val controls = CenteredRow(
+        controls = CenteredRow(
             context,
             start = group(subtitlesButton, audioButton, qualityButton, rewind, gapBefore = 3),
             middle = playPause,
-            end = group(forward, nextButton, gapBefore = 1),
+            end = group(forward, nextButton, episodesButton, gapBefore = 1),
             gap = 0,
         )
         overlay.addView(controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply {
@@ -213,6 +222,7 @@ class PlayerChrome(
     }
 
     fun setChrome(show: Boolean, autoHide: Boolean = true) {
+        if (show && held) return
         val changed = show != shown
         shown = show
         if (changed) {
@@ -234,7 +244,9 @@ class PlayerChrome(
             main.removeCallbacks(hide)
             thumbFrame.visibility = View.INVISIBLE
             // With the controls hidden, the skip button keeps focus when it is up; otherwise nothing has it
-            if (skip.visibility == View.VISIBLE) skip.requestFocus() else root.requestFocus()
+            if (!held) {
+                if (skip.visibility == View.VISIBLE) skip.requestFocus() else root.requestFocus()
+            }
         }
         onSettled()
     }

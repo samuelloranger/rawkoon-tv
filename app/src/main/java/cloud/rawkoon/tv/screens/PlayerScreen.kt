@@ -26,6 +26,7 @@ import cloud.rawkoon.tv.playback.TrickplayLoader
 import cloud.rawkoon.tv.playback.VideoPlayer
 import cloud.rawkoon.tv.screens.player.AutoplayTracker
 import cloud.rawkoon.tv.screens.player.DisplayMatcher
+import cloud.rawkoon.tv.screens.player.EpisodePanel
 import cloud.rawkoon.tv.screens.player.PlayerChrome
 import cloud.rawkoon.tv.screens.player.PlayerSettings
 import cloud.rawkoon.tv.screens.player.ProgressReporter
@@ -119,7 +120,17 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         start(item, position, audio, subtitleIndex, previous.mediaSourceId, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
 
+    private val episodePanel = EpisodePanel(
+        context, app, session, scope, mainHandler, view,
+        play = { target -> playEpisode(target) },
+        onClosed = {
+            chrome.held = false
+            chrome.setChrome(true)
+        },
+    )
+
     init {
+        chrome.episodesButton.setOnClickListener { openEpisodes() }
         chrome.rewind.setOnClickListener { seekBy(-settings.skipBackMs) }
         chrome.forward.setOnClickListener { seekBy(settings.skipForwardMs) }
         chrome.playPause.setOnClickListener { togglePause() }
@@ -154,6 +165,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
+                chrome.episodesButton.visibility = if (target.isEpisode && target.seriesId != null) View.VISIBLE else View.GONE
                 val nextLoad = launch { next = if (target.isEpisode) service.nextEpisode(target) else null }
                 launch {
                     val segments = service.segments(target.id)
@@ -258,6 +270,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     private fun ended() {
+        episodePanel.close()
         if (reporter.stream == null) return close()
         reporter.stop(player.exo.duration.coerceAtLeast(0))
         if (next == null) return close()
@@ -271,12 +284,37 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         if (auto) autoplay.onAutoStarted()
         skipper.stopCountdown()
         val position = player.exo.currentPosition
-        reporter.stop(advanceStopPosition(position, durationMs(), auto, skipper.upNextShown, skipper.segments))
+        switchTo(target, advanceStopPosition(position, durationMs(), auto, skipper.upNextShown, skipper.segments))
+    }
+
+    /** Plays [target], an episode picked in the episodes panel, from its resume point. */
+    private fun playEpisode(target: MediaItem) {
+        skipper.stopCountdown()
+        switchTo(target, player.exo.currentPosition)
+    }
+
+    /** Reports the stop of what plays at [stopAtMs] and starts [target] in its place. */
+    private fun switchTo(target: MediaItem, stopAtMs: Long) {
+        episodePanel.close()
+        reporter.stop(stopAtMs)
         scrub.reset()
         next = null
         skipper.reset()
         triedTranscode = false
         start(target, settings.startPosition(target.resumeMs))
+    }
+
+    /** Puts the show's episodes over the video, which plays on behind them. */
+    private fun openEpisodes() {
+        if (!item.isEpisode || item.seriesId == null || episodePanel.isOpen) return
+        menus.close()
+        chrome.setChrome(false)
+        chrome.held = true
+        // An episode with no show to list leaves the controls as they were
+        if (!episodePanel.open(item)) {
+            chrome.held = false
+            chrome.setChrome(true)
+        }
     }
 
     private fun togglePause() {
@@ -323,8 +361,13 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
                 return true
             }
         }
-        if (menus.isOpen || skipper.upNextShown) return false
+        if (menus.isOpen || skipper.upNextShown || episodePanel.isOpen) return false
         if (chrome.shown) {
+            // Down from the row of buttons opens the episodes, as their button does
+            if (down && event.repeatCount == 0 && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && chrome.controlsFocused && item.isEpisode && item.seriesId != null) {
+                openEpisodes()
+                return true
+            }
             if (down) chrome.scheduleHide()
             return false
         }
@@ -350,6 +393,10 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     override fun onBack(): Boolean {
         if (menus.close()) return true
+        if (episodePanel.isOpen) {
+            episodePanel.close()
+            return true
+        }
         if (skipper.upNextShown) {
             close()
             return true
