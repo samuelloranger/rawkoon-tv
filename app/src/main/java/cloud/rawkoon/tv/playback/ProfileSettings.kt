@@ -22,8 +22,9 @@ data class ProfileSettings(
     companion object {
         private const val BITS_PER_MBPS = 1_000_000
 
-        fun read(context: Context) = ProfileSettings(
-            maxBitrate = Prefs.maxBitrateMbps(context) * BITS_PER_MBPS,
+        /** [maxBitrateMbps] replaces the setting's cap, for a player that changed it. */
+        fun read(context: Context, maxBitrateMbps: Int = Prefs.maxBitrateMbps(context)) = ProfileSettings(
+            maxBitrate = maxBitrateMbps * BITS_PER_MBPS,
             maxHeight = Prefs.maxResolution(context),
             ac3Passthrough = Prefs.ac3Passthrough(context),
             downmixStereo = Prefs.downmixStereo(context),

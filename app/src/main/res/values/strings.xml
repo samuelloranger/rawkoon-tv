@@ -109,6 +109,7 @@
     <string name="play_now">Play now</string>
     <string name="subtitles">Subtitles</string>
     <string name="audio">Audio</string>
+    <string name="quality">Quality</string>
     <string name="subtitles_off">Off</string>
     <string name="choice_current">✓  %1$s</string>
     <string name="time_remaining">−%1$s</string>

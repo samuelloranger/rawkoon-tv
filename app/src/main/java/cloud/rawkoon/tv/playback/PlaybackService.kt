@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.playback
 
 import android.content.Context
 import android.util.Log
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.MediaInfo
@@ -59,7 +60,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
      * [direct] false asks for a transcode, after a file the TV couldn't play after all. Jellyfin
      * ignores [audioIndex] and [subtitleIndex] unless [mediaSourceId] names the source they belong to.
      * [remembered], the tracks last picked on the item's show, overrides the server's own choice
-     * when it finds tracks like them.
+     * when it finds tracks like them. [maxBitrateMbps] replaces the setting's cap.
      */
     suspend fun stream(
         item: MediaItem,
@@ -69,9 +70,10 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         mediaSourceId: String? = null,
         direct: Boolean = true,
         remembered: RememberedTracks? = null,
+        maxBitrateMbps: Int = Prefs.maxBitrateMbps(context),
     ): Stream {
         val itemId = JellyfinSession.parseId(item.id)
-        val quality = ProfileSettings.read(context)
+        val quality = ProfileSettings.read(context, maxBitrateMbps)
         val response = api.mediaInfoApi.getPostedPlaybackInfo(
             itemId = itemId,
             data = PlaybackInfoDto(
@@ -126,7 +128,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             val wantSubtitle = rememberedSubtitle.takeIf { subtitleIndex == null }
             if ((wantAudio != null && wantAudio != defaultAudio) || (wantSubtitle != null && wantSubtitle != defaultSubtitle)) {
                 // Only the remembered kinds are pinned: the server still picks the other, for the new audio
-                return stream(item, startMs, wantAudio ?: audioIndex, wantSubtitle ?: subtitleIndex, source.id, direct)
+                return stream(item, startMs, wantAudio ?: audioIndex, wantSubtitle ?: subtitleIndex, source.id, direct, maxBitrateMbps = maxBitrateMbps)
             }
         }
         return Stream(

@@ -115,6 +115,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         plan = { autoplay.plan(settings.autoplayNext, settings.countdownSeconds) },
     )
     private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter, trackMemory, series = { item.seriesId.takeIf { item.isEpisode } }) { position, audio, subtitleIndex, previous ->
+        // A file that already failed to play directly stays transcoded, whatever the new tracks or quality
         start(item, position, audio, subtitleIndex, previous.mediaSourceId, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
 
@@ -149,7 +150,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             try {
                 // A new episode, rather than the same one again with other tracks, gets the show's last picks
                 val remembered = if (audio == null && subtitleIndex == null && target.isEpisode) target.seriesId?.let(trackMemory::read) else null
-                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct, remembered = remembered)
+                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct, remembered = remembered, maxBitrateMbps = menus.maxBitrateMbps)
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE

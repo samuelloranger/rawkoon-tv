@@ -232,7 +232,7 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
             { Prefs.skipForwardSeconds(context) }) { put(Prefs.SKIP_FORWARD_S, it) }
         choice(column, R.string.setting_resume_rewind, RESUME_REWIND_SECONDS.map { it to if (it == 0) string(R.string.setting_off) else seconds(it) },
             { Prefs.resumeRewindSeconds(context) }) { put(Prefs.RESUME_REWIND_S, it) }
-        choice(column, R.string.setting_max_bitrate, BITRATES_MBPS.map { it to if (it == Prefs.AUTO_BITRATE_MBPS) string(R.string.setting_auto) else string(R.string.mbps, it) },
+        choice(column, R.string.setting_max_bitrate, Prefs.BITRATES_MBPS.map { it to if (it == Prefs.AUTO_BITRATE_MBPS) string(R.string.setting_auto) else string(R.string.mbps, it) },
             { Prefs.maxBitrateMbps(context) }) { put(Prefs.MAX_BITRATE_MBPS, it) }
         choice(column, R.string.setting_max_resolution, RESOLUTIONS.map { it to if (it == 0) string(R.string.setting_auto) else resolutionName(it) },
             { Prefs.maxResolution(context) }) { put(Prefs.MAX_RESOLUTION, it) }
@@ -651,5 +651,4 @@ private val SKIP_FORWARD_SECONDS = listOf(10, 15, 30, 60)
 private val RESUME_REWIND_SECONDS = listOf(0, 3, 5, 10, 15)
 private val COUNTDOWN_SECONDS = listOf(5, 8, 10, 15, 30)
 private val STILL_WATCHING_EPISODES = listOf(0, 2, 3, 4, 5)
-private val BITRATES_MBPS = listOf(Prefs.AUTO_BITRATE_MBPS, 120, 80, 60, 40, 20, 10, 8, 4, 2)
 private val RESOLUTIONS = listOf(0, 2160, 1080, 720, 480)

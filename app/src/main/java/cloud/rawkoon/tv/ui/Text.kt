@@ -74,6 +74,7 @@ object Icon {
     const val PAUSE = "\uf04c"
     const val SUBTITLES = "\uf20a"
     const val AUDIO = "\uf028"
+    const val QUALITY = "\uf625"
     const val REWIND = "\uf2ea"
     const val FORWARD = "\uf2f9"
     const val NEXT_TRACK = "\uf051"

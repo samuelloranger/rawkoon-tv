@@ -3,16 +3,17 @@ package cloud.rawkoon.tv.screens.player
 import android.content.Context
 import android.view.ViewGroup
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.playback.Stream
 import cloud.rawkoon.tv.playback.TrackMemory
 import cloud.rawkoon.tv.playback.VideoPlayer
 import cloud.rawkoon.tv.ui.ChoiceDialog
 
 /**
- * The subtitle and audio menus, and the switch they ask for. A track the player has is switched
- * here; otherwise the stop of the current stream is reported and [restart] asks for a new one
- * from the same spot (it gets the stream that was playing). A pick on an episode is kept in
- * [memory] for its show, which [series] names.
+ * The subtitle, audio and quality menus, and the switch they ask for. A track the player has is
+ * switched here; otherwise the stop of the current stream is reported and [restart] asks for a
+ * new one from the same spot (it gets the stream that was playing). A new quality always restarts.
+ * A track picked on an episode is kept in [memory] for its show, which [series] names.
  */
 class TrackMenus(
     private val context: Context,
@@ -26,12 +27,20 @@ class TrackMenus(
 ) {
     private var dialog: ChoiceDialog? = null
 
+    /**
+     * The bitrate cap streams are asked for with: the setting's, until the quality menu changes it
+     * for the rest of this player, next episodes included.
+     */
+    var maxBitrateMbps = Prefs.maxBitrateMbps(context)
+        private set
+
     /** True while a menu is up. */
     val isOpen: Boolean get() = dialog?.isAttachedToWindow == true
 
     init {
         chrome.subtitlesButton.setOnClickListener { chooseSubtitles() }
         chrome.audioButton.setOnClickListener { chooseAudio() }
+        chrome.qualityButton.setOnClickListener { chooseQuality() }
     }
 
     /** Closes the menu if one is up, and says whether there was one. */
@@ -59,12 +68,28 @@ class TrackMenus(
         }
     }
 
+    private fun chooseQuality() {
+        val s = reporter.stream ?: return
+        val options = Prefs.BITRATES_MBPS.map {
+            it to if (it == Prefs.AUTO_BITRATE_MBPS) context.getString(R.string.setting_auto) else context.getString(R.string.mbps, it)
+        }
+        choose(context.getString(R.string.quality), options, maxBitrateMbps) { mbps ->
+            if (mbps != maxBitrateMbps) {
+                maxBitrateMbps = mbps
+                val position = player.exo.currentPosition
+                reporter.stop(position)
+                restart(position, s.audioIndex, s.subtitleIndex, s)
+            }
+        }
+    }
+
     private fun choose(heading: String, options: List<Pair<Int, String>>, current: Int, pick: (Int) -> Unit) {
         chrome.cancelHide()
         dialog = ChoiceDialog(
             context,
             heading,
             options.map { (index, label) -> (if (index == current) context.getString(R.string.choice_current, label) else label) to { pick(index); chrome.scheduleHide() } },
+            selected = options.indexOfFirst { it.first == current }.coerceAtLeast(0),
         ).also { it.open(root) }
     }
 
