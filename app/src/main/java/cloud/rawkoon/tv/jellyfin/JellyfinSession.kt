@@ -48,6 +48,8 @@ object JellyfinSdk {
             clientInfo = ClientInfo(name = "Rawkoon TV", version = BuildConfig.VERSION_NAME)
             // The SDK's own device id: the first RawkoonTV used it too, so its sessions stay valid.
             deviceInfo = androidDevice(context.applicationContext)
+            apiClientFactory = BufferedBodies.factory
+            socketConnectionFactory = BufferedBodies.factory
         }.also { instance = it }
     }
 }
