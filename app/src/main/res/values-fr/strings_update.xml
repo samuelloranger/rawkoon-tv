@@ -9,7 +9,7 @@
     <string name="update_check_now">Vérifier maintenant</string>
     <string name="update_checking">Vérification…</string>
     <string name="update_install">Installer la version %1$s</string>
-    <string name="update_pill">Mettre à jour (%1$s)</string>
+    <string name="update_pill">Mettre à jour vers %1$s</string>
     <string name="update_downloading">Téléchargement… %1$d %%</string>
     <string name="update_confirm">Confirme l\'installation sur la TV.</string>
     <string name="update_failed">La mise à jour a échoué.</string>

@@ -59,15 +59,16 @@ import kotlinx.coroutines.withContext
 /**
  * App settings, split into two panes: a category column on the left and the active category's
  * options on the right. Focusing a category shows its pane at once; Right or OK steps into the
- * rows, and Left or Back returns to the category list.
+ * rows, and Left or Back returns to the category list. [toUpdate] opens on System with focus on
+ * the update's install button (or Check now), for Home's update pill.
  */
-/** [toUpdate] opens on System with focus on the update's install button (or Check now), for Home's update pill. */
 class SettingsScreen(activity: MainActivity, private val profileId: String? = null, toUpdate: Boolean = false) : Screen(activity) {
     override val view = FrameLayout(context)
     private val categories = mutableListOf<CategoryTab>()
     private val panes = mutableListOf<LinearLayout>()
     private val paneFirstFocus = mutableListOf<View?>()
     private var activeCategory = 0
+    private var focusUpdate = toUpdate
     private var dialog: ChoiceDialog? = null
     private val clockView = clock(context).apply { applyClockSetting() }
     private val updateCheck = UpdateCheck(context, Fetcher(context))
@@ -455,6 +456,9 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         pending?.let { install.label.text = string(R.string.update_install, it.version) }
     }
 
+    /** A check that finished while Settings is open shows here at once. */
+    override fun onUpdateChecked() = showUpdate()
+
     /** Back from the installer's confirmation (declined or not), the status says what is true now. */
     override fun onResume() {
         Installer.acknowledge()
@@ -491,8 +495,6 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         installer.install(release)
         showUpdate()
     }
-
-    private var focusUpdate = toUpdate
 
     override fun focusDefault() {
         if (focusUpdate) {
