@@ -74,6 +74,7 @@ class PlayerChrome(
     val thumbTime = label(context, 12f, Tokens.textPrimary, Fonts.bold(context)).apply { gravity = Gravity.CENTER }
     val subtitlesButton = CircleButton(context, Icon.SUBTITLES, context.getString(R.string.subtitles))
     val audioButton = CircleButton(context, Icon.AUDIO, context.getString(R.string.audio))
+    val qualityButton = CircleButton(context, Icon.QUALITY, context.getString(R.string.quality))
     val rewind = CircleButton(context, Icon.REWIND, context.getString(R.string.rewind, skipBackSeconds))
     val playPause = CircleButton(context, Icon.PAUSE, context.getString(R.string.play_pause), filled = true)
     val forward = CircleButton(context, Icon.FORWARD, context.getString(R.string.forward, skipForwardSeconds))
@@ -144,7 +145,7 @@ class PlayerChrome(
         }.noClip()
         val controls = CenteredRow(
             context,
-            start = group(subtitlesButton, audioButton, rewind, gapBefore = 2),
+            start = group(subtitlesButton, audioButton, qualityButton, rewind, gapBefore = 3),
             middle = playPause,
             end = group(forward, nextButton, gapBefore = 1),
             gap = 0,

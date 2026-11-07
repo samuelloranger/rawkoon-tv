@@ -145,7 +145,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         loadJob?.cancel()
         loadJob = scope.launch {
             try {
-                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct)
+                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct, maxBitrateMbps = menus.maxBitrateMbps)
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE

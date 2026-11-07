@@ -158,6 +158,9 @@ object Prefs {
     /** The official client's default, in Mbps; what "Auto" means. */
     const val AUTO_BITRATE_MBPS = 100
 
+    /** The bitrate caps to choose from, in Mbps, in Settings and in the player. */
+    val BITRATES_MBPS = listOf(AUTO_BITRATE_MBPS, 120, 80, 60, 40, 20, 10, 8, 4, 2)
+
     fun of(context: Context): SharedPreferences = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
     /** The Rawkoon server new profiles sign in to; asked for once, on the first sign-in. */
