@@ -139,6 +139,9 @@ android {
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("org.jellyfin.sdk:jellyfin-core:1.9.4")
+    // The SDK's own HTTP client, given a base that reads bodies off the main thread (BufferedBodies)
+    implementation("org.jellyfin.sdk:jellyfin-api-okhttp:1.9.4")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
     implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
 
