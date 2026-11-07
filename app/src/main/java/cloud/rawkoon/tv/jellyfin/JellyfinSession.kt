@@ -59,6 +59,26 @@ class JellyfinSession(context: Context, val profile: Profile) {
     val userId: UUID = parseId(profile.jellyfinUserId)
     private val strings = context.applicationContext
 
+    @Volatile private var versionChecked = false
+
+    /**
+     * Throws [JellyfinTooOldException] when the profile's server is below the supported version. Checked
+     * once per session; a check that can't reach the server is left to the calls that follow.
+     */
+    suspend fun requireSupportedServer() {
+        if (versionChecked) return
+        try {
+            ServerVersionGate.check(api)
+            versionChecked = true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: JellyfinTooOldException) {
+            throw e
+        } catch (e: Exception) {
+            // Unreachable or refused: the rows fetch reports it
+        }
+    }
+
     /**
      * The home rows: continue watching, next up, then the latest additions of each movie and show
      * library, in the user's library order. Rows that come back empty are left out, and a row that

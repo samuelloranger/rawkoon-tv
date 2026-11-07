@@ -13,8 +13,8 @@ data class SignedInUser(val url: String, val userId: String, val name: String, v
 /** Signs in to the Jellyfin server at [url] with Quick Connect, once [approve] has had the code approved. */
 suspend fun quickConnect(context: Context, url: String, approve: suspend (code: String) -> Unit): SignedInUser {
     val api = JellyfinSdk.get(context).createApi(url.trimEnd('/'))
-    // Fails fast with a clear error when the server is unreachable or not Jellyfin
-    api.systemApi.getPublicSystemInfo()
+    // Fails fast with a clear error when the server is unreachable, not Jellyfin, or too old
+    ServerVersionGate.require(api.systemApi.getPublicSystemInfo().content.version)
     var state = api.authenticationApi.initiateQuickConnect().content
     approve(state.code)
     while (!state.authenticated) {

@@ -42,6 +42,7 @@
     <string name="error_rawkoon_session">Your Rawkoon session ended. Sign in again.</string>
     <string name="error_jellyfin_unreachable">Rawkoon couldn\'t reach Jellyfin. Try again in a moment.</string>
     <string name="error_server_old">This Rawkoon server is too old for this sign-in. Update Rawkoon.</string>
+    <string name="error_jellyfin_old">This Jellyfin server is too old. Update it to version 12 or later.</string>
 
     <string name="pin_title">Enter %1$s\'s PIN</string>
     <string name="pin_new">Choose a PIN</string>
