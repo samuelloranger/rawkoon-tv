@@ -36,6 +36,20 @@ class TrackMemoryTest {
     }
 
     @Test
+    fun `forced subtitles never stand in for full ones`() {
+        assertNull(bestMatch(pick(track(9, "eng", forced = true)), listOf(track(4, "eng"))))
+        assertNull(bestMatch(pick(track(9, "eng")), listOf(track(3, "eng", forced = true))))
+    }
+
+    @Test
+    fun `both ways of tagging a language match, and und is no language`() {
+        assertEquals(5, bestMatch(pick(track(2, "fre")), listOf(track(4, "eng"), track(5, "fra"))))
+        assertEquals(5, bestMatch(pick(track(2, "ger")), listOf(track(5, "deu"))))
+        assertEquals(5, bestMatch(pick(track(2, "fr")), listOf(track(4, "eng"), track(5, "fre"))))
+        assertEquals(2, bestMatch(pick(track(1, "und")), listOf(track(1, "eng"), track(2, null))))
+    }
+
+    @Test
     fun `hearing impaired subtitles are preferred when they were picked`() {
         val tracks = listOf(track(3, "eng"), track(4, "eng", hearingImpaired = true))
         assertEquals(4, bestMatch(pick(track(9, "eng", hearingImpaired = true)), tracks))

@@ -122,10 +122,11 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
         if (remembered != null) {
             // The server picked by the profile's languages; ask again when the show's own picks differ
             val (rememberedAudio, rememberedSubtitle) = rememberedIndices(remembered, audio, subtitles)
-            val wantAudio = rememberedAudio.takeIf { audioIndex == null } ?: defaultAudio
-            val wantSubtitle = rememberedSubtitle.takeIf { subtitleIndex == null } ?: defaultSubtitle
-            if (wantAudio != defaultAudio || wantSubtitle != defaultSubtitle) {
-                return stream(item, startMs, wantAudio, wantSubtitle, source.id, direct)
+            val wantAudio = rememberedAudio.takeIf { audioIndex == null }
+            val wantSubtitle = rememberedSubtitle.takeIf { subtitleIndex == null }
+            if ((wantAudio != null && wantAudio != defaultAudio) || (wantSubtitle != null && wantSubtitle != defaultSubtitle)) {
+                // Only the remembered kinds are pinned: the server still picks the other, for the new audio
+                return stream(item, startMs, wantAudio ?: audioIndex, wantSubtitle ?: subtitleIndex, source.id, direct)
             }
         }
         return Stream(

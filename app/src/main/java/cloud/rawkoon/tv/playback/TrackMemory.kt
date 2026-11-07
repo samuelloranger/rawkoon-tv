@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import cloud.rawkoon.tv.data.optIntOrNull
 import cloud.rawkoon.tv.data.optStringOrNull
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * A track picked on one episode, described by what it is rather than its index: two episodes of a
@@ -47,19 +48,37 @@ sealed interface SubtitlePick {
 data class RememberedTracks(val audio: TrackPick? = null, val subtitle: SubtitlePick? = null)
 
 /**
- * The best match for [pick] among [tracks], or null when none shares its language. The flags
- * weigh most, so forced subtitles stay forced and a full track stays full; then the track's name
- * (which tells a commentary from the film), the codec and the channels. A tie goes to the first.
+ * The best match for [pick] among [tracks], or null when none shares its language and its forced
+ * flag: forced subtitles never stand in for full ones, nor the other way round. Then the SDH flag
+ * weighs most, the track's name (which tells a commentary from the film), the codec and the
+ * channels. A tie goes to the first.
  */
 fun bestMatch(pick: TrackPick, tracks: List<Track>): Int? = tracks
-    .filter { it.language.equals(pick.language, ignoreCase = true) }
+    .filter { languageKey(it.language) == languageKey(pick.language) && it.forced == pick.forced }
     .maxByOrNull { track ->
-        (if (track.forced == pick.forced) 8 else 0) +
-            (if (track.hearingImpaired == pick.hearingImpaired) 4 else 0) +
+        (if (track.hearingImpaired == pick.hearingImpaired) 4 else 0) +
             (if (track.name.equals(pick.name, ignoreCase = true)) 2 else 0) +
             (if (track.codec.equals(pick.codec, ignoreCase = true)) 1 else 0) +
             (if (track.channels == pick.channels) 1 else 0)
     }?.index
+
+/**
+ * One code per language, whichever way a file tags it: "fre" and "fra" are both French, and "fr"
+ * too. "und" is no language, like a missing tag.
+ */
+internal fun languageKey(code: String?): String? {
+    val lower = code?.trim()?.lowercase()?.takeIf { it.isNotEmpty() && it != "und" } ?: return null
+    BIBLIOGRAPHIC[lower]?.let { return it }
+    if (lower.length != 2) return lower
+    return runCatching { Locale.forLanguageTag(lower).isO3Language }.getOrNull()?.takeIf { it.isNotEmpty() } ?: lower
+}
+
+/** The ISO 639-2 bibliographic codes that differ from the terminology ones [Locale] gives. */
+private val BIBLIOGRAPHIC = mapOf(
+    "alb" to "sqi", "arm" to "hye", "baq" to "eus", "bur" to "mya", "chi" to "zho", "cze" to "ces", "dut" to "nld",
+    "fre" to "fra", "geo" to "kat", "ger" to "deu", "gre" to "ell", "ice" to "isl", "mac" to "mkd", "mao" to "mri",
+    "may" to "msa", "per" to "fas", "rum" to "ron", "slo" to "slk", "tib" to "bod", "wel" to "cym",
+)
 
 /**
  * The tracks to ask for on an episode, from what was picked on its show: null for a kind where the
