@@ -27,10 +27,8 @@ import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * The show's seasons and episodes over the playing video, which plays on dimmed behind: the season
@@ -76,15 +74,16 @@ class EpisodePanel(
 
     val isOpen: Boolean get() = view.parent != null
 
-    /** Opens on [episode], the one playing, in its season. */
-    fun open(episode: MediaItem) {
-        val series = episode.seriesId ?: return
+    /** Opens on [episode], the one playing, in its season; false (and nothing shown) for an episode with no show. */
+    fun open(episode: MediaItem): Boolean {
+        val series = episode.seriesId ?: return false
         if (!built) build()
         if (series != seriesId) {
             seriesId = series
             seasons = emptyList()
-            seasonEpisodes.clear()
         }
+        // Progress and watched marks change as episodes play: each opening reads them again
+        seasonEpisodes.clear()
         current = episode
         shownSeason = null
         heading.text = episode.headerTitle
@@ -98,9 +97,8 @@ class EpisodePanel(
         loadJob?.cancel()
         loadJob = launchLoading {
             if (seasons.isEmpty()) {
-                // Off the main thread: the client reads the response body where it is called
-                seasons = withContext(Dispatchers.IO) { session.seasons(series) }
-                tabs.set(seasons, onLeave = { main.removeCallbacks(settleTab) }) { season, focused ->
+                seasons = session.seasons(series)
+                tabs.set(seasons, onLeave = { focusOnLoad = false; main.removeCallbacks(settleTab) }) { season, focused ->
                     main.removeCallbacks(settleTab)
                     if (focused) {
                         // Moving along the tabs only switches once focus rests on one
@@ -114,6 +112,7 @@ class EpisodePanel(
             val season = seasons.firstOrNull { it.id == episode.seasonId } ?: seasons.firstOrNull() ?: return@launchLoading close()
             select(season, episode.id, focus = true)
         }
+        return true
     }
 
     fun close() {
@@ -154,9 +153,7 @@ class EpisodePanel(
         view.addView(meta, at(48, 272, context.dp(600), ViewGroup.LayoutParams.WRAP_CONTENT))
         view.addView(overview, at(48, 294, context.dp(575), context.dp(42)))
         // The row starts its cards at the pages' content edge; here they line up with the text instead
-        view.addView(episodes, at(48 - Tokens.CONTENT_START, 344, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            rightMargin = context.dp(48 - Tokens.CONTENT_START)
-        })
+        view.addView(episodes, at(48 - Tokens.CONTENT_START, 344, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         view.addView(parking, FrameLayout.LayoutParams(1, 1))
     }
 
@@ -172,7 +169,7 @@ class EpisodePanel(
 
     /** Shows [season]'s episodes, focusing [episodeId] (or the first unwatched one) when [focus] is set. */
     private fun select(season: MediaItem, episodeId: String?, focus: Boolean) {
-        val series = seriesId ?: return
+        if (seriesId == null) return
         tabs.select(season.id)
         if (season.id == shownSeason) {
             if (focus && loadJob?.isActive == true) focusOnLoad = true else if (focus) episodes.restoreFocus()
@@ -182,25 +179,38 @@ class EpisodePanel(
         focusOnLoad = focus
         loadJob?.cancel()
         loadJob = launchLoading {
-            val list = seasonEpisodes[season.id] ?: withContext(Dispatchers.IO) { session.episodes(series, season.id) }.also { seasonEpisodes[season.id] = it }
-            val playingId = current?.id
-            val refocus = focusOnLoad || episodes.hasFocus()
-            // Focus on the old cards waits on the panel while they go, rather than falling to a tab
-            if (episodes.hasFocus()) park()
-            episodes.setCards(
-                list.map { e ->
-                    val name = listOfNotNull(e.episodeNumber?.let { "E$it" }, e.title).joinToString(" · ")
-                    val detail = if (e.id == playingId) context.getString(R.string.now_playing) else e.runtimeMinutes?.let { MediaItem.duration(it) }
-                    Card(context, e, true, app.images, { describe(it.item) }, { pick(it.item) }, caption = name to detail)
-                },
-            )
-            val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull() ?: return@launchLoading
-            episodes.remember(target.id)
-            describe(target, settle = false)
-            if (refocus) episodes.restoreFocus()
-            parking.isFocusable = false
-            episodes.remembered()?.let(episodes::snapTo)
+            try {
+                showSeason(season, episodeId)
+            } finally {
+                parking.isFocusable = false
+            }
         }
+    }
+
+    private suspend fun showSeason(season: MediaItem, episodeId: String?) {
+        val series = seriesId ?: return
+        val list = seasonEpisodes[season.id] ?: session.episodes(series, season.id).also { seasonEpisodes[season.id] = it }
+        val playingId = current?.id
+        val refocus = focusOnLoad || episodes.hasFocus()
+        // Focus on the old cards waits on the panel while they go, rather than falling to a tab
+        if (episodes.hasFocus()) park()
+        episodes.setCards(
+            list.map { e ->
+                val name = listOfNotNull(e.episodeNumber?.let { "E$it" }, e.title).joinToString(" · ")
+                val detail = if (e.id == playingId) context.getString(R.string.now_playing) else e.runtimeMinutes?.let { MediaItem.duration(it) }
+                Card(context, e, true, app.images, { describe(it.item) }, { pick(it.item) }, caption = name to detail)
+            },
+        )
+        val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull()
+        if (target == null) {
+            // A season with nothing in it: focus goes back to its tab
+            if (refocus) tabs.focusSelected()
+            return
+        }
+        episodes.remember(target.id)
+        describe(target, settle = false)
+        if (refocus) episodes.restoreFocus()
+        episodes.remembered()?.let(episodes::snapTo)
     }
 
     private fun pick(episode: MediaItem) {

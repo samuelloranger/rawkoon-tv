@@ -306,11 +306,15 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     /** Puts the show's episodes over the video, which plays on behind them. */
     private fun openEpisodes() {
-        if (!item.isEpisode || episodePanel.isOpen) return
+        if (!item.isEpisode || item.seriesId == null || episodePanel.isOpen) return
         menus.close()
         chrome.setChrome(false)
         chrome.held = true
-        episodePanel.open(item)
+        // An episode with no show to list leaves the controls as they were
+        if (!episodePanel.open(item)) {
+            chrome.held = false
+            chrome.setChrome(true)
+        }
     }
 
     private fun togglePause() {
@@ -360,7 +364,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         if (menus.isOpen || skipper.upNextShown || episodePanel.isOpen) return false
         if (chrome.shown) {
             // Down from the row of buttons opens the episodes, as their button does
-            if (down && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && chrome.controlsFocused && item.isEpisode) {
+            if (down && event.repeatCount == 0 && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && chrome.controlsFocused && item.isEpisode && item.seriesId != null) {
                 openEpisodes()
                 return true
             }

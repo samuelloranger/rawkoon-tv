@@ -157,7 +157,8 @@ class SegmentSkipper(
             }
         }
         upNext.showRising()
-        upNext.requestFocus()
+        // Over the episodes panel, the button shows and counts down without taking focus from it
+        if (!chrome.held) upNext.requestFocus()
     }
 
     fun stopCountdown() {
