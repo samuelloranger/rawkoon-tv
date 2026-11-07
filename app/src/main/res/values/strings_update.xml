@@ -9,6 +9,7 @@
     <string name="update_check_now">Check now</string>
     <string name="update_checking">Checking…</string>
     <string name="update_install">Install version %1$s</string>
+    <string name="update_pill">Update to %1$s</string>
     <string name="update_downloading">Downloading… %1$d%%</string>
     <string name="update_confirm">Confirm the installation on the TV.</string>
     <string name="update_failed">The update failed.</string>

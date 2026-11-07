@@ -61,7 +61,8 @@ import kotlinx.coroutines.withContext
  * options on the right. Focusing a category shows its pane at once; Right or OK steps into the
  * rows, and Left or Back returns to the category list.
  */
-class SettingsScreen(activity: MainActivity, private val profileId: String? = null) : Screen(activity) {
+/** [toUpdate] opens on System with focus on the update's install button (or Check now), for Home's update pill. */
+class SettingsScreen(activity: MainActivity, private val profileId: String? = null, toUpdate: Boolean = false) : Screen(activity) {
     override val view = FrameLayout(context)
     private val categories = mutableListOf<CategoryTab>()
     private val panes = mutableListOf<LinearLayout>()
@@ -100,7 +101,8 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         addCategory(categoryColumn, paneStack, Icon.TV, R.string.settings_display_audio) { addDisplayAndAudioSection(it) }
         addCategory(categoryColumn, paneStack, Icon.GEAR, R.string.settings_system) { addSystemSection(it) }
 
-        selectCategory(0, animate = false)
+        // System is the last category
+        selectCategory(if (toUpdate) categories.lastIndex else 0, animate = false)
 
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -108,7 +110,11 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
             clipToPadding = false
         }
         body.addView(categoryColumn, LinearLayout.LayoutParams(context.dp(CATEGORY_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
-        body.addView(scroll, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+        // The frame clips the list to its own bounds: the page around it doesn't clip, so a scrolled
+        // pane would otherwise draw up over the title and under the clock
+        val paneFrame = FrameLayout(context)
+        paneFrame.addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        body.addView(paneFrame, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
             marginStart = context.dp(PANE_GAP - SCROLL_ROOM)
         })
 
@@ -486,7 +492,15 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         showUpdate()
     }
 
+    private var focusUpdate = toUpdate
+
     override fun focusDefault() {
+        if (focusUpdate) {
+            focusUpdate = false
+            showUpdate()
+            (install.takeIf { it.visibility == View.VISIBLE } ?: checkNow).requestFocus()
+            return
+        }
         categories.getOrNull(activeCategory)?.requestFocus()
     }
 

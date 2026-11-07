@@ -86,6 +86,9 @@ abstract class Screen(val activity: MainActivity) {
 
     open fun onResume() {}
 
+    /** A background update check finished: a screen that offers updates shows what it found. */
+    open fun onUpdateChecked() {}
+
     /** The app is no longer visible: Home pressed, another app in front, or the TV gone to sleep. Follows [onPause]. */
     open fun onStop() {}
 
