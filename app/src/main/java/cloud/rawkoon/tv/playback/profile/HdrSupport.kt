@@ -10,6 +10,13 @@ fun HdrOverride.resolve(detected: Boolean): Boolean = when (this) {
 	HdrOverride.NEVER -> false
 }
 
+/**
+ * Whether the TV decodes Dolby Vision profile 7 (an enhancement layer): when it [reported] so, or
+ * for a model known to without saying so ([unreported]) that has everything else profile 7 needs.
+ */
+fun supportsDoviProfile7(reported: Boolean, unreported: Boolean, dolbyVision: Boolean, main10: Boolean, hdr10: Boolean): Boolean =
+	reported || (unreported && dolbyVision && main10 && hdr10)
+
 // TODO Use VideoRangeType enum with Jellyfin 10.11 based SDK
 /** The range types the server must not direct play in an AV1 file, given what is supported. */
 fun unsupportedAv1RangeTypes(

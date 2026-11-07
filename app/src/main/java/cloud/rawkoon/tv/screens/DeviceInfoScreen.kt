@@ -21,7 +21,10 @@ import cloud.rawkoon.tv.playback.ProfileSettings
 import cloud.rawkoon.tv.playback.formatRate
 import cloud.rawkoon.tv.playback.groupModes
 import cloud.rawkoon.tv.playback.hdrTypeNames
+import cloud.rawkoon.tv.playback.profile.KnownDefects
 import cloud.rawkoon.tv.playback.profile.MediaCodecCapabilitiesTest
+import cloud.rawkoon.tv.playback.profile.resolve
+import cloud.rawkoon.tv.playback.profile.supportsDoviProfile7
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.SettingRow
 import cloud.rawkoon.tv.ui.Tokens
@@ -139,7 +142,13 @@ class DeviceInfoScreen(activity: MainActivity, private val profileId: String?) :
             hdr(R.string.info_hevc_hdr10_plus, hdr10Plus) { it.supportsHevcHDR10Plus() },
             hdr(R.string.info_hevc_dolby_vision, dolbyVision) { it.supportsHevcDolbyVision() },
             // Profile 7 is only ever allowed by the TV, never forced on (see the profile's range types)
-            probe(R.string.info_dolby_vision_7) { it.supportsHevcDolbyVisionEL().let { detected -> yesNo(HdrStatus(detected, detected && dolbyVision != HdrOverride.NEVER)) } },
+            probe(R.string.info_dolby_vision_7) {
+                val detected = supportsDoviProfile7(
+                    it.supportsHevcDolbyVisionEL(), KnownDefects.unreportedDoviProfile7Support,
+                    dolbyVision.resolve(it.supportsHevcDolbyVision()), it.supportsHevcMain10(), hdr10.resolve(it.supportsHevcHDR10()),
+                )
+                yesNo(HdrStatus(detected, detected && dolbyVision != HdrOverride.NEVER))
+            },
             plain(R.string.info_av1) { it.supportsAV1() },
             plain(R.string.info_av1_10) { it.supportsAV1Main10() },
             hdr(R.string.info_av1_hdr10, hdr10) { it.supportsAV1HDR10() },
