@@ -354,6 +354,7 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         showUpdate()
 
         header(column, R.string.settings_about)
+        action(column, R.string.setting_device_info, "›") { activity.push(DeviceInfoScreen(activity, profileId)) }
         action(column, R.string.setting_licences, "›") { activity.push(LicencesScreen(activity)) }
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.medium(context)).apply {
             text = string(R.string.version, BuildConfig.VERSION_NAME)
