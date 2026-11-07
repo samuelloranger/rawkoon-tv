@@ -113,6 +113,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         plan = { autoplay.plan(settings.autoplayNext, settings.countdownSeconds) },
     )
     private val menus: TrackMenus = TrackMenus(context, view, chrome, player, reporter) { position, audio, subtitleIndex, previous ->
+        // A file that already failed to play directly stays transcoded, whatever the new tracks or quality
         start(item, position, audio, subtitleIndex, previous.mediaSourceId, direct = !triedTranscode || previous.method == PlayMethod.DIRECT_PLAY)
     }
 
