@@ -18,8 +18,8 @@ import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 
 /**
- * What the app is made of and under which licence, one row each. The rows take the focus only so
- * that Up and Down scroll the list; OK does nothing. Back leaves.
+ * What the app is made of and under which licence, one row each. The rows take the focus so that
+ * Up and Down scroll the list; OK opens the full licence text where the app ships one. Back leaves.
  */
 class LicencesScreen(activity: MainActivity) : Screen(activity) {
     override val view = FrameLayout(context)
@@ -35,7 +35,7 @@ class LicencesScreen(activity: MainActivity) : Screen(activity) {
         column.addView(label(context, 13f, Tokens.textMuted, Fonts.bold(context)).apply { text = string(R.string.licence_uses).uppercase() }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = context.dp(28); bottomMargin = context.dp(4) })
-        for (credit in Licences.credits) add(column, credit.name, credit.licence)
+        for (credit in Licences.credits) add(column, credit.name, credit.licence, credit.text)
 
         val scroll = SettingsScroll(context).apply {
             isFocusable = false
@@ -63,9 +63,10 @@ class LicencesScreen(activity: MainActivity) : Screen(activity) {
         })
     }
 
-    private fun add(column: LinearLayout, name: String, licence: String?) {
+    private fun add(column: LinearLayout, name: String, licence: String?, text: Int? = null) {
         val row = SettingRow(context, name)
         row.setValue(licence.orEmpty())
+        if (text != null) row.setOnClickListener { activity.push(LicenceTextScreen(activity, name, text)) }
         rows += row
         column.addView(row, LinearLayout.LayoutParams(context.dp(LICENCE_ROW_WIDTH), ViewGroup.LayoutParams.WRAP_CONTENT))
     }

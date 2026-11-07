@@ -1,7 +1,12 @@
 package cloud.rawkoon.tv.data
 
-/** One thing the app uses or adapts, and the licence it comes under; [licence] is null when it is not known. */
-data class Credit(val name: String, val licence: String?)
+import cloud.rawkoon.tv.R
+
+/**
+ * One thing the app uses or adapts, and the licence it comes under; [licence] is null when it is not
+ * known. [text] is the raw resource holding the full licence text, for what ships with its own.
+ */
+data class Credit(val name: String, val licence: String?, val text: Int? = null)
 
 /**
  * What the licences screen lists: the app itself, code adapted from other projects, fonts and
@@ -14,8 +19,8 @@ object Licences {
     val credits = listOf(
         Credit("jellyfin-androidtv", "GPL-2.0"),
         Credit("Couch", null),
-        Credit("Bricolage Grotesque", "SIL OFL 1.1"),
-        Credit("Hanken Grotesk", "SIL OFL 1.1"),
+        Credit("Bricolage Grotesque", "SIL OFL 1.1", R.raw.bricolage_ofl),
+        Credit("Hanken Grotesk", "SIL OFL 1.1", R.raw.hanken_ofl),
         // The font is under the OFL, the icon designs in it under CC BY
         Credit("Font Awesome Free", "SIL OFL 1.1, CC BY 4.0"),
         Credit("AndroidX media3", "Apache-2.0"),
