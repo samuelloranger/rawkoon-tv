@@ -3,6 +3,9 @@ package cloud.rawkoon.tv.data
 import android.content.Context
 import org.json.JSONArray
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * The saved profiles, in the order they were added. Used from the main thread; the file is tiny.
@@ -55,13 +58,13 @@ class ProfileStore(private val file: File) {
 
     private fun write(list: List<Profile>) {
         cache = list
-        val text = encode(list)
         val tmp = File(file.path + ".tmp")
-        tmp.writeText(text)
-        if (!tmp.renameTo(file)) {
-            file.writeText(text)
-            tmp.delete()
+        // Synced before the rename: a power cut then leaves the old file or the new one, never an empty one
+        FileOutputStream(tmp).use {
+            it.write(encode(list).toByteArray())
+            it.fd.sync()
         }
+        Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
     }
 
     companion object {
