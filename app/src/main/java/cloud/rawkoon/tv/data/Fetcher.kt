@@ -13,14 +13,15 @@ import java.net.URL
  */
 @Suppress("UNUSED_PARAMETER")
 class Fetcher(context: Context) {
-    /** The stream of [url]; closing it also disconnects an http(s) connection. */
-    fun open(url: String): InputStream {
+    /** The stream of [url], with [headers] on the request; closing it also disconnects an http(s) connection. */
+    fun open(url: String, headers: Map<String, String> = emptyMap()): InputStream {
         require(Uri.parse(url).scheme.let { it == "http" || it == "https" }) { "Not an http(s) URL: $url" }
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = TIMEOUT_MS
             connection.readTimeout = TIMEOUT_MS
             connection.instanceFollowRedirects = true
+            headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
             return object : FilterInputStream(connection.inputStream) {
                 override fun close() {
                     try {

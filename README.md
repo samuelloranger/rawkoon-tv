@@ -25,7 +25,7 @@ for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop ch
   max bitrate and resolution, matching the TV's refresh rate to the video, the clock, and clearing
   the image cache.
 - **Launcher.** Watch Next and a Recently added channel on the TV's home screen.
-- **Updates.** The app checks the releases once a day and installs a new one after Android's
+- **Updates.** The app checks the releases every six hours (fifteen minutes after a failed check) and installs a new one after Android's
   confirmation.
 - **Languages.** French and English, following the TV, with a setting to force either.
 
@@ -53,7 +53,7 @@ the same annotated tag (`--dry-run` stops before that). The release title is the
 the signing key must be the first RawkoonTV's: installed copies of both generations update from
 these releases.
 
-The app checks the latest release once a day and offers it in Settings, verifying the APK against
+The app checks the latest release every six hours and offers it in Settings, verifying the APK against
 its `.sha256` before handing it to Android's installer.
 
 ## Credits

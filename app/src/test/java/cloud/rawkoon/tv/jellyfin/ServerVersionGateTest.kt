@@ -7,39 +7,41 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerVersionGateTest {
+    private fun tooOld(raw: String?) = runCatching { ServerVersionGate.require(raw) }.exceptionOrNull() is JellyfinTooOldException
+
     @Test
     fun `versions below the minimum are too old`() {
-        assertTrue(ServerVersionGate.isTooOld("10.11.0"))
-        assertTrue(ServerVersionGate.isTooOld("11.9.9"))
-        assertTrue(ServerVersionGate.isTooOld("10.10.7"))
+        assertTrue(tooOld("10.11.0"))
+        assertTrue(tooOld("11.9.9"))
+        assertTrue(tooOld("10.10.7"))
     }
 
     @Test
     fun `the minimum and later are accepted`() {
-        assertFalse(ServerVersionGate.isTooOld("12.0.0"))
-        assertFalse(ServerVersionGate.isTooOld("12.0.1"))
-        assertFalse(ServerVersionGate.isTooOld("12.3.0"))
-        assertFalse(ServerVersionGate.isTooOld("13.0.0"))
+        assertFalse(tooOld("12.0.0"))
+        assertFalse(tooOld("12.0.1"))
+        assertFalse(tooOld("12.3.0"))
+        assertFalse(tooOld("13.0.0"))
     }
 
     @Test
     fun `a missing or unreadable version never blocks`() {
-        assertFalse(ServerVersionGate.isTooOld(null))
-        assertFalse(ServerVersionGate.isTooOld(""))
-        assertFalse(ServerVersionGate.isTooOld("   "))
-        assertFalse(ServerVersionGate.isTooOld("not a version"))
+        assertFalse(tooOld(null))
+        assertFalse(tooOld(""))
+        assertFalse(tooOld("   "))
+        assertFalse(tooOld("not a version"))
         assertNull(ServerVersionGate.parse("not a version"))
     }
 
     @Test
     fun `four-part versions compare like three-part ones`() {
-        assertTrue(ServerVersionGate.isTooOld("10.11.0.0"))
-        assertFalse(ServerVersionGate.isTooOld("12.0.0.0"))
+        assertTrue(tooOld("10.11.0.0"))
+        assertFalse(tooOld("12.0.0.0"))
     }
 
     @Test
     fun `a pre-release suffix is unreadable, so it never blocks`() {
-        assertFalse(ServerVersionGate.isTooOld("12.0.0-rc1"))
+        assertFalse(tooOld("12.0.0-rc1"))
     }
 
     @Test

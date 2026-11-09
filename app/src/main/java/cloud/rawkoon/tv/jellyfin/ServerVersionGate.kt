@@ -13,9 +13,6 @@ object ServerVersionGate {
     /** The oldest Jellyfin server the app supports. */
     val MINIMUM = ServerVersion(12, 0, 0)
 
-    /** True only for a version that parses and is below [MINIMUM]; a missing or unreadable one never blocks. */
-    fun isTooOld(raw: String?): Boolean = parse(raw)?.let { it < MINIMUM } ?: false
-
     fun parse(raw: String?): ServerVersion? = raw?.trim()?.takeIf { it.isNotEmpty() }?.let { runCatching { ServerVersion.fromString(it) }.getOrNull() }
 
     /** Throws [JellyfinTooOldException] when [raw] is below [MINIMUM]. */
