@@ -67,7 +67,7 @@ abstract class Screen(val activity: MainActivity) {
     /** Puts focus where a fresh visit starts. */
     open fun focusDefault() {}
 
-    fun onHidden() {
+    open fun onHidden() {
         // A screen already hidden (replaced while below another) has no focus left to remember
         view.findFocus()?.let { lastFocus = focusToRemember(it) }
     }
