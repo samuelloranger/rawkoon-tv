@@ -13,9 +13,7 @@ class InstallResult : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         when (status) {
-            PackageInstaller.STATUS_PENDING_USER_ACTION -> confirmation(intent)?.let {
-                context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> confirmation(intent)?.let { Installer.confirm(context, it) }
             // Success replaces the running app; aborted means the user said no.
             PackageInstaller.STATUS_SUCCESS, PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
             // A build signed with another key (debug builds, forks) can't be updated in place.

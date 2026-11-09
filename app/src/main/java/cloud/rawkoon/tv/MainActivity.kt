@@ -31,6 +31,7 @@ import cloud.rawkoon.tv.screens.linkPage
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
+import cloud.rawkoon.tv.update.Installer
 import cloud.rawkoon.tv.update.UpdateCheck
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -292,6 +293,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         foreground = false
+        Installer.appInFront = false
         syncLive()
         stack.lastOrNull()?.onPause()
         super.onPause()
@@ -305,6 +307,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         foreground = true
+        Installer.openPending(this)
         syncLive()
         stack.lastOrNull()?.onResume()
     }

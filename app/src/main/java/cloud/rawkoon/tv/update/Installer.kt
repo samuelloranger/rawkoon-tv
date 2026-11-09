@@ -128,6 +128,27 @@ class Installer(context: Context, private val fetcher: Fetcher) {
         private var owner: Any? = null
         private var listener: ((InstallState) -> Unit)? = null
 
+        /** True while the app is in front: only then may a broadcast open the confirmation (Android 10+ blocks it otherwise). */
+        @Volatile
+        var appInFront = false
+
+        /** The confirmation that arrived while the app was in the background; opened on the next resume. */
+        @Volatile
+        var pendingConfirmation: Intent? = null
+
+        /** Opens the confirmation now if the app is in front, else keeps it for [openPending]. */
+        fun confirm(context: Context, intent: Intent) {
+            if (appInFront) context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) else pendingConfirmation = intent
+        }
+
+        /** Called when the app comes to the front: opens a confirmation that was held back. */
+        fun openPending(context: Context) {
+            appInFront = true
+            val intent = pendingConfirmation ?: return
+            pendingConfirmation = null
+            runCatching { context.startActivity(intent) }
+        }
+
         /** The latest state; main thread only. */
         var state: InstallState = InstallState.Idle
             private set
