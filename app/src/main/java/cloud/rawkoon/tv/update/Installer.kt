@@ -40,6 +40,7 @@ class Installer(context: Context, private val fetcher: Fetcher) {
     /** Starts downloading [release]. Ignored while an install runs. Main thread. */
     fun install(release: Release) {
         if (!busy.compareAndSet(false, true)) return
+        pendingConfirmation = null
         publish(InstallState.Downloading(0))
         executor.execute {
             val apk = File(context.cacheDir, Release.UNIVERSAL_APK)

@@ -12,6 +12,8 @@ import cloud.rawkoon.tv.R
 class InstallResult : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
+        // Any answer but "ask the user" ends an earlier install, so a held confirmation is stale
+        if (status != PackageInstaller.STATUS_PENDING_USER_ACTION) Installer.pendingConfirmation = null
         when (status) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> confirmation(intent)?.let { Installer.confirm(context, it) }
             // Success replaces the running app; aborted means the user said no.
