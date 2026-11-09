@@ -24,7 +24,7 @@ class UpdateCheck(context: Context, private val fetcher: Fetcher) {
     /** When the last check ran, in epoch millis; 0 before the first. */
     val checkedAt: Long get() = prefs.getLong(CHECKED_AT, 0L)
 
-    /** True when the last check could not reach GitHub or read what it found. */
+    /** True when the last check got no reply from GitHub, or one that is not a release object. */
     val failed: Boolean get() = prefs.getBoolean(FAILED, false)
 
     /**
@@ -40,8 +40,8 @@ class UpdateCheck(context: Context, private val fetcher: Fetcher) {
         val text = fetcher.text(LATEST)
         val release = text?.let { Release.fromGitHub(it, Build.SUPPORTED_ABIS.toList()) }
         prefs.edit().apply {
-            // A reply with nothing to install (no matching asset) is "no update", not a failure to retry
-            putBoolean(FAILED, text == null)
+            // A readable reply with nothing to install (no asset, draft, pre-release) is "no update"; no reply or a garbled one is retried
+            putBoolean(FAILED, text == null || !Release.isGitHubRelease(text))
             if (release != null) putString(LATEST_RELEASE, release.serialize())
         }.apply()
     }

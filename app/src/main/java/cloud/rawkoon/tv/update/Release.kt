@@ -32,6 +32,9 @@ class Release(val version: String, val apkName: String, val apkUrl: String, val 
          * GitHub's release JSON, or null for drafts, pre-releases and releases missing the APK or its
          * checksum: without a checksum there is nothing to verify, so nothing to offer.
          */
+        /** True when [text] is a release object at all; HTML or garbage is a bad reply, not "no update". */
+        fun isGitHubRelease(text: String): Boolean = runCatching { JSONObject(text).getString("tag_name") }.isSuccess
+
         fun fromGitHub(text: String, abis: List<String>): Release? {
             return try {
                 val json = JSONObject(text)
