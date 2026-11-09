@@ -297,6 +297,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private fun switchTo(target: MediaItem, stopAtMs: Long) {
         episodePanel.close()
         reporter.stop(stopAtMs)
+        player.exo.pause()
         scrub.reset()
         next = null
         skipper.reset()
