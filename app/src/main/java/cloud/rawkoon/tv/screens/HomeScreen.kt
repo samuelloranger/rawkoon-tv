@@ -202,7 +202,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         return try {
             withTimeoutOrNull(RAWKOON_TIMEOUT_MS) {
                 val userId = suspend {
-                    profile.rawkoonUserId ?: api.userId().ifBlank { null }?.also { app.profiles.save(profile.copy(rawkoonUserId = it)) }
+                    profile.rawkoonUserId ?: api.userId().ifBlank { null }?.also { id -> app.profiles.get(profile.id)?.let { app.profiles.save(it.copy(rawkoonUserId = id)) } }
                 }
                 RawkoonOutcome.Loaded(RawkoonHome.load(api, userId, text, LocalDate.now(), Instant.now(), Locale.getDefault()))
             } ?: RawkoonOutcome.Unavailable
