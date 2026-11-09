@@ -26,5 +26,5 @@ data class RawkoonEndpoint(val profileId: String, val baseUrl: String, val token
 fun Profile.rawkoonEndpoint(context: Context): RawkoonEndpoint? {
     val token = rawkoonToken ?: return null
     val url = serverUrl(context) ?: return null
-    return RawkoonEndpoint(id, url.trim().trimEnd('/'), token)
+    return RawkoonEndpoint(id, cleanServerUrl(url), token)
 }
