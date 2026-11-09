@@ -63,7 +63,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     override val slides get() = false
     private val service = PlaybackService(context, session)
     private val settings = PlayerSettings.read(context)
-    private val player = VideoPlayer(context, service.authorization, settings.skipBackMs, settings.skipForwardMs)
+    private val player = VideoPlayer(context, service.authorization, service.serverHost, settings.skipBackMs, settings.skipForwardMs)
     private val autoplay = AutoplayTracker(settings.stillWatchingAfter)
     private val displayMatcher = DisplayMatcher(activity, player.exo, mainHandler, settings.matchDisplay)
     private val trickplayLoader = TrickplayLoader(context, service.authorization)

@@ -13,6 +13,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -24,12 +25,12 @@ import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 
 /**
  * ExoPlayer set up as the official client does it (decoder fallback, the ffmpeg extension for
- * audio the TV can't decode, wider TS timestamp search), with Jellyfin's auth header on every
- * request and Jellyfin's track numbers mapped onto ExoPlayer's tracks. [seekBackMs] and
+ * audio the TV can't decode, wider TS timestamp search), with Jellyfin's auth header on requests to
+ * [serverHost] and Jellyfin's track numbers mapped onto ExoPlayer's tracks. [seekBackMs] and
  * [seekForwardMs] are how far the rewind and fast-forward buttons and keys seek.
  */
 @OptIn(UnstableApi::class)
-class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, seekForwardMs: Long) {
+class VideoPlayer(context: Context, authorization: String, serverHost: String?, seekBackMs: Long, seekForwardMs: Long) {
     private val trackSelector = DefaultTrackSelector(context).apply {
         parameters = buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true).build()
     }
@@ -45,8 +46,6 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent("RawkoonTV")
-            .setDefaultRequestProperties(mapOf("Authorization" to authorization))
-            .setAllowCrossProtocolRedirects(true)
         val extractors = DefaultExtractorsFactory()
             .setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 3)
             .setConstantBitrateSeekingEnabled(true)
@@ -54,7 +53,10 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
         exo = ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)
             .setTrackSelector(trackSelector)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http), extractors))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(ResolvingDataSource.Factory(DefaultDataSource.Factory(context, http)) { spec ->
+                // A remote direct-play URL is someone else's server: it must not see the Jellyfin token
+                if (sendsAuthorization(serverHost, spec.uri.host)) spec.withAdditionalHeaders(mapOf("Authorization" to authorization)) else spec
+            }, extractors))
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             .setSeekBackIncrementMs(seekBackMs)
             .setSeekForwardIncrementMs(seekForwardMs)
@@ -138,6 +140,9 @@ class VideoPlayer(context: Context, authorization: String, seekBackMs: Long, see
         fun externalId(index: Int) = "$EXTERNAL_PREFIX$index"
     }
 }
+
+/** True when [requestHost] is the Jellyfin server's own host, the only one that gets its token. */
+internal fun sendsAuthorization(serverHost: String?, requestHost: String?): Boolean = serverHost != null && serverHost.equals(requestHost, ignoreCase = true)
 
 private fun subtitleMime(codec: String?) = when (codec?.lowercase()) {
     "srt", "subrip" -> MimeTypes.APPLICATION_SUBRIP
