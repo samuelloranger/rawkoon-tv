@@ -46,6 +46,7 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent("RawkoonTV")
+            .setAllowCrossProtocolRedirects(true)
         val extractors = DefaultExtractorsFactory()
             .setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 3)
             .setConstantBitrateSeekingEnabled(true)
