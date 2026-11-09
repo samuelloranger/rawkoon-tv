@@ -27,6 +27,7 @@
     <string name="try_again">Réessayer</string>
 
     <string name="error_unreachable">Impossible de joindre le serveur. Vérifie l\'adresse et le réseau.</string>
+    <string name="error_use_https">Ce serveur redirige vers https. Entre l\'adresse en commençant par https://.</string>
     <string name="error_invalid_url">Cette adresse n\'est pas valide.</string>
     <string name="error_credentials">Courriel ou mot de passe incorrect.</string>
     <string name="error_rate">Trop d\'essais. Attends un peu, puis réessaie.</string>

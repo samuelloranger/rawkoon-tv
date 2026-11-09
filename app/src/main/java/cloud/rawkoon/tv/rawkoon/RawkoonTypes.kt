@@ -4,6 +4,8 @@ package cloud.rawkoon.tv.rawkoon
 sealed class RawkoonException(cause: Throwable? = null) : Exception(cause) {
     class Unreachable(cause: Throwable? = null) : RawkoonException(cause)
     class InvalidUrl : RawkoonException()
+    /** The address typed as http:// redirects to https://, which a connection won't follow by itself. */
+    class UseHttps : RawkoonException()
     class Http(val code: Int) : RawkoonException()
     class InvalidResponse(cause: Throwable? = null) : RawkoonException(cause)
     class InvalidCredentials : RawkoonException()
