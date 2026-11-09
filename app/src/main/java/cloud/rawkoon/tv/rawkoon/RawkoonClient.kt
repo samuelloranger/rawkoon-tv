@@ -8,12 +8,17 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
+private val INVISIBLE = setOf('\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF')
+
+/** A typed server address without control or zero-width characters, whitespace and a trailing slash. */
+fun cleanServerUrl(raw: String) = raw.filterNot { it.isISOControl() || it in INVISIBLE }.trim().trimEnd('/')
+
 /**
  * The Rawkoon calls the TV makes: device-code and email sign-in, the account's setup, and the
- * approval of a Jellyfin Quick Connect code. See RAWKOON.md for the protocol.
+ * approval of a Jellyfin Quick Connect code.
  */
 class RawkoonClient(baseUrl: String) {
-    private val base = baseUrl.filterNot { it.isISOControl() || it in INVISIBLE }.trim().trimEnd('/')
+    private val base = cleanServerUrl(baseUrl)
 
     suspend fun requestDeviceCode(): DeviceCode {
         val response = send("POST", "api/auth/device/code", JSONObject().put("client_id", CLIENT_ID))
@@ -155,6 +160,5 @@ class RawkoonClient(baseUrl: String) {
         const val CLIENT_ID = "rawkoon-tv"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         private const val TIMEOUT_MS = 10_000
-        private val INVISIBLE = setOf('\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF')
     }
 }

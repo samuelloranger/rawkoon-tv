@@ -45,6 +45,9 @@ import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 class PlaybackService(private val context: Context, private val session: JellyfinSession) {
     private val api get() = session.api
 
+    /** The Jellyfin server's address: the only one requests are sent the Authorization header for. */
+    val serverUrl: String? get() = api.baseUrl
+
     /** The Authorization header for ExoPlayer and the trickplay tiles: the URLs carry no token. */
     val authorization: String by lazy {
         AuthorizationHeaderBuilder.buildHeader(

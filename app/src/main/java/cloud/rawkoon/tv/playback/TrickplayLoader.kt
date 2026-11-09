@@ -8,10 +8,10 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
+import cloud.rawkoon.tv.data.Fetcher
 import cloud.rawkoon.tv.data.sha1Hex
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
+import java.io.InputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
  * and only the one thumbnail needed is decoded out of a tile, so scrubbing never decodes a whole
  * grid of images. The worker and the cache directory only exist once a thumbnail is asked for.
  */
-class TrickplayLoader(private val context: Context, private val authorization: String) {
+class TrickplayLoader(private val context: Context, private val authorization: String, private val fetcher: Fetcher = Fetcher(context)) {
     private val dir: File by lazy { File(context.cacheDir, "trickplay").apply { mkdirs() } }
     private val workerLazy = lazy {
         Executors.newSingleThreadExecutor().also { it.execute { prune() } }
@@ -37,7 +37,7 @@ class TrickplayLoader(private val context: Context, private val authorization: S
     private var wanted: String? = null
 
     @Volatile
-    private var connection: HttpURLConnection? = null
+    private var download: InputStream? = null
 
     @Volatile
     private var released = false
@@ -73,19 +73,15 @@ class TrickplayLoader(private val context: Context, private val authorization: S
         if (file.isFile) {
             file.setLastModified(System.currentTimeMillis())
         } else {
-            val connection = URL(url).openConnection() as HttpURLConnection
-            this.connection = connection
+            // A non-2xx throws, which load() turns into no thumbnail
+            val input = fetcher.open(url, mapOf("Authorization" to authorization))
+            download = input
             try {
-                connection.setRequestProperty("Authorization", authorization)
-                connection.connectTimeout = 8_000
-                connection.readTimeout = 8_000
-                if (connection.responseCode != 200) return null
                 val tmp = File(dir, file.name + ".tmp")
-                connection.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                input.use { tmp.outputStream().use { out -> it.copyTo(out) } }
                 tmp.renameTo(file)
             } finally {
-                connection.disconnect()
-                this.connection = null
+                download = null
             }
         }
         @Suppress("DEPRECATION")
@@ -102,7 +98,7 @@ class TrickplayLoader(private val context: Context, private val authorization: S
     fun release() {
         released = true
         wanted = null
-        connection?.disconnect()
+        runCatching { download?.close() }
         if (workerLazy.isInitialized()) worker.shutdownNow()
         synchronized(lock) { decoders.evictAll() }
     }

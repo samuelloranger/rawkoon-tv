@@ -24,7 +24,6 @@ object Tokens {
 
     // TV title-safe area.
     const val OVERSCAN_H = 48
-    const val OVERSCAN_V = 27
 
     /** Where content starts, right of the nav rail. */
     const val CONTENT_START = 90

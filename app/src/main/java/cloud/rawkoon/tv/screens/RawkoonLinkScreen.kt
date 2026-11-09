@@ -10,6 +10,7 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.rawkoon.RawkoonClient
+import cloud.rawkoon.tv.rawkoon.cleanServerUrl
 import cloud.rawkoon.tv.ui.PillButton
 import cloud.rawkoon.tv.ui.dp
 
@@ -60,7 +61,7 @@ class RawkoonLinkScreen(activity: MainActivity, private val profileId: String) :
     }
 
     private fun submitServer() {
-        val url = server.text.toString().trim().trimEnd('/')
+        val url = cleanServerUrl(server.text.toString())
         if (!url.startsWith("http://") && !url.startsWith("https://") || url.length < 12) {
             status.text = string(R.string.error_invalid_url)
             return

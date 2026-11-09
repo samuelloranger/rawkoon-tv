@@ -14,6 +14,7 @@ import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.rawkoon.OnboardingStep
 import cloud.rawkoon.tv.rawkoon.RawkoonClient
+import cloud.rawkoon.tv.rawkoon.cleanServerUrl
 import cloud.rawkoon.tv.rawkoon.onboard
 import cloud.rawkoon.tv.rawkoon.signInMessage
 import cloud.rawkoon.tv.ui.Fonts
@@ -109,7 +110,7 @@ class ServerScreen(activity: MainActivity) : FormScreen(activity, activity.getSt
     }
 
     private fun submit() {
-        val url = input.text.toString().trim().trimEnd('/')
+        val url = cleanServerUrl(input.text.toString())
         if (!url.startsWith("http://") && !url.startsWith("https://") || url.length < 12) {
             status.text = string(R.string.error_invalid_url)
             return
