@@ -33,7 +33,10 @@ import cloud.rawkoon.tv.screens.player.ProgressReporter
 import cloud.rawkoon.tv.screens.player.ScrubController
 import cloud.rawkoon.tv.screens.player.SegmentSkipper
 import cloud.rawkoon.tv.screens.player.TrackMenus
+import cloud.rawkoon.tv.screens.player.MAX_NETWORK_RETRIES
+import cloud.rawkoon.tv.screens.player.NETWORK_RETRY_DELAY_MS
 import cloud.rawkoon.tv.screens.player.advanceStopPosition
+import cloud.rawkoon.tv.screens.player.isNetworkError
 import cloud.rawkoon.tv.screens.player.togglePlayback
 import cloud.rawkoon.tv.screens.player.isEpisode
 import cloud.rawkoon.tv.ui.Fonts
@@ -89,6 +92,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     private var next: MediaItem? = null
     private var triedTranscode = false
+    private var networkRetries = 0
+    private val retryPrepare = Runnable { player.exo.prepare() }
     private var loadJob: Job? = null
 
     /** Where the stream loading now was asked to start. */
@@ -148,6 +153,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         direct: Boolean = true,
     ) {
         item = target
+        networkRetries = 0
+        mainHandler.removeCallbacks(retryPrepare)
         this.startMs = startMs
         app.lastPlayed = target
         reporter.reset()
@@ -193,6 +200,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             // A file ExoPlayer can't seek in (its index out of reach) would start at the beginning,
             // ignore every seek, and report that as the resume point: the server's stream can seek
             if (state == Player.STATE_READY && !player.exo.isCurrentMediaItemSeekable && !player.exo.isCurrentMediaItemLive && transcodeInstead(startMs)) return
+            if (state == Player.STATE_READY) networkRetries = 0
             if (state == Player.STATE_READY && reporter.onReady()) chrome.scheduleHide()
             if (state == Player.STATE_ENDED) ended()
         }
@@ -218,6 +226,13 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            // A network blip: prepare again from the same position before blaming the file
+            if (isNetworkError(error.errorCode) && networkRetries < MAX_NETWORK_RETRIES) {
+                networkRetries++
+                chrome.showSpinner(true)
+                mainHandler.postDelayed(retryPrepare, NETWORK_RETRY_DELAY_MS)
+                return
+            }
             // A file the TV can't play after all
             if (transcodeInstead(player.exo.currentPosition)) return
             fail(error.errorCodeName)
@@ -440,6 +455,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     override fun destroy() {
+        mainHandler.removeCallbacks(retryPrepare)
         reporter.stop(player.exo.currentPosition)
         displayMatcher.restore()
         player.release()
