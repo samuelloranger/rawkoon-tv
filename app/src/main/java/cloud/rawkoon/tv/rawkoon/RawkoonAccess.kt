@@ -5,26 +5,25 @@ import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import java.util.Locale
 
-private fun Profile.serverUrl(context: Context): String? = rawkoonUrl ?: Prefs.rawkoonUrl(context)
+/** The token and server address a profile's Rawkoon calls need, or null when it lacks either. */
+private fun Profile.rawkoonAccess(context: Context): Pair<String, String>? {
+    val token = rawkoonToken ?: return null
+    val url = rawkoonUrl ?: Prefs.rawkoonUrl(context) ?: return null
+    return token to url
+}
 
 /** Whether [rawkoonDiscover] has something to call: a Rawkoon session and a server address to make its calls to. */
-fun Profile.hasRawkoonSession(context: Context): Boolean = rawkoonToken != null && serverUrl(context) != null
+fun Profile.hasRawkoonSession(context: Context): Boolean = rawkoonAccess(context) != null
 
 /**
  * The profile's Rawkoon calls, or null when it has no Rawkoon session (a profile imported from
  * the first RawkoonTV, or never linked) or no server address to make them to.
  */
-fun Profile.rawkoonDiscover(context: Context): RawkoonDiscover? {
-    val token = rawkoonToken ?: return null
-    val url = serverUrl(context) ?: return null
-    return RawkoonDiscover(RawkoonClient(url), token, Locale.getDefault().toLanguageTag())
-}
+fun Profile.rawkoonDiscover(context: Context): RawkoonDiscover? =
+    rawkoonAccess(context)?.let { (token, url) -> RawkoonDiscover(RawkoonClient(url), token, Locale.getDefault().toLanguageTag()) }
 
 /** Where a profile's Rawkoon streams are read from: its server and the token that session holds. */
 data class RawkoonEndpoint(val profileId: String, val baseUrl: String, val token: String)
 
-fun Profile.rawkoonEndpoint(context: Context): RawkoonEndpoint? {
-    val token = rawkoonToken ?: return null
-    val url = serverUrl(context) ?: return null
-    return RawkoonEndpoint(id, cleanServerUrl(url), token)
-}
+fun Profile.rawkoonEndpoint(context: Context): RawkoonEndpoint? =
+    rawkoonAccess(context)?.let { (token, url) -> RawkoonEndpoint(id, cleanServerUrl(url), token) }

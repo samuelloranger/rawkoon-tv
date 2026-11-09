@@ -11,6 +11,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 /**
  * A form that signs in with a device code: the [panel] shows the code, [runFlow] runs the flow
@@ -21,15 +22,26 @@ abstract class DeviceCodeScreen(activity: MainActivity, title: String, hint: Str
     protected val panel = DeviceCodePanel(context)
     protected val retry = PillButton(context, string(R.string.try_again), primary = true).apply { visibility = View.GONE }
     private var job: Job? = null
+    private var polling = false
+    private var restart: (() -> Unit)? = null
+    private var suspended = false
 
     /** Asks [client] for a code, shows it, and passes the approved token to [onToken]; a new run replaces one under way. */
     protected fun runFlow(client: RawkoonClient, onToken: suspend (String) -> Unit) {
         job?.cancel()
+        restart = { runFlow(client, onToken) }
+        suspended = false
         retry.visibility = View.GONE
         status.text = ""
-        job = scope.launch {
+        val run = scope.launch {
             try {
-                val token = DeviceCodeFlow.run(client, panel::show)
+                polling = true
+                val token = try {
+                    DeviceCodeFlow.run(client, panel::show)
+                } finally {
+                    // A cancelled older run unwinds late: it must not clear the flag of the run that replaced it
+                    if (job === coroutineContext[Job]) polling = false
+                }
                 if (token == null) fail(string(R.string.error_denied)) else onToken(token)
             } catch (e: CancellationException) {
                 throw e
@@ -37,7 +49,33 @@ abstract class DeviceCodeScreen(activity: MainActivity, title: String, hint: Str
                 fail(e.signInMessage(context))
             }
         }
+        job = run
     }
+
+    // A hidden or backgrounded screen must not keep asking for codes, or onboard behind another page
+    private fun suspendFlow() {
+        if (!polling) return
+        job?.cancel()
+        suspended = true
+    }
+
+    private fun resumeFlow() {
+        if (suspended) restart?.invoke()
+    }
+
+    override fun onHidden() {
+        super.onHidden()
+        suspendFlow()
+    }
+
+    override fun onShown(first: Boolean) {
+        super.onShown(first)
+        if (!first) resumeFlow()
+    }
+
+    override fun onStop() = suspendFlow()
+
+    override fun onResume() = resumeFlow()
 
     private fun fail(message: String) {
         status.text = message

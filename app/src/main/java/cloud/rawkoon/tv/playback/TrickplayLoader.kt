@@ -78,14 +78,26 @@ class TrickplayLoader(private val context: Context, private val authorization: S
             download = input
             try {
                 val tmp = File(dir, file.name + ".tmp")
-                input.use { tmp.outputStream().use { out -> it.copyTo(out) } }
-                tmp.renameTo(file)
+                try {
+                    input.use { tmp.outputStream().use { out -> it.copyTo(out) } }
+                    // An empty or unrenamed tile is no tile: nothing is cached, so the next scrub fetches it again
+                    if (tmp.length() == 0L || !tmp.renameTo(file)) throw java.io.IOException("tile not saved")
+                } catch (e: Exception) {
+                    tmp.delete()
+                    throw e
+                }
             } finally {
                 download = null
             }
         }
         @Suppress("DEPRECATION")
-        return BitmapRegionDecoder.newInstance(file.path, false)
+        return try {
+            BitmapRegionDecoder.newInstance(file.path, false)
+        } catch (e: Exception) {
+            // A damaged cached tile would fail the same way for a week
+            file.delete()
+            throw e
+        }
     }
 
     /** Tiles are only worth keeping while they are used: a hit refreshes the file's time, and the ones untouched for a week go. */

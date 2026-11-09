@@ -54,6 +54,7 @@ suspend fun onboard(context: Context, rawkoonUrl: String, token: String, onStep:
 fun Throwable.signInMessage(context: Context): String = when (this) {
     is RawkoonException.Unreachable -> context.getString(R.string.error_unreachable)
     is RawkoonException.InvalidUrl -> context.getString(R.string.error_invalid_url)
+    is RawkoonException.UseHttps -> context.getString(R.string.error_use_https)
     is RawkoonException.InvalidCredentials -> context.getString(R.string.error_credentials)
     is RawkoonException.RateLimited -> context.getString(R.string.error_rate)
     is RawkoonException.NotLinked -> context.getString(R.string.error_not_linked)

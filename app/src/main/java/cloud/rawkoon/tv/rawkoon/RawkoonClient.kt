@@ -98,8 +98,9 @@ class RawkoonClient(baseUrl: String) {
             } catch (e: Exception) {
                 throw RawkoonException.InvalidUrl()
             }
+            var connection: HttpURLConnection? = null
             try {
-                val connection = url.openConnection() as HttpURLConnection
+                connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = method
                 connection.connectTimeout = TIMEOUT_MS
                 connection.readTimeout = TIMEOUT_MS
@@ -111,6 +112,10 @@ class RawkoonClient(baseUrl: String) {
                     connection.outputStream.use { it.write(body.toString().toByteArray()) }
                 }
                 val code = connection.responseCode
+                if (redirectsToHttps(url.protocol, code, connection.getHeaderField("Location"))) {
+                    connection.disconnect()
+                    throw RawkoonException.UseHttps()
+                }
                 val stream = if (code >= 400) connection.errorStream else connection.inputStream
                 val text = stream?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
                 val headers = connection.headerFields.filterKeys { it != null }.mapKeys { it.key.lowercase() }
@@ -118,11 +123,16 @@ class RawkoonClient(baseUrl: String) {
                 connection.disconnect()
                 Response(code, text, headers)
             } catch (e: IOException) {
+                connection?.disconnect()
                 throw RawkoonException.Unreachable(e)
             }
         }
 
     companion object {
+        /** True for an http:// request answered with a redirect to https://: HttpURLConnection never follows that across protocols. */
+        internal fun redirectsToHttps(protocol: String, code: Int, location: String?): Boolean =
+            protocol == "http" && code in setOf(301, 302, 303, 307, 308) && location?.startsWith("https://", ignoreCase = true) == true
+
         /**
          * Why a Quick Connect approval failed, or null when it went through. A server too old to
          * have the route answers with its catch-all "Not found" (or a bare page behind a proxy).

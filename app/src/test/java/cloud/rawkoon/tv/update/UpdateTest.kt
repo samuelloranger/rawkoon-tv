@@ -161,4 +161,11 @@ class UpdateCheckDueTest {
     fun `a clock that went backwards counts as due`() {
         assertTrue(UpdateCheck.isDue(now = hour, checkedAt = 2 * hour, failed = false))
     }
+
+    @Test
+    fun `only a release object counts as a readable reply`() {
+        assertTrue(Release.isGitHubRelease("""{"tag_name":"v1","assets":[]}"""))
+        assertFalse(Release.isGitHubRelease("<html>rate limited</html>"))
+        assertFalse(Release.isGitHubRelease("{}"))
+    }
 }

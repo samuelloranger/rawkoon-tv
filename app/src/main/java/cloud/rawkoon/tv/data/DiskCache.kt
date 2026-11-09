@@ -21,19 +21,17 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
         val cached = File(dir, sha1Hex(url))
         if (hit(cached)) return cached
         val lock = locks.computeIfAbsent(cached.name) { Any() }
-        try {
-            synchronized(lock) {
-                if (hit(cached)) return cached
-                // A temp file of its own: a half-written download is never visible under the final name
-                val tmp = File.createTempFile(cached.name, ".tmp", dir)
-                try {
-                    fetcher.open(url).use { input -> tmp.outputStream().use { input.copyTo(it) } }
-                    if (!tmp.renameTo(cached)) return null
-                } finally {
-                    tmp.delete()
-                }
+        synchronized(lock) {
+            if (hit(cached)) return cached
+            // A temp file of its own: a half-written download is never visible under the final name
+            val tmp = File.createTempFile(cached.name, ".tmp", dir)
+            try {
+                fetcher.open(url).use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                if (!tmp.renameTo(cached)) return null
+            } finally {
+                tmp.delete()
             }
-        } finally {
+            // Dropped only after a success: waiters then hit the file, whereas after a failure they must keep sharing this lock
             locks.remove(cached.name)
         }
         trim()

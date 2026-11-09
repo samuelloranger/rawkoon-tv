@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.rawkoon
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,5 +46,16 @@ class RawkoonClientErrorsTest {
         assertEquals(DevicePoll.Pending, RawkoonClient.devicePollOf("""{"error":"authorization_pending"}"""))
         assertNull(RawkoonClient.devicePollOf("""{"error":"invalid_request"}"""))
         assertNull(RawkoonClient.devicePollOf("not json"))
+    }
+
+    @Test
+    fun `an http address redirected to https is told to use https`() {
+        assertTrue(RawkoonClient.redirectsToHttps("http", 301, "https://example.test/"))
+        assertTrue(RawkoonClient.redirectsToHttps("http", 308, "HTTPS://example.test/"))
+        assertTrue(RawkoonClient.redirectsToHttps("http", 303, "https://example.test/"))
+        assertFalse(RawkoonClient.redirectsToHttps("http", 301, "http://example.test/other"))
+        assertFalse(RawkoonClient.redirectsToHttps("http", 200, "https://example.test/"))
+        assertFalse(RawkoonClient.redirectsToHttps("https", 301, "https://example.test/"))
+        assertFalse(RawkoonClient.redirectsToHttps("http", 302, null))
     }
 }

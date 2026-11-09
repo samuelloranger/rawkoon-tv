@@ -31,6 +31,7 @@
     <string name="try_again">Try again</string>
 
     <string name="error_unreachable">Can\'t reach the server. Check the address and the network.</string>
+    <string name="error_use_https">This server redirects to https. Enter the address starting with https://.</string>
     <string name="error_invalid_url">That address isn\'t valid.</string>
     <string name="error_credentials">Wrong email or password.</string>
     <string name="error_rate">Too many attempts. Wait a moment, then try again.</string>
