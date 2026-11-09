@@ -22,6 +22,7 @@ class Fetcher(context: Context) {
             connection.readTimeout = TIMEOUT_MS
             connection.instanceFollowRedirects = true
             headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
+            if (connection.responseCode !in 200..299) throw java.io.IOException("HTTP ${connection.responseCode}")
             return object : FilterInputStream(connection.inputStream) {
                 override fun close() {
                     try {

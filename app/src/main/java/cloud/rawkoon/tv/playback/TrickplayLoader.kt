@@ -73,7 +73,7 @@ class TrickplayLoader(private val context: Context, private val authorization: S
         if (file.isFile) {
             file.setLastModified(System.currentTimeMillis())
         } else {
-            // A non-200 throws, which load() turns into no thumbnail
+            // A non-2xx throws, which load() turns into no thumbnail
             val input = fetcher.open(url, mapOf("Authorization" to authorization))
             download = input
             try {
