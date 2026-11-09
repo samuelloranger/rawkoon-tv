@@ -11,6 +11,7 @@ import cloud.rawkoon.tv.ui.PillButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 /**
  * A form that signs in with a device code: the [panel] shows the code, [runFlow] runs the flow
@@ -32,13 +33,14 @@ abstract class DeviceCodeScreen(activity: MainActivity, title: String, hint: Str
         suspended = false
         retry.visibility = View.GONE
         status.text = ""
-        job = scope.launch {
+        val run = scope.launch {
             try {
                 polling = true
                 val token = try {
                     DeviceCodeFlow.run(client, panel::show)
                 } finally {
-                    polling = false
+                    // A cancelled older run unwinds late: it must not clear the flag of the run that replaced it
+                    if (job === coroutineContext[Job]) polling = false
                 }
                 if (token == null) fail(string(R.string.error_denied)) else onToken(token)
             } catch (e: CancellationException) {
@@ -47,6 +49,7 @@ abstract class DeviceCodeScreen(activity: MainActivity, title: String, hint: Str
                 fail(e.signInMessage(context))
             }
         }
+        job = run
     }
 
     // A hidden or backgrounded screen must not keep asking for codes, or onboard behind another page
