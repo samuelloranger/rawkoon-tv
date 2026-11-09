@@ -52,6 +52,7 @@ class RawkoonClientErrorsTest {
     fun `an http address redirected to https is told to use https`() {
         assertTrue(RawkoonClient.redirectsToHttps("http", 301, "https://example.test/"))
         assertTrue(RawkoonClient.redirectsToHttps("http", 308, "HTTPS://example.test/"))
+        assertTrue(RawkoonClient.redirectsToHttps("http", 303, "https://example.test/"))
         assertFalse(RawkoonClient.redirectsToHttps("http", 301, "http://example.test/other"))
         assertFalse(RawkoonClient.redirectsToHttps("http", 200, "https://example.test/"))
         assertFalse(RawkoonClient.redirectsToHttps("https", 301, "https://example.test/"))

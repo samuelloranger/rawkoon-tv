@@ -131,7 +131,7 @@ class RawkoonClient(baseUrl: String) {
     companion object {
         /** True for an http:// request answered with a redirect to https://: HttpURLConnection never follows that across protocols. */
         internal fun redirectsToHttps(protocol: String, code: Int, location: String?): Boolean =
-            protocol == "http" && code in setOf(301, 302, 307, 308) && location?.startsWith("https://", ignoreCase = true) == true
+            protocol == "http" && code in setOf(301, 302, 303, 307, 308) && location?.startsWith("https://", ignoreCase = true) == true
 
         /**
          * Why a Quick Connect approval failed, or null when it went through. A server too old to
