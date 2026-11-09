@@ -78,11 +78,13 @@ class TrickplayLoader(private val context: Context, private val authorization: S
             download = input
             try {
                 val tmp = File(dir, file.name + ".tmp")
-                input.use { tmp.outputStream().use { out -> it.copyTo(out) } }
-                // An empty or unrenamed tile is no tile: nothing is cached, so the next scrub fetches it again
-                if (tmp.length() == 0L || !tmp.renameTo(file)) {
+                try {
+                    input.use { tmp.outputStream().use { out -> it.copyTo(out) } }
+                    // An empty or unrenamed tile is no tile: nothing is cached, so the next scrub fetches it again
+                    if (tmp.length() == 0L || !tmp.renameTo(file)) throw java.io.IOException("tile not saved")
+                } catch (e: Exception) {
                     tmp.delete()
-                    throw java.io.IOException("tile not saved")
+                    throw e
                 }
             } finally {
                 download = null
