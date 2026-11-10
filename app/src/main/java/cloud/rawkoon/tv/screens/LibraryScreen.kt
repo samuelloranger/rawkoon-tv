@@ -208,6 +208,7 @@ class LibraryScreen(
 
     private fun showBackdropOf(position: Int) {
         paged[position]?.let(header::show)
+        previewClip(paged[position])
         val url = backdropRequest(paged[position]?.backdropUrl)
         if (url == backdropUrl) return
         backdropUrl = url

@@ -37,6 +37,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * The only activity. It holds a stack of [Screen]s: a new screen slides in over the one below,
@@ -269,6 +270,8 @@ class MainActivity : Activity() {
     @SuppressLint("GestureBackNavigation")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val screen = stack.lastOrNull() ?: return super.dispatchKeyEvent(event)
+        // A key that may move focus ends a preview clip at once; the card that takes focus starts its own
+        if (event.action == KeyEvent.ACTION_DOWN) (application as App).clips.stop()
         val guarded = event.keyCode == KeyEvent.KEYCODE_BACK ||
             event.keyCode in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_CENTER ||
             event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
@@ -288,6 +291,7 @@ class MainActivity : Activity() {
      */
     override fun onStart() {
         super.onStart()
+        liveScope.launch { (application as App).let { it.clips.refresh(it.profiles.all()) } }
         if (Prefs.autoUpdateCheck(this)) UpdateCheck(this, Fetcher(this)).refreshAsync { if (!isDestroyed) stack.lastOrNull()?.onUpdateChecked() }
     }
 
@@ -295,11 +299,13 @@ class MainActivity : Activity() {
         foreground = false
         Installer.appInFront = false
         syncLive()
+        (application as App).clips.stop()
         stack.lastOrNull()?.onPause()
         super.onPause()
     }
 
     override fun onStop() {
+        (application as App).clips.release()
         stack.lastOrNull()?.onStop()
         super.onStop()
     }

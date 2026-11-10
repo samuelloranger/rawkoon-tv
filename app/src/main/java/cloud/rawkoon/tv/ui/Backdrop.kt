@@ -11,6 +11,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Shader
@@ -18,9 +19,12 @@ import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
 import android.view.Gravity
+import android.view.TextureView
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
+import cloud.rawkoon.tv.App
+import cloud.rawkoon.tv.clips.ClipRequest
 import cloud.rawkoon.tv.data.DiskCache
 import java.util.concurrent.Executors
 
@@ -108,9 +112,46 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         syncDrift()
     }
 
+    /** Where a preview clip plays; the player draws into it. */
+    val clipView = TextureView(context)
+    private val fadeLeft = EdgeFade(context, horizontal = true)
+    private val fadeBottom = EdgeFade(context, horizontal = false)
+
+    /** The clip with the same edge fades as the art, drawn above it; invisible until the clip's first frame. */
+    private val clipLayer = FrameLayout(context).apply {
+        alpha = 0f
+        addView(clipView, fill())
+        addView(fadeLeft)
+        addView(fadeBottom)
+    }
+    private val clips get() = (context.applicationContext as? App)?.clips
+
     init {
         addView(bottom, fill())
         addView(top, fill())
+        addView(clipLayer, fill())
+    }
+
+    /** Plays [request]'s clip (null: none) in the frame once focus rests; only a framed backdrop plays clips. */
+    fun playClip(request: ClipRequest?) {
+        val clips = clips ?: return
+        if (request == null || !BackdropFrame.isFramed(frameFraction)) clips.stop(this) else clips.focus(request, this)
+    }
+
+    fun setClipVisible(visible: Boolean) {
+        clipLayer.animate().cancel()
+        clipLayer.animate().alpha(if (visible) 1f else 0f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.ease).start()
+    }
+
+    /** Crops the clip to fill the frame instead of stretching it, whatever its aspect ratio. */
+    fun fitClip(videoW: Int, videoH: Int) {
+        if (videoW <= 0 || videoH <= 0) return
+        val f = frame()
+        val video = videoW.toFloat() / videoH
+        val frame = f.w.toFloat() / f.h
+        val m = Matrix()
+        if (video > frame) m.setScale(video / frame, 1f, f.w / 2f, f.h / 2f) else m.setScale(1f, frame / video, f.w / 2f, f.h / 2f)
+        clipView.setTransform(m)
     }
 
     private fun frame(): BackdropFrame {
@@ -123,7 +164,9 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private fun applyFrame() {
         if (!BackdropFrame.isFramed(frameFraction)) return
         val f = frame()
-        for (layer in listOf(bottom, top)) layer.layoutParams = LayoutParams(f.w, f.h, Gravity.TOP or Gravity.END)
+        for (layer in listOf(bottom, top, clipLayer)) layer.layoutParams = LayoutParams(f.w, f.h, Gravity.TOP or Gravity.END)
+        fadeLeft.layoutParams = LayoutParams((f.w * Tokens.FRAME_FADE_LEFT).toInt(), f.h, Gravity.START)
+        fadeBottom.layoutParams = LayoutParams(f.w, (f.h * Tokens.FRAME_FADE_BOTTOM).toInt(), Gravity.BOTTOM)
         pivotX = (width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - f.w / 2f
         pivotY = f.h / 2f
     }
@@ -146,12 +189,14 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
         aggregatedVisible = isVisible
+        if (!isVisible) clips?.stop(this)
         // Coming into view (a page opened over it, or the app back from the background) rests first,
         // so the zoom never runs under a page's entrance
         if (isVisible) holdDrift() else syncDrift()
     }
 
     override fun onDetachedFromWindow() {
+        clips?.stop(this)
         main.removeCallbacks(rest)
         drift?.cancel()
         drift = null
@@ -374,5 +419,26 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             hsv[2] = 0.14f
             return Color.HSVToColor(hsv)
         }
+    }
+}
+
+/** The page colour fading out across a view: opaque at its left (or bottom) edge, clear at the other, with the frame's smoothstep falloff. */
+private class EdgeFade(context: Context, private val horizontal: Boolean) : View(context) {
+    private val paint = Paint()
+
+    override fun hasOverlappingRendering() = false
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        val steps = 8
+        val positions = FloatArray(steps + 1) { it / steps.toFloat() }
+        val bg = Tokens.background
+        val colors = IntArray(steps + 1) { Color.argb((BackdropFrame.fadeAlpha(1f - positions[it]) * 255).toInt(), Color.red(bg), Color.green(bg), Color.blue(bg)) }
+        // Left: edge at x = 0. Bottom: edge at y = h, so the gradient runs upward
+        paint.shader = if (horizontal) LinearGradient(0f, 0f, w.toFloat(), 0f, colors, positions, Shader.TileMode.CLAMP)
+        else LinearGradient(0f, h.toFloat(), 0f, 0f, colors, positions, Shader.TileMode.CLAMP)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
     }
 }

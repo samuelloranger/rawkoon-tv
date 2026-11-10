@@ -70,6 +70,9 @@ class RawkoonClient(baseUrl: String) {
         )
     }
 
+    /** Whether the server makes and serves preview clips. */
+    suspend fun clipsEnabled(token: String): Boolean = send("GET", "api/clips/status", token = token).okJson().optBoolean("enabled")
+
     /** Asks Rawkoon to approve a Jellyfin Quick Connect [code] for the account's linked user. */
     suspend fun approveQuickConnect(token: String, code: String) {
         val response = send("POST", "api/tv/jellyfin/quick-connect", JSONObject().put("code", code), token)

@@ -5,9 +5,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
+import cloud.rawkoon.tv.clips.ClipKey
 import cloud.rawkoon.tv.jellyfin.ImageUrls
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
@@ -106,6 +110,30 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
 
     /** True for the pages the rail itself opens (library, search, favorites, discover): each declares it. */
     protected open val isRailPage: Boolean get() = false
+
+    private var clipJob: Job? = null
+
+    /**
+     * The focused [item]'s preview clip (null: none) plays in the backdrop once focus rests, when the
+     * server offers clips and the setting is on. A season or episode needs its show's TMDB id, read once per show.
+     */
+    protected fun previewClip(item: MediaItem?) {
+        clipJob?.cancel()
+        val profile = app.profiles.get(session.profile.id) ?: session.profile
+        if (item == null || !app.clips.wanted(profile)) return backdrop.playClip(null)
+        clipJob = scope.launch {
+            val seriesTmdb = ClipKey.seriesToResolve(item)?.let { id ->
+                try {
+                    session.seriesTmdbId(id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            backdrop.playClip(ClipKey.of(item, seriesTmdb)?.let { app.clips.request(profile, it) })
+        }
+    }
 
     /** A message's button: "Try again" with a [retry], else "Back to profiles" (retrying can't help when the session ended). */
     protected fun messageAction(retry: (() -> Unit)?): Pair<String, () -> Unit> =

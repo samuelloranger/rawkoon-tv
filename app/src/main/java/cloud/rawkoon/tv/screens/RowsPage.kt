@@ -202,6 +202,7 @@ abstract class RowsPage(
 
     private fun preview(item: MediaItem) {
         header.show(item)
+        previewClip(item)
         backdropUrl = backdropRequest(item.backdropUrl)
         mainHandler.removeCallbacks(settleBackdrop)
         mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)

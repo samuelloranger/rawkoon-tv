@@ -95,6 +95,9 @@ object Tokens {
     const val FRAME_FADE_LEFT = 0.32f
     const val FRAME_FADE_BOTTOM = 0.38f
 
+    /** Focus rests this long before a preview clip starts playing. */
+    const val CLIP_DWELL_MS = 1_500L
+
     /**
      * Home's backdrop zooms this far in and back out, [DRIFT_MS] each way: a few pixels a second,
      * slow enough to read as stillness that breathes. It holds while keys are pressed and for

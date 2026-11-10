@@ -16,7 +16,7 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
     private val locks = ConcurrentHashMap<String, Any>()
 
     /** Local copy of [url]: remote art goes through the cache, local paths are used as they are. */
-    fun file(url: String): File? {
+    fun file(url: String, headers: Map<String, String> = emptyMap()): File? {
         if (url.startsWith("/")) return File(url).takeIf { it.isFile }
         val cached = File(dir, sha1Hex(url))
         if (hit(cached)) return cached
@@ -26,7 +26,7 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
             // A temp file of its own: a half-written download is never visible under the final name
             val tmp = File.createTempFile(cached.name, ".tmp", dir)
             try {
-                fetcher.open(url).use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                fetcher.open(url, headers).use { input -> tmp.outputStream().use { input.copyTo(it) } }
                 if (!tmp.renameTo(cached)) return null
             } finally {
                 tmp.delete()

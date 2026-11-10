@@ -169,6 +169,17 @@ class JellyfinSession(context: Context, val profile: Profile) {
         )
     }
 
+    /** Series id to its TMDB id (0 when it has none), so a season or episode card costs one lookup per show, not one per focus. */
+    private val seriesTmdb = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /** The TMDB id of a show, read from the show itself once; null when it has none or the lookup failed. */
+    suspend fun seriesTmdbId(seriesId: String): Int? {
+        seriesTmdb[seriesId]?.let { return it.takeIf { id -> id > 0 } }
+        val id = api.libraryApi.getItem(itemId = parseId(seriesId), userId = userId).content.providerIds?.get("Tmdb")?.toIntOrNull() ?: 0
+        seriesTmdb[seriesId] = id
+        return id.takeIf { it > 0 }
+    }
+
     suspend fun seasons(seriesId: String): List<MediaItem> =
         api.showApi.getSeasons(GetSeasonsRequest(seriesId = parseId(seriesId), userId = userId, isMissing = false, fields = FIELDS + ItemFields.CHILD_COUNT)).content.items
             .map { MediaItem.from(it, images) }
@@ -235,7 +246,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
         private const val PEOPLE_LIMIT = 12
         private const val ROW_LIMIT = 20
 
-        private val FIELDS = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO)
+        private val FIELDS = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO, ItemFields.PROVIDER_IDS)
 
         /** Jellyfin ids come with or without dashes. */
         fun parseId(id: String): UUID {
