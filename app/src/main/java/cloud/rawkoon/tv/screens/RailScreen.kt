@@ -127,8 +127,15 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     }
 
     override fun onPause() {
-        cancelClip()
+        // The card stays remembered, so the clip comes back with the app
+        clipJob?.cancel()
+        backdrop.playClip(null)
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        onClipRearm()
     }
 
     /**
@@ -167,6 +174,8 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         super.onShown(first)
         clockView.applyClockSetting()
         if (!first) rail.refreshAvatar()
+        // Back from a page above: the card that gets focus back wants its clip again
+        if (!first) onClipRearm()
     }
 
     /** Back from the rail returns to the page; from the page it goes back a screen. */
