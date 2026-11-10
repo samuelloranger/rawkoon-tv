@@ -201,6 +201,7 @@ class LibraryScreen(
     }
 
     private fun showMessage(text: String, retry: Boolean) {
+        header.clear()
         message.show(text, messageAction(if (retry) ({ loader.reload() }) else null), takeFocus = focusWhenLoaded)
         focusWhenLoaded = false
     }

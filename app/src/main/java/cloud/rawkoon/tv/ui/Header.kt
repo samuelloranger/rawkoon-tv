@@ -28,13 +28,13 @@ class Header(context: Context, private val images: Images, private val compact: 
     private val logoH = context.dp(if (compact) COMPACT_LOGO_H else LOGO_H)
     private val logo = LogoView(context)
     // Long titles shrink and wrap onto a second line instead of being cut
-    private val title = label(context, 40f, Tokens.textPrimary, Fonts.title(context), lines = 2).apply {
+    private val title = label(context, 40f, Tokens.textPrimary, Fonts.title(context), lines = if (compact) 1 else 2).apply {
         gravity = Gravity.BOTTOM
         if (compact) setAutoSizeTextTypeUniformWithConfiguration(12, 20, 1, TypedValue.COMPLEX_UNIT_SP)
         else setAutoSizeTextTypeUniformWithConfiguration(22, 40, 2, TypedValue.COMPLEX_UNIT_SP)
     }
     private val meta = label(context, if (compact) 12f else 13.5f, Tokens.textSoft, Fonts.medium(context))
-    private val overview = label(context, 14f, 0xD9E9E0D8.toInt(), Fonts.body(context), lines = if (compact) 1 else 2).apply {
+    private val overview = label(context, if (compact) 12f else 14f, 0xD9E9E0D8.toInt(), Fonts.body(context), lines = if (compact) 1 else 2).apply {
         setLineSpacing(0f, 1.2f)
     }
     private var shown: MediaItem? = null
@@ -59,6 +59,21 @@ class Header(context: Context, private val images: Images, private val compact: 
         pending = item
         main.removeCallbacks(settle)
         if (shown == null) switchTo(item) else main.postDelayed(settle, Tokens.HEADER_SETTLE_MS)
+    }
+
+    /** Empties the header (a grid with nothing to show), so the last title's text doesn't linger. */
+    fun clear() {
+        main.removeCallbacks(settle)
+        animate().cancel()
+        alpha = 1f
+        translationY = 0f
+        pending = null
+        shown = null
+        wantedLogo = null
+        logo.bitmap = null
+        title.text = ""
+        meta.text = ""
+        overview.text = ""
     }
 
     private fun switchTo(item: MediaItem) {
