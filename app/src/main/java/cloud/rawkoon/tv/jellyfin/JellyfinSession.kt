@@ -30,6 +30,7 @@ import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
+import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
 import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.jellyfin.sdk.model.api.request.GetSeasonsRequest
@@ -106,7 +107,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
                         nextUpDateCutoff = fetch.nextUpCutoff(LocalDateTime.now(ZoneOffset.UTC)), enableRewatching = fetch.nextUpRewatching(),
                     ),
                 ).content.items
-                HomeRow("nextup", strings.getString(R.string.row_next_up), items.map { MediaItem.from(it, images) }, landscape = true)
+                HomeRow("nextup", strings.getString(R.string.row_next_up), withoutSeries(items.map { MediaItem.from(it, images) }, fetch.hiddenSeries), landscape = true)
             }
         }
         val latest = async {
@@ -217,6 +218,11 @@ class JellyfinSession(context: Context, val profile: Profile) {
 
     suspend fun setPlayed(id: String, played: Boolean) {
         if (played) api.userDataApi.markPlayedItem(itemId = parseId(id), userId = userId) else api.userDataApi.markUnplayedItem(itemId = parseId(id), userId = userId)
+    }
+
+    /** Clears the resume point, so the server drops the item from Continue watching; the watched state stays as it is. */
+    suspend fun clearResume(id: String) {
+        api.userDataApi.updateItemUserData(itemId = parseId(id), userId = userId, data = UpdateUserItemDataDto(playbackPositionTicks = 0))
     }
 
     suspend fun setFavorite(id: String, favorite: Boolean) {

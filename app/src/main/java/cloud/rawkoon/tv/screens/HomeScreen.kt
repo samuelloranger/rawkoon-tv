@@ -30,6 +30,7 @@ import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.ui.Card
+import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Icon
 import cloud.rawkoon.tv.ui.PillButton
@@ -73,6 +74,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private var loadJob: Job? = null
     private var rawkoonJob: Job? = null
     private var backdropJob: Job? = null
+    private var dialog: ChoiceDialog? = null
 
     /**
      * Backdrops looked up for TMDB cards focused before, by item id; "" for a title with none or
@@ -141,7 +143,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             try {
                 app.awaitStop()
                 session.requireSupportedServer()
-                val jellyfin = session.homeRows(Prefs.homeFetch(context))
+                val jellyfin = session.homeRows(Prefs.homeFetch(context).copy(hiddenSeries = Prefs.nextUpHidden(context, session.profile.id)))
                 app.launcher.syncAfterHome(profile(), jellyfin)
                 val previous = rawkoonRowsOnScreen(cached)
                 showHome(RawkoonHome.merge(jellyfin, previous))
@@ -232,8 +234,36 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         if (item.tmdb != null) {
             Card(context, item, false, app.images, ::onFocused, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) }, cardCaption(item))
         } else {
-            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) })
+            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) }).also { card ->
+                if (rowId == ROW_RESUME || (rowId == ROW_NEXT_UP && item.seriesId != null)) {
+                    card.setOnLongClickListener { openRemoveMenu(card.item, rowId); true }
+                }
+            }
         }
+
+    /** Long-press on a Continue watching or Next up card offers to clear it off the row. */
+    private fun openRemoveMenu(item: MediaItem, rowId: String) {
+        val label = string(if (rowId == ROW_RESUME) R.string.remove_from_resume else R.string.remove_from_next_up)
+        dialog = ChoiceDialog(context, item.headerTitle, listOf(label to { remove(item, rowId) })).also { it.open(view) }
+    }
+
+    /**
+     * Takes [item] off its row at once. Continue watching clears the resume point on Jellyfin; Next
+     * up has no server-side hide, so the series is kept in the profile's hidden set until it plays again.
+     */
+    private fun remove(item: MediaItem, rowId: String) {
+        val seriesId = item.seriesId
+        if (rowId == ROW_RESUME) {
+            scope.launch { runCatching { session.clearResume(item.id) } }
+        } else if (seriesId != null) {
+            Prefs.setNextUpHidden(context, session.profile.id, Prefs.nextUpHidden(context, session.profile.id) + seriesId)
+        }
+        val rest = shown.map { row ->
+            if (row.id != rowId) row else row.copy(items = row.items.filter { if (rowId == ROW_RESUME) it.id != item.id else it.seriesId != seriesId })
+        }.filter { it.items.isNotEmpty() }
+        showHome(rest)
+        scope.launch { saveCache(rest) }
+    }
 
     /** Opens a library card, or plays it at once when the setting asks for it in this row. */
     private fun openFromRow(item: MediaItem, rowId: String) {
@@ -361,6 +391,10 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {
+        dialog?.takeIf { it.isAttachedToWindow }?.let {
+            it.close()
+            return true
+        }
         if (rail.isOpen) {
             activity.finish()
         } else {
@@ -376,6 +410,8 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         /** How long loaded Rawkoon rows are reused before a refresh asks again. */
         const val RAWKOON_FRESH_MS = 60_000L
         const val BACKDROP_CACHE = 100
+        const val ROW_RESUME = "resume"
+        const val ROW_NEXT_UP = "nextup"
     }
 }
 

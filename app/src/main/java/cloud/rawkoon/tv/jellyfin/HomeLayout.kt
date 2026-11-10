@@ -11,6 +11,8 @@ data class HomeFetch(
     val nextUpDays: Int = 0,
     /** Whether Next up also offers episodes of shows already finished. */
     val rewatching: Boolean = false,
+    /** Series the profile removed from Next up; their episodes are left out. */
+    val hiddenSeries: Set<String> = emptySet(),
 ) {
     /** The oldest last-watched date Next up still counts, or null for no limit. */
     fun nextUpCutoff(now: LocalDateTime): LocalDateTime? = if (nextUpDays > 0) now.minusDays(nextUpDays.toLong()) else null
@@ -22,6 +24,13 @@ data class HomeFetch(
         const val DEFAULT_LIMIT = 20
     }
 }
+
+/** [items] without the episodes of the [hidden] series. */
+fun withoutSeries(items: List<MediaItem>, hidden: Set<String>): List<MediaItem> =
+    if (hidden.isEmpty()) items else items.filter { it.seriesId == null || it.seriesId !in hidden }
+
+/** [hidden] with [seriesId] back in Next up, once it plays again. */
+fun unhideSeries(hidden: Set<String>, seriesId: String?): Set<String> = if (seriesId == null) hidden else hidden - seriesId
 
 /**
  * [ids] in the order the user arranged them: those in [order] first, in that order (ids that are

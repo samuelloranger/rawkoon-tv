@@ -65,6 +65,8 @@
 
     <string name="row_resume">Continue watching</string>
     <string name="row_next_up">Next up</string>
+    <string name="remove_from_resume">Remove from Continue watching</string>
+    <string name="remove_from_next_up">Remove from Next up</string>
     <string name="recently_added">Recently added</string>
     <string name="row_latest">Recently added in %1$s</string>
     <string name="home_empty">Nothing to show yet.</string>
