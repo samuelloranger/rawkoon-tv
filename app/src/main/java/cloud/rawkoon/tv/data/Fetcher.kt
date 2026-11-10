@@ -7,6 +7,9 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** A response outside 2xx, with its status, so callers can tell "not there" (404) from a passing failure. */
+class HttpStatusException(val code: Int) : java.io.IOException("HTTP $code")
+
 /**
  * Opens http(s) URLs. Blocking: call from a worker thread. The context is kept in the signature for
  * the callers that build one; nothing here needs it.
@@ -22,7 +25,7 @@ class Fetcher(context: Context) {
             connection.readTimeout = TIMEOUT_MS
             connection.instanceFollowRedirects = true
             headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
-            if (connection.responseCode !in 200..299) throw java.io.IOException("HTTP ${connection.responseCode}")
+            if (connection.responseCode !in 200..299) throw HttpStatusException(connection.responseCode)
             return object : FilterInputStream(connection.inputStream) {
                 override fun close() {
                     try {

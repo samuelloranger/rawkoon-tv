@@ -196,6 +196,7 @@
     <string name="setting_clock">Horloge</string>
     <string name="clock_shown">Affichée</string>
     <string name="clock_hidden">Masquée</string>
+    <string name="setting_preview_clips">Aperçus vidéo</string>
     <string name="home_rows_hint">Appuie sur OK sur une rangée pour la déplacer ou la masquer.</string>
     <string name="home_rows_empty">Ouvre l\'accueil une fois et ses rangées seront listées ici.</string>
     <string name="home_row_up">Monter</string>

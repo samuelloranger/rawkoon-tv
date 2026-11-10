@@ -76,7 +76,8 @@ internal fun libraryRequest(
     filters = query.filter.filters,
     startIndex = startIndex,
     limit = limit,
-    fields = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO),
+    // Provider ids carry the TMDB id a grid card's preview clip is found by
+    fields = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO, ItemFields.PROVIDER_IDS),
     enableTotalRecordCount = true,
     nameLessThan = bound?.lessThan,
     nameStartsWithOrGreater = bound?.orGreater,

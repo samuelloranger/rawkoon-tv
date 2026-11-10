@@ -37,6 +37,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * The only activity. It holds a stack of [Screen]s: a new screen slides in over the one below,
@@ -268,6 +269,19 @@ class MainActivity : Activity() {
      */
     @SuppressLint("GestureBackNavigation")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN || event.keyCode !in CLIP_STOP_KEYS) return dispatchScreenKey(event)
+        // A key that may move focus ends a preview clip at once; the card that takes focus starts its own.
+        // When focus did not move (a row's end, a key that did nothing) the same card asks again.
+        val before = currentFocus
+        (application as App).clips.stop()
+        val handled = dispatchScreenKey(event)
+        // Checked on the next frame: a grid that scrolls first moves focus after this key returns
+        window.decorView.postOnAnimation { if (currentFocus === before) stack.lastOrNull()?.onClipRearm() }
+        return handled
+    }
+
+    @SuppressLint("GestureBackNavigation") // The TV remote delivers Back as a key; the guards above are the point
+    private fun dispatchScreenKey(event: KeyEvent): Boolean {
         val screen = stack.lastOrNull() ?: return super.dispatchKeyEvent(event)
         val guarded = event.keyCode == KeyEvent.KEYCODE_BACK ||
             event.keyCode in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_CENTER ||
@@ -288,18 +302,22 @@ class MainActivity : Activity() {
      */
     override fun onStart() {
         super.onStart()
+        liveScope.launch { (application as App).let { it.clips.refresh(it.profiles.all()) } }
         if (Prefs.autoUpdateCheck(this)) UpdateCheck(this, Fetcher(this)).refreshAsync { if (!isDestroyed) stack.lastOrNull()?.onUpdateChecked() }
     }
 
     override fun onPause() {
         foreground = false
+        (application as App).clips.foreground = false
         Installer.appInFront = false
         syncLive()
+        (application as App).clips.stop()
         stack.lastOrNull()?.onPause()
         super.onPause()
     }
 
     override fun onStop() {
+        (application as App).clips.release()
         stack.lastOrNull()?.onStop()
         super.onStop()
     }
@@ -307,6 +325,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         foreground = true
+        (application as App).clips.foreground = true
         Installer.openPending(this)
         syncLive()
         stack.lastOrNull()?.onResume()
@@ -318,5 +337,13 @@ class MainActivity : Activity() {
         liveScope.cancel()
         stack.forEach { it.destroy() }
         super.onDestroy()
+    }
+
+    private companion object {
+        /** Keys that can move focus or navigate: the ones that end a preview clip. */
+        val CLIP_STOP_KEYS = setOf(
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BACK,
+        )
     }
 }

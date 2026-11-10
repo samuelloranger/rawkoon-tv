@@ -14,8 +14,8 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
  */
 @SuppressLint("ViewConstructor")
 class PosterCell(context: Context, private val images: Images) : Focusable(context) {
-    private val posterW = context.dp(Tokens.POSTER_W)
-    private val posterH = context.dp(Tokens.POSTER_H)
+    private val posterW = context.dp(Tokens.GRID_POSTER_W)
+    private val posterH = context.dp(Tokens.GRID_POSTER_H)
     private val radius = context.dpf(Tokens.CARD_RADIUS)
     private val frame = PosterFrame(context, posterW, posterH, radius)
     private val art = frame.art
@@ -85,10 +85,10 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
 
     companion object {
         /** Art, the ring's room on both sides, and the gap to the next poster. */
-        const val CELL_W = Tokens.POSTER_W + Tokens.RING_INSET * 2 + Tokens.POSTER_GAP
+        const val CELL_W = Tokens.GRID_POSTER_W + Tokens.RING_INSET * 2 + Tokens.POSTER_GAP
 
         /** The vertical gap between the caption and the next row. */
         private const val ROW_GAP = 10
-        const val CELL_H = Tokens.POSTER_H + Tokens.RING_INSET * 2 + Tokens.CAPTION_GAP + Tokens.CAPTION_H + ROW_GAP
+        const val CELL_H = Tokens.GRID_POSTER_H + Tokens.RING_INSET * 2 + Tokens.CAPTION_GAP + Tokens.CAPTION_H + ROW_GAP
     }
 }

@@ -145,6 +145,7 @@ object Prefs {
     const val NEXT_UP_REWATCHING = "home:next_up_rewatching"
     const val CONTINUE_OPEN = "home:continue_open"
     const val SHOW_CLOCK = "home:show_clock"
+    const val PREVIEW_CLIPS = "home:preview_clips"
     // Profiles, updates
     const val SKIP_PROFILE_PICKER = "profiles:skip_picker"
     const val AUTO_UPDATE_CHECK = "update:auto_check"
@@ -239,6 +240,9 @@ object Prefs {
 
     /** Whether the clock shows on the home and the pages around it. */
     fun showClock(context: Context): Boolean = of(context).getBoolean(SHOW_CLOCK, true)
+
+    /** Whether a focused title plays its preview clip in the backdrop, when the server offers clips. */
+    fun previewClips(context: Context): Boolean = of(context).getBoolean(PREVIEW_CLIPS, true)
 
     /** The ids of a profile's home rows in the order they were arranged to; empty is the natural order. */
     fun homeOrder(context: Context, profileId: String): List<String> = readIds(of(context).getString(HOME_ORDER + profileId, null))

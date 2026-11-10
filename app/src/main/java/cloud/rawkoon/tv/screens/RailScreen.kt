@@ -5,9 +5,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
+import cloud.rawkoon.tv.clips.ClipKey
 import cloud.rawkoon.tv.jellyfin.ImageUrls
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
@@ -107,6 +111,59 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     /** True for the pages the rail itself opens (library, search, favorites, discover): each declares it. */
     protected open val isRailPage: Boolean get() = false
 
+    private var clipJob: Job? = null
+    private var clipItem: MediaItem? = null
+
+    /** Forgets the pending clip lookup: the focused card is gone or the page is leaving. */
+    protected fun cancelClip() {
+        clipJob?.cancel()
+        clipItem = null
+        backdrop.playClip(null)
+    }
+
+    /** A key left focus where it was: its card's clip is wanted again, if focus is on the page's content. */
+    override fun onClipRearm() {
+        clipItem?.takeIf { content.hasFocus() }?.let(::previewClip)
+    }
+
+    override fun onPause() {
+        // The card stays remembered, so the clip comes back with the app
+        clipJob?.cancel()
+        backdrop.playClip(null)
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        onClipRearm()
+    }
+
+    /**
+     * The focused [item]'s preview clip (null: none) plays in the backdrop once focus rests, when the
+     * server offers clips and the setting is on. A season or episode needs its show's TMDB id, read once per show.
+     */
+    protected fun previewClip(item: MediaItem?) {
+        clipJob?.cancel()
+        clipItem = item
+        val profile = app.profiles.get(session.profile.id) ?: session.profile
+        if (item == null || !app.clips.wanted(profile)) return backdrop.playClip(null)
+        val epoch = app.clips.epoch
+        clipJob = scope.launch {
+            val seriesTmdb = ClipKey.seriesToResolve(item)?.let { id ->
+                try {
+                    session.seriesTmdbId(id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            // A stop since the lookup began (a key, the page leaving) voids it
+            if (app.clips.epoch != epoch) return@launch
+            backdrop.playClip(ClipKey.of(item, seriesTmdb)?.let { app.clips.request(profile, it) })
+        }
+    }
+
     /** A message's button: "Try again" with a [retry], else "Back to profiles" (retrying can't help when the session ended). */
     protected fun messageAction(retry: (() -> Unit)?): Pair<String, () -> Unit> =
         if (retry != null) string(R.string.try_again) to retry else string(R.string.back_to_profiles) to { activity.popTo { it is ProfilesScreen } }
@@ -117,6 +174,8 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         super.onShown(first)
         clockView.applyClockSetting()
         if (!first) rail.refreshAvatar()
+        // Back from a page above: the card that gets focus back wants its clip again
+        if (!first) onClipRearm()
     }
 
     /** Back from the rail returns to the page; from the page it goes back a screen. */

@@ -134,6 +134,7 @@ abstract class RowsPage(
      * rail. Does nothing when nothing is shown.
      */
     protected fun clear() {
+        cancelClip()
         if (!hasRows() && backdropUrl == null) return
         header.visibility = View.INVISIBLE
         backdropUrl = null
@@ -202,6 +203,7 @@ abstract class RowsPage(
 
     private fun preview(item: MediaItem) {
         header.show(item)
+        previewClip(item)
         backdropUrl = backdropRequest(item.backdropUrl)
         mainHandler.removeCallbacks(settleBackdrop)
         mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)

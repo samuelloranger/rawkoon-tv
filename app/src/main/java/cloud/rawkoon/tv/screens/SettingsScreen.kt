@@ -229,6 +229,11 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
             put(Prefs.SHOW_CLOCK, it)
             clockView.applyClockSetting()
         }
+        // Only a server that offers clips has anything to turn off
+        if (app.clips.serverOffers(app.profiles.get(profileId.orEmpty()) ?: app.profiles.lastUsed() ?: return)) {
+            choice(column, R.string.setting_preview_clips, listOf(true to string(R.string.setting_on), false to string(R.string.setting_off)),
+                { Prefs.previewClips(context) }) { put(Prefs.PREVIEW_CLIPS, it) }
+        }
     }
 
     private fun addPlaybackSection(column: LinearLayout) {

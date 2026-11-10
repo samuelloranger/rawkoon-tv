@@ -224,7 +224,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     }
 
     companion object {
-        const val SPAN = 7
+        const val SPAN = 8
 
         /** Room above the anchored row for the focus ring. */
         private const val PAD_TOP = 8

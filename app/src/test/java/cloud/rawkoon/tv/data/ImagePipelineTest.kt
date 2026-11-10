@@ -64,4 +64,16 @@ class ImagePipelineTest {
             dir.deleteRecursively()
         }
     }
+
+    @Test
+    fun `a cached copy is fresh until its age passes the limit, and always without one`() {
+        assertTrue(isFresh(0, 10_000_000, null))
+        assertTrue(isFresh(1_000, 5_000, 10_000))
+        assertFalse(isFresh(1_000, 11_000, 10_000))
+    }
+
+    @Test
+    fun `a failed fetch carries its status`() {
+        assertEquals(404, HttpStatusException(404).code)
+    }
 }

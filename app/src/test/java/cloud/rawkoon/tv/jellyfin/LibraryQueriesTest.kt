@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.jellyfin
 
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
@@ -62,6 +63,7 @@ class LibraryQueriesTest {
         assertEquals(listOf(ItemSortBy.SORT_NAME), library.sortBy)
         assertEquals(listOf(ItemFilter.IS_FAVORITE), library.filters)
         assertEquals(true, library.enableTotalRecordCount)
+        assertEquals(true, library.fields?.contains(ItemFields.PROVIDER_IDS))
 
         val collection = libraryRequest(user, listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES), UUID.randomUUID(), query, 0, 100, NameBound(lessThan = "C"))
         assertEquals(false, collection.recursive)

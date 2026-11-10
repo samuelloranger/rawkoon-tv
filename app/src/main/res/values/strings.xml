@@ -208,6 +208,7 @@
     <string name="setting_clock">Clock</string>
     <string name="clock_shown">Shown</string>
     <string name="clock_hidden">Hidden</string>
+    <string name="setting_preview_clips">Preview clips</string>
     <string name="home_rows_hint">Press OK on a row to move it or hide it.</string>
     <string name="home_rows_empty">Open Home once and its rows will be listed here.</string>
     <string name="home_row_up">Move up</string>
