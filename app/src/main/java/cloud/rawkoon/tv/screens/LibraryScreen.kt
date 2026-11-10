@@ -90,6 +90,8 @@ class LibraryScreen(
             if (message.hasFocus()) focusWhenLoaded = true
             // A restarted grid is no longer at a letter
             if (!jumping) letters.active = null
+            // A new list (sort, filter, retry): its first focus fills the header again
+            if (!jumping) header.clear()
             message.hide()
             grid.reset()
             count.text = ""
