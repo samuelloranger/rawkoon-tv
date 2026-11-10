@@ -151,7 +151,11 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
         return true
     }
 
-    fun release() = exo.release()
+    fun release() {
+        exo.release()
+        // libass's renderer, tracks and fonts are native memory
+        assHandler?.release()
+    }
 
     private companion object {
         const val EXTERNAL_PREFIX = "jf-ext-"
