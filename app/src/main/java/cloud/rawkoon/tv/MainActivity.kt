@@ -275,8 +275,8 @@ class MainActivity : Activity() {
         val before = currentFocus
         (application as App).clips.stop()
         val handled = dispatchScreenKey(event)
-        // Checked a frame later: a grid that scrolls first moves focus after this key returns
-        window.decorView.post { if (currentFocus === before) stack.lastOrNull()?.onClipRearm() }
+        // Checked on the next frame: a grid that scrolls first moves focus after this key returns
+        window.decorView.postOnAnimation { if (currentFocus === before) stack.lastOrNull()?.onClipRearm() }
         return handled
     }
 
