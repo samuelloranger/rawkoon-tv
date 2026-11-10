@@ -150,6 +150,7 @@ object Prefs {
     const val AUTO_UPDATE_CHECK = "update:auto_check"
     private const val HOME_ORDER = "home:order:"
     private const val HOME_HIDDEN = "home:hidden:"
+    private const val NEXT_UP_HIDDEN = "home:next_up_hidden:"
 
     const val DEFAULT_SKIP_BACK_S = 10
     const val DEFAULT_SKIP_FORWARD_S = 30
@@ -250,6 +251,12 @@ object Prefs {
 
     fun setHomeHidden(context: Context, profileId: String, ids: Set<String>) =
         of(context).edit().putString(HOME_HIDDEN + profileId, JSONArray(ids.toList()).toString()).apply()
+
+    /** The ids of the series a profile removed from Next up; playing one of them again brings it back. */
+    fun nextUpHidden(context: Context, profileId: String): Set<String> = readIds(of(context).getString(NEXT_UP_HIDDEN + profileId, null)).toSet()
+
+    fun setNextUpHidden(context: Context, profileId: String, ids: Set<String>) =
+        of(context).edit().putString(NEXT_UP_HIDDEN + profileId, JSONArray(ids.toList()).toString()).apply()
 
     // Profiles and updates
 

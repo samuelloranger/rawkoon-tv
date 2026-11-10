@@ -18,8 +18,10 @@ import androidx.media3.ui.PlayerView
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.Screen
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.unhideSeries
 import cloud.rawkoon.tv.playback.PlaybackService
 import cloud.rawkoon.tv.playback.TrackMemory
 import cloud.rawkoon.tv.playback.TrickplayLoader
@@ -201,7 +203,11 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
             // ignore every seek, and report that as the resume point: the server's stream can seek
             if (state == Player.STATE_READY && !player.exo.isCurrentMediaItemSeekable && !player.exo.isCurrentMediaItemLive && transcodeInstead(startMs)) return
             if (state == Player.STATE_READY) networkRetries = 0
-            if (state == Player.STATE_READY && reporter.onReady()) chrome.scheduleHide()
+            if (state == Player.STATE_READY && reporter.onReady()) {
+                chrome.scheduleHide()
+                val hidden = Prefs.nextUpHidden(context, session.profile.id)
+                unhideSeries(hidden, item.seriesId).takeIf { it != hidden }?.let { Prefs.setNextUpHidden(context, session.profile.id, it) }
+            }
             if (state == Player.STATE_ENDED) ended()
         }
 

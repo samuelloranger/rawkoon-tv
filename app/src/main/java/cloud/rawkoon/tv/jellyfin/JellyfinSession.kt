@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.jellyfin
 import android.content.Context
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -28,6 +29,7 @@ import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
@@ -106,7 +108,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
                         nextUpDateCutoff = fetch.nextUpCutoff(LocalDateTime.now(ZoneOffset.UTC)), enableRewatching = fetch.nextUpRewatching(),
                     ),
                 ).content.items
-                HomeRow("nextup", strings.getString(R.string.row_next_up), items.map { MediaItem.from(it, images) }, landscape = true)
+                HomeRow("nextup", strings.getString(R.string.row_next_up), withoutSeries(items.map { MediaItem.from(it, images) }, Prefs.nextUpHidden(strings, profile.id)), landscape = true)
             }
         }
         val latest = async {
@@ -217,6 +219,11 @@ class JellyfinSession(context: Context, val profile: Profile) {
 
     suspend fun setPlayed(id: String, played: Boolean) {
         if (played) api.userDataApi.markPlayedItem(itemId = parseId(id), userId = userId) else api.userDataApi.markUnplayedItem(itemId = parseId(id), userId = userId)
+    }
+
+    /** Clears the resume point, so the server drops the item from Continue watching; the watched state stays as it is. */
+    suspend fun clearResume(id: String) {
+        api.userDataApi.updateItemUserData(itemId = parseId(id), userId = userId, data = UpdateUserItemDataDto(playbackPositionTicks = 0))
     }
 
     suspend fun setFavorite(id: String, favorite: Boolean) {

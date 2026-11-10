@@ -23,6 +23,13 @@ data class HomeFetch(
     }
 }
 
+/** [items] without the episodes of the [hidden] series. */
+fun withoutSeries(items: List<MediaItem>, hidden: Set<String>): List<MediaItem> =
+    if (hidden.isEmpty()) items else items.filter { it.seriesId == null || it.seriesId !in hidden }
+
+/** [hidden] with [seriesId] back in Next up, once it plays again. */
+fun unhideSeries(hidden: Set<String>, seriesId: String?): Set<String> = if (seriesId == null) hidden else hidden - seriesId
+
 /**
  * [ids] in the order the user arranged them: those in [order] first, in that order (ids that are
  * no longer there skipped), then the ones it doesn't know, such as a new library, in their natural order.

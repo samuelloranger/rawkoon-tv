@@ -105,4 +105,22 @@ class HomeLayoutTest {
         assertEquals(listOf("A", "C", "B"), mergedOrder(listOf("A", "B"), listOf("A", "C", "B")))
         assertEquals(listOf("B", "A"), mergedOrder(listOf("B", "A"), emptyList()))
     }
+
+    private fun episode(id: String, series: String?) = MediaItem(
+        id, MediaItem.Kind.EPISODE, id, null, null, "", null, null, null, null, null, null, null, null, null, false, seriesId = series,
+    )
+
+    @Test
+    fun `hidden series drop out of next up`() {
+        val items = listOf(episode("e1", "A"), episode("e2", "B"), episode("m", null), episode("e3", "A"))
+        assertEquals(listOf("e2", "m"), withoutSeries(items, setOf("A")).map { it.id })
+        assertEquals(items, withoutSeries(items, emptySet()))
+    }
+
+    @Test
+    fun `playing a hidden series brings it back`() {
+        assertEquals(setOf("B"), unhideSeries(setOf("A", "B"), "A"))
+        assertEquals(setOf("A"), unhideSeries(setOf("A"), "C"))
+        assertEquals(setOf("A"), unhideSeries(setOf("A"), null))
+    }
 }
