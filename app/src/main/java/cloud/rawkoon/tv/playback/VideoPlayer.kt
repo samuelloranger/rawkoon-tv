@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.playback
 
+import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.OptIn
@@ -14,6 +15,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -53,6 +55,7 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
             .setConstantBitrateSeekingAlwaysEnabled(true)
         exo = ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)
+            .setLoadControl(DefaultLoadControl.Builder().setTargetBufferBytes(bufferTargetBytes(context.getSystemService(ActivityManager::class.java).memoryClass)).build())
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(DefaultMediaSourceFactory(ResolvingDataSource.Factory(DefaultDataSource.Factory(context, http)) { spec ->
                 // Only requests addressed to Jellyfin carry the token (a remote direct-play URL does not); a redirect off Jellyfin still re-sends it
@@ -140,6 +143,17 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
 
         fun externalId(index: Int) = "$EXTERNAL_PREFIX$index"
     }
+}
+
+/**
+ * How much media to buffer ahead on a device whose app heap is [heapMiB]: a third of it, when that
+ * is below media3's own default. The buffered video lives in the Java heap, and the default's
+ * ~125 MiB fills most of a 192 MiB heap during 4K playback; larger heaps keep the default.
+ */
+@OptIn(UnstableApi::class)
+internal fun bufferTargetBytes(heapMiB: Int): Int {
+    val third = heapMiB / 3 * 1024 * 1024
+    return if (third < DefaultLoadControl.DEFAULT_VIDEO_BUFFER_SIZE) third else C.LENGTH_UNSET
 }
 
 /** True when [requestUrl] is addressed to the same host and port as [serverUrl], default ports normalised. */
