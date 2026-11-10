@@ -151,6 +151,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 val outcome = rawkoon?.await()
                 if (outcome is RawkoonOutcome.Loaded) {
                     rawkoonLoadedAt = SystemClock.elapsedRealtime()
+                    RawkoonHome.watchlistChanged = false
                     rawkoonLoadedWith = profile().rawkoonToken
                 }
                 val fresh = RawkoonHome.merge(jellyfin, outcome?.let { RawkoonHome.rowsFor(it, previous) } ?: previous)
@@ -186,7 +187,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private fun refreshedDates(list: List<HomeRow>) = RawkoonHome.refreshed(list, text, LocalDate.now(), Locale.getDefault())
 
     /** Coming back to home within a minute reuses the Rawkoon rows on screen instead of asking again. */
-    private fun rawkoonIsFresh() = rawkoonLoadedAt != 0L && rawkoonLoadedWith == profile().rawkoonToken &&
+    private fun rawkoonIsFresh() = rawkoonLoadedAt != 0L && !RawkoonHome.watchlistChanged && rawkoonLoadedWith == profile().rawkoonToken &&
         SystemClock.elapsedRealtime() - rawkoonLoadedAt < RAWKOON_FRESH_MS
 
     /** The Rawkoon rows to show until a refresh answers: those on screen, else the cached ones; none without a session. */
@@ -198,7 +199,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Read again each time: linking the account from Discover changes the saved profile, not this screen's copy. */
     private fun profile() = app.profiles.get(session.profile.id) ?: session.profile
 
-    /** Coming soon and My requests, capped so a slow Rawkoon can't hold the home refresh. */
+    /** The Rawkoon rows: Coming soon, My requests and My list, capped so a slow Rawkoon can't hold the home refresh. */
     private suspend fun rawkoonOutcome(): RawkoonOutcome {
         val profile = profile()
         val api = profile.rawkoonDiscover(context) ?: return RawkoonOutcome.NoSession
@@ -390,13 +391,14 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private var liveMissed = false
     private var missedRawkoon = false
 
-    /** Coming soon and My requests again, merged into the rows on screen. */
+    /** The Rawkoon rows: Coming soon, My requests and My list again, merged into the rows on screen. */
     private fun refreshRawkoon() {
         rawkoonJob?.cancel()
         rawkoonJob = scope.launch {
             val outcome = rawkoonOutcome()
             if (outcome is RawkoonOutcome.Loaded) {
                 rawkoonLoadedAt = SystemClock.elapsedRealtime()
+                RawkoonHome.watchlistChanged = false
                 rawkoonLoadedWith = profile().rawkoonToken
             }
             val jellyfin = shown.filterNot(RawkoonHome::isRawkoonRow)

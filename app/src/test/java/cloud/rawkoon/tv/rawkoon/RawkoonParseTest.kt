@@ -89,6 +89,41 @@ class RawkoonParseTest {
     }
 
     @Test
+    fun `a modal says whether the title is in the watchlist, and reads as not when the server says nothing`() {
+        assertEquals(true, parseModal(JSONObject("""{"watchlist_status":true,"details":{}}""")).inWatchlist)
+        assertEquals(false, parseModal(JSONObject("""{"details":{}}""")).inWatchlist)
+    }
+
+    @Test
+    fun `the watchlist keeps movies and shows with an id and a title`() {
+        val list = parseWatchlist(
+            JSONObject(
+                """
+                {"items":[
+                  {"id":1,"tmdb_id":10,"media_type":"movie","title":"A","poster_url":"https://img.example.com/a.jpg","overview":"About A","release_year":2020,"vote_average":7.5,"added_at":"2026-10-01T10:00:00.000Z","movie_release_date":"2020-05-01"},
+                  {"id":2,"tmdb_id":20,"media_type":"tv","title":"B","poster_url":null,"overview":null,"release_year":null,"vote_average":null,"added_at":"2026-10-02T10:00:00.000Z","movie_release_date":null},
+                  {"id":3,"tmdb_id":30,"media_type":"book","title":"C"},
+                  {"id":4,"tmdb_id":0,"media_type":"movie","title":"D"},
+                  {"id":5,"tmdb_id":50,"media_type":"movie","title":""}
+                ]}
+                """,
+            ),
+        )
+        assertEquals(listOf(10, 20), list.map { it.tmdbId })
+        assertEquals(listOf(true, false), list.map { it.isMovie })
+        assertEquals(2020, list[0].year)
+        assertEquals(7.5, list[0].voteAverage!!, 0.0)
+        assertNull(list[1].posterUrl)
+        assertNull(list[1].year)
+    }
+
+    @Test
+    fun `an empty or missing watchlist parses to nothing`() {
+        assertEquals(emptyList<WatchlistEntry>(), parseWatchlist(JSONObject("""{"items":[]}""")))
+        assertEquals(emptyList<WatchlistEntry>(), parseWatchlist(JSONObject("{}")))
+    }
+
+    @Test
     fun `a movie's modal takes its runtime and year from the details`() {
         val modal = parseModal(JSONObject("""{"details":{"runtime":97,"release_date":"2023-03-04","genres":[],"vote_average":0}}"""))
         assertEquals(97, modal.runtimeMinutes)

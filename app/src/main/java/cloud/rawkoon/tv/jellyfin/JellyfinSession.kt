@@ -165,6 +165,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
             seasonCount = dto.childCount.takeIf { item.kind == MediaItem.Kind.SERIES },
             episodeCount = dto.recursiveItemCount?.takeIf { item.kind == MediaItem.Kind.SERIES },
             people = people,
+            tmdbId = dto.providerIds?.get("Tmdb")?.toIntOrNull(),
         )
     }
 

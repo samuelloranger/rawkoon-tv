@@ -36,6 +36,21 @@ data class TitleModal(
     val backdropUrl: String?,
     val logoUrl: String?,
     val cast: List<CastMember>,
+    /** Whether the title is in this account's watchlist. */
+    val inWatchlist: Boolean = false,
+)
+
+/** One title of the account's watchlist, "My list". */
+data class WatchlistEntry(
+    val tmdbId: Int,
+    val isMovie: Boolean,
+    val title: String,
+    val year: Int?,
+    val posterUrl: String?,
+    val overview: String?,
+    val voteAverage: Double?,
+    /** When it was added, ISO-8601. */
+    val addedAt: String?,
 )
 
 data class LibraryEntry(val status: String, val episodeCount: Int?, val downloadedEpisodeCount: Int?)

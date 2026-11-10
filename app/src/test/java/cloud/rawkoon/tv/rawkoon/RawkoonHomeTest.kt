@@ -116,6 +116,35 @@ class RawkoonHomeTest {
         assertEquals(RawkoonHome.MAX_ITEMS, RequestRows.requests(many, "me", now).size)
     }
 
+    private fun entry(id: Int, added: String?, movie: Boolean = true) =
+        WatchlistEntry(id, movie, "Title $id", 2024, "https://img.example.com/$id.jpg", "About", 7.0, added)
+
+    @Test
+    fun `my list is newest added first, capped, and leaves a missing or unreadable date last`() {
+        val all = listOf(entry(1, "2026-10-01T10:00:00.000Z"), entry(2, null), entry(3, "2026-10-03T10:00:00.000Z"), entry(4, "garbage"))
+        assertEquals(listOf(3, 1, 2, 4), WatchlistRows.newestFirst(all).map { it.tmdbId })
+        val many = (1..30).map { entry(it, "2026-10-01T10:00:00.000Z") }
+        assertEquals(RawkoonHome.MAX_ITEMS, WatchlistRows.newestFirst(many).size)
+    }
+
+    @Test
+    fun `my list is left out when empty, else a row of title cards that open the library page when there is one`() {
+        assertNull(WatchlistRows.row(emptyList(), FakeText))
+        val row = WatchlistRows.row(listOf(entry(7, "2026-10-01T10:00:00.000Z", movie = false)), FakeText)!!
+        assertEquals(RawkoonHome.WATCHLIST_ID, row.id)
+        assertEquals("My list", row.title)
+        val card = row.items.single()
+        assertEquals("watchlist-tv-7", card.id)
+        assertEquals(MediaItem.Kind.SERIES, card.kind)
+        assertEquals(7, card.tmdb!!.id)
+        assertEquals(true, card.tmdb!!.inLibrary)
+    }
+
+    @Test
+    fun `the watchlist row is a rawkoon row`() {
+        assertEquals(true, RawkoonHome.isRawkoonRow(row(RawkoonHome.WATCHLIST_ID)))
+    }
+
     @Test
     fun `a request card carries its state as a badge`() {
         val item = RequestRows.item(request(3, "approved"), TitleState.Processing(true, 40), FakeText)

@@ -13,4 +13,6 @@ data class Details(
     val seasonCount: Int?,
     val episodeCount: Int?,
     val people: List<Person>,
+    /** The title's TMDB id in Jellyfin, when it has one: what ties the page to Rawkoon's watchlist. */
+    val tmdbId: Int? = null,
 )
