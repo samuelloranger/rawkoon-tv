@@ -221,8 +221,8 @@ object Prefs {
     /** Whether PGS subtitles are drawn by the player; off has the server burn them in. */
     fun pgsDirectPlay(context: Context): Boolean = of(context).getBoolean(PGS_DIRECT_PLAY, true)
 
-    /** Whether ASS/SSA subtitles are drawn by the player (libass), styling and all; off has the server burn them in. */
-    fun assDirectPlay(context: Context): Boolean = of(context).getBoolean(ASS_DIRECT_PLAY, true)
+    /** Whether ASS/SSA subtitles are drawn by the player (libass), styling and all; off, as in the official client, has the server burn them in. */
+    fun assDirectPlay(context: Context): Boolean = of(context).getBoolean(ASS_DIRECT_PLAY, false)
 
     /** The override for an HDR format, by the key of its setting ([HDR10] and the like). */
     fun hdrOverride(context: Context, key: String): HdrOverride = HdrOverride.of(of(context).getString(key, null))
