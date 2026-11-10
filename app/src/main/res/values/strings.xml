@@ -188,6 +188,7 @@
     <string name="setting_ac3_passthrough">Surround passthrough (AC3 / E-AC3)</string>
     <string name="setting_downmix">Downmix to stereo</string>
     <string name="setting_pgs_direct_play">Direct play PGS subtitles</string>
+    <string name="setting_ass_direct_play">Direct play ASS/SSA subtitles</string>
     <string name="setting_hdr10" translatable="false">HDR10</string>
     <string name="setting_hdr10_plus" translatable="false">HDR10+</string>
     <string name="setting_dolby_vision" translatable="false">Dolby Vision</string>

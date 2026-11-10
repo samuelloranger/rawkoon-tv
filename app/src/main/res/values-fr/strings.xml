@@ -179,6 +179,7 @@
     <string name="setting_ac3_passthrough">Son surround direct (AC3 / E-AC3)</string>
     <string name="setting_downmix">Mixage en stéréo</string>
     <string name="setting_pgs_direct_play">Lire les sous-titres PGS directement</string>
+    <string name="setting_ass_direct_play">Lire les sous-titres ASS/SSA directement</string>
     <string name="hdr_auto">Auto (ce que ta télé indique)</string>
     <string name="hdr_always">Toujours autoriser</string>
     <string name="hdr_never">Ne jamais autoriser</string>

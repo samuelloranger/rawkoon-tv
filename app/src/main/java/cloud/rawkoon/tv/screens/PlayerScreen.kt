@@ -68,7 +68,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     override val slides get() = false
     private val service = PlaybackService(context, session)
     private val settings = PlayerSettings.read(context)
-    private val player = VideoPlayer(context, service.authorization, service.serverUrl, settings.skipBackMs, settings.skipForwardMs)
+    private val player = VideoPlayer(context, service.authorization, service.serverUrl, settings.skipBackMs, settings.skipForwardMs, Prefs.assDirectPlay(context))
     private val autoplay = AutoplayTracker(settings.stillWatchingAfter)
     private val displayMatcher = DisplayMatcher(activity, player.exo, mainHandler, settings.matchDisplay)
     private val trickplayLoader = TrickplayLoader(context, service.authorization)
@@ -91,6 +91,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         // The preview clip's decoder would compete with the video's
         app.clips.release()
         surface.player = player.exo
+        player.attachAss(surface.subtitleView)
         view.addView(surface, fill())
     }
 

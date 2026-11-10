@@ -45,7 +45,7 @@ private val supportedAudioCodecs = arrayOf(
 
 /**
  * Rawkoon: the official defaults (100 Mbps, AC3 passthrough, PGS direct play, HDR as the TV
- * reports it). [maxBitrate] and [maxResolution] (a picture height, 0 for no limit) are the user's
+ * reports it). ASS direct play, through libass, is off unless the user turns it on. [maxBitrate] and [maxResolution] (a picture height, 0 for no limit) are the user's
  * streaming-quality settings: anything above them is transcoded down. The audio, subtitle and HDR
  * parameters are the user's overrides.
  */
@@ -57,6 +57,7 @@ fun createDeviceProfile(
 	isAC3Enabled: Boolean = true,
 	downMixAudio: Boolean = false,
 	pgsDirectPlay: Boolean = true,
+	assDirectPlay: Boolean = false,
 	hdr10: HdrOverride = HdrOverride.AUTO,
 	hdr10Plus: HdrOverride = HdrOverride.AUTO,
 	dolbyVision: HdrOverride = HdrOverride.AUTO,
@@ -66,7 +67,7 @@ fun createDeviceProfile(
 	maxResolution = maxResolution,
 	isAC3Enabled = isAC3Enabled,
 	downMixAudio = downMixAudio,
-	assDirectPlay = false,
+	assDirectPlay = assDirectPlay,
 	pgsDirectPlay = pgsDirectPlay,
 	hdr10 = hdr10,
 	hdr10Plus = hdr10Plus,
