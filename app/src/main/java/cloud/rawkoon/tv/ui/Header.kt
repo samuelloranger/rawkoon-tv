@@ -22,18 +22,19 @@ class LogoView(context: Context) : BitmapView(context, Mode.CONTAIN_BOTTOM_START
  * triggers a layout pass.
  */
 @SuppressLint("ViewConstructor")
-class Header(context: Context, private val images: Images) : LinearLayout(context) {
+class Header(context: Context, private val images: Images, private val compact: Boolean = false) : LinearLayout(context) {
     private val main = Handler(Looper.getMainLooper())
-    private val logoW = context.dp(LOGO_W)
-    private val logoH = context.dp(LOGO_H)
+    private val logoW = context.dp(if (compact) COMPACT_LOGO_W else LOGO_W)
+    private val logoH = context.dp(if (compact) COMPACT_LOGO_H else LOGO_H)
     private val logo = LogoView(context)
     // Long titles shrink and wrap onto a second line instead of being cut
     private val title = label(context, 40f, Tokens.textPrimary, Fonts.title(context), lines = 2).apply {
         gravity = Gravity.BOTTOM
-        setAutoSizeTextTypeUniformWithConfiguration(22, 40, 2, TypedValue.COMPLEX_UNIT_SP)
+        if (compact) setAutoSizeTextTypeUniformWithConfiguration(12, 20, 1, TypedValue.COMPLEX_UNIT_SP)
+        else setAutoSizeTextTypeUniformWithConfiguration(22, 40, 2, TypedValue.COMPLEX_UNIT_SP)
     }
-    private val meta = label(context, 13.5f, Tokens.textSoft, Fonts.medium(context))
-    private val overview = label(context, 14f, 0xD9E9E0D8.toInt(), Fonts.body(context), lines = 2).apply {
+    private val meta = label(context, if (compact) 12f else 13.5f, Tokens.textSoft, Fonts.medium(context))
+    private val overview = label(context, 14f, 0xD9E9E0D8.toInt(), Fonts.body(context), lines = if (compact) 1 else 2).apply {
         setLineSpacing(0f, 1.2f)
     }
     private var shown: MediaItem? = null
@@ -49,8 +50,8 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
         box.addView(logo, fill())
         box.addView(title, fill())
         addView(box, LayoutParams(logoW, logoH))
-        addView(meta, LayoutParams(context.dp(560), context.dp(20)).apply { topMargin = context.dp(10) })
-        addView(overview, LayoutParams(context.dp(490), context.dp(44)).apply { topMargin = context.dp(6) })
+        addView(meta, LayoutParams(context.dp(560), context.dp(20)).apply { topMargin = context.dp(if (compact) 4 else 10) })
+        addView(overview, LayoutParams(context.dp(if (compact) COMPACT_OVERVIEW_W else 490), context.dp(if (compact) 20 else 44)).apply { topMargin = context.dp(if (compact) 2 else 6) })
     }
 
     /** Called on every focus move; the header follows once focus rests. */
@@ -118,5 +119,10 @@ class Header(context: Context, private val images: Images) : LinearLayout(contex
     private companion object {
         const val LOGO_W = 360
         const val LOGO_H = 80
+
+        // The library grid's header: a small logo, one meta line and one line of overview
+        const val COMPACT_LOGO_W = 190
+        const val COMPACT_LOGO_H = 38
+        const val COMPACT_OVERVIEW_W = 470
     }
 }

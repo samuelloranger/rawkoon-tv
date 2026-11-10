@@ -102,6 +102,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private val updateCheck by lazy { UpdateCheck(context, Fetcher(context)) }
 
     init {
+        backdrop.frameFraction = Tokens.FRAME_W_HOME
         backdrop.drifts = true
         // Under the clock
         addOverPage(updatePill, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END).apply {

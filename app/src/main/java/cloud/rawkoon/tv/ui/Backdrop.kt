@@ -17,6 +17,7 @@ import android.graphics.Shader
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
+import android.view.Gravity
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
@@ -25,6 +26,29 @@ import java.util.concurrent.Executors
 
 /** The request for a Jellyfin backdrop at the width the page draws it. */
 fun backdropRequest(url: String?): String? = url?.let { "$it&maxWidth=${Tokens.BACKDROP_W}" }
+
+/** The 16:9 frame a backdrop is drawn in, anchored top-right: [fraction] of the screen width; 1 or more is the whole screen. */
+data class BackdropFrame(val w: Int, val h: Int) {
+    companion object {
+        fun of(screenW: Int, screenH: Int, fraction: Float): BackdropFrame {
+            if (fraction >= 1f) return BackdropFrame(screenW, screenH)
+            val w = (screenW * fraction).toInt()
+            return BackdropFrame(w, w * 9 / 16)
+        }
+
+        /** Whether this is a frame smaller than the screen. */
+        fun isFramed(fraction: Float) = fraction < 1f
+
+        /**
+         * Page-colour alpha at [t] (0 at the fade's far end, 1 at the edge it fades into): a smoothstep,
+         * so the fade has no visible start or end.
+         */
+        fun fadeAlpha(t: Float): Float {
+            val x = t.coerceIn(0f, 1f)
+            return x * x * (3 - 2 * x)
+        }
+    }
+}
 
 /**
  * The page background. It draws no colour of its own: the window's page colour shows where there is
@@ -53,6 +77,13 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     /** How much of the image shows: 1 on home, lower behind denser pages. Part of the cache key. */
     var strength = 1f
 
+    /** The width of the backdrop's 16:9 frame as a fraction of the screen; 1 (the default) draws it full screen. */
+    var frameFraction = 1f
+        set(value) {
+            field = value
+            applyFrame()
+        }
+
     /**
      * Whether the image slowly zooms in and back out once the page rests (home). The whole
      * backdrop scales as one render property, so the GPU moves the same textured quad it already
@@ -80,6 +111,26 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     init {
         addView(bottom, fill())
         addView(top, fill())
+    }
+
+    private fun frame(): BackdropFrame {
+        val w = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val h = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        return BackdropFrame.of(w, h, frameFraction)
+    }
+
+    /** Sizes both layers to the frame, top-right, and makes the drift zoom around its centre. */
+    private fun applyFrame() {
+        if (!BackdropFrame.isFramed(frameFraction)) return
+        val f = frame()
+        for (layer in listOf(bottom, top)) layer.layoutParams = LayoutParams(f.w, f.h, Gravity.TOP or Gravity.END)
+        pivotX = (width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - f.w / 2f
+        pivotY = f.h / 2f
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        applyFrame()
     }
 
     /** A key was pressed: the zoom holds until no key has come for a moment. */
@@ -143,7 +194,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     /** Shows [url] (an image URL, or null for the plain page colour) once it is composed. */
     fun show(url: String?) {
         val strength = strength
-        val key = url?.let { "$it|$strength" }
+        val key = url?.let { "$it|$strength|$frameFraction" }
         if (key == requested) return
         requested = key
         if (key == shown) return
@@ -155,12 +206,14 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             crossfade(key, it)
             return
         }
-        val w = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
-        val h = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val f = frame()
+        val w = f.w
+        val h = f.h
+        val framed = BackdropFrame.isFramed(frameFraction)
         worker.execute {
             if (requested != key) return@execute
             val bitmap = try {
-                disk.file(url)?.let { compose(it.path, w, h, strength) }
+                disk.file(url)?.let { compose(it.path, w, h, strength, framed) }
             } catch (e: Exception) {
                 null
             }
@@ -221,9 +274,10 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         /**
          * Blends one backdrop: the image over the whole screen, then scrims tinted with a dark colour
          * taken from the image (on the left behind the header, at the bottom behind the rows, and a
-         * light one at the top for the clock).
+         * light one at the top for the clock). A [framed] backdrop (w by h is the frame) is dimmed less and
+         * fades into the page colour on its left and bottom edges instead of taking scrims.
          */
-        fun compose(path: String, w: Int, h: Int, strength: Float): Bitmap? {
+        fun compose(path: String, w: Int, h: Int, strength: Float, framed: Boolean = false): Bitmap? {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(path, bounds)
             if (bounds.outWidth <= 0) return null
@@ -248,12 +302,17 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             paint.alpha = 255
             image.recycle()
             // An even darkening first, so text stays readable over bright art anywhere on screen
-            canvas.drawColor(withAlpha(Color.BLACK, Tokens.BACKDROP_DIM))
+            canvas.drawColor(withAlpha(Color.BLACK, if (framed) Tokens.FRAME_DIM else Tokens.BACKDROP_DIM))
 
             val wf = w.toFloat()
             val hf = h.toFloat()
             paint.shader = LinearGradient(0f, 0f, 0f, hf * 0.2f, withAlpha(Color.BLACK, 0.45f), Color.TRANSPARENT, Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, wf, hf * 0.2f, paint)
+            if (framed) {
+                paint.shader = null
+                fadeEdges(canvas, paint, wf, hf)
+                return out.copy(Bitmap.Config.HARDWARE, false).also { out.recycle() }
+            }
             paint.shader = LinearGradient(0f, 0f, wf * 0.7f, 0f, withAlpha(tint, 0.92f), Color.TRANSPARENT, Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, wf, hf, paint)
             paint.shader = LinearGradient(
@@ -264,6 +323,20 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             )
             canvas.drawRect(0f, hf * 0.35f, wf, hf, paint)
             return out.copy(Bitmap.Config.HARDWARE, false).also { out.recycle() }
+        }
+
+        /** Paints the page colour over the left and bottom edges, fully opaque at the edge, to nothing inward. */
+        private fun fadeEdges(canvas: Canvas, paint: Paint, w: Float, h: Float) {
+            val steps = 8
+            val positions = FloatArray(steps + 1) { it / steps.toFloat() }
+            val colors = IntArray(steps + 1) { withAlpha(Tokens.background, BackdropFrame.fadeAlpha(1f - positions[it])) }
+            val fadeW = w * Tokens.FRAME_FADE_LEFT
+            paint.shader = LinearGradient(0f, 0f, fadeW, 0f, colors, positions, Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, fadeW, h, paint)
+            val fadeTop = h * (1f - Tokens.FRAME_FADE_BOTTOM)
+            paint.shader = LinearGradient(0f, h, 0f, fadeTop, colors, positions, Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, fadeTop, w, h, paint)
+            paint.shader = null
         }
 
         private fun withAlpha(color: Int, alpha: Float) =
