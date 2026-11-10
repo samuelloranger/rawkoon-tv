@@ -139,11 +139,12 @@ class Clips(private val context: Context, private val disk: DiskCache) {
                 target?.fitClip(videoSize.width, videoSize.height)
             }
 
+            // Qualified: inside apply, a bare stop() is the player's own, which leaves the last frame showing
             override fun onPlaybackStateChanged(state: Int) {
-                if (state == Player.STATE_ENDED) stop()
+                if (state == Player.STATE_ENDED) this@Clips.stop()
             }
 
-            override fun onPlayerError(error: PlaybackException) = stop()
+            override fun onPlayerError(error: PlaybackException) = this@Clips.stop()
         })
     }
 
