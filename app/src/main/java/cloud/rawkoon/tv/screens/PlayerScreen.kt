@@ -23,6 +23,8 @@ import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.unhideSeries
 import cloud.rawkoon.tv.playback.PlaybackService
+import cloud.rawkoon.tv.playback.RememberedTracks
+import cloud.rawkoon.tv.playback.Stream
 import cloud.rawkoon.tv.playback.TrackMemory
 import cloud.rawkoon.tv.playback.TrickplayLoader
 import cloud.rawkoon.tv.playback.VideoPlayer
@@ -48,6 +50,7 @@ import cloud.rawkoon.tv.ui.fill
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.jellyfin.sdk.model.api.MediaSegmentType
 import org.jellyfin.sdk.model.api.PlayMethod
 
 /**
@@ -100,6 +103,12 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private var networkRetries = 0
     private val retryPrepare = Runnable { player.exo.prepare() }
     private var loadJob: Job? = null
+
+    /** The next episode's stream, asked for before the switch, and what it was asked with. */
+    private data class Prefetched(val itemId: String, val startMs: Long, val remembered: RememberedTracks?, val maxBitrateMbps: Int, val stream: Stream)
+    private var prefetched: Prefetched? = null
+    private var prefetchJob: Job? = null
+    private val prefetchCheck = Runnable { prefetchNext() }
 
     /** Where the stream loading now was asked to start. */
     private var startMs = 0L
@@ -169,11 +178,17 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
         displayMatcher.reset()
         chrome.showSpinner(true)
         loadJob?.cancel()
+        prefetchJob?.cancel()
+        prefetchJob = null
+        mainHandler.removeCallbacks(prefetchCheck)
         loadJob = scope.launch {
             try {
                 // A new episode, rather than the same one again with other tracks, gets the show's last picks
                 val remembered = if (audio == null && subtitleIndex == null && target.isEpisode) target.seriesId?.let(trackMemory::read) else null
-                val s = service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct, remembered = remembered, maxBitrateMbps = menus.maxBitrateMbps)
+                // The next episode asked for ahead serves when nothing it was asked with has changed since
+                val ready = prefetched?.takeIf { it == Prefetched(target.id, startMs, remembered, menus.maxBitrateMbps, it.stream) && audio == null && subtitleIndex == null && mediaSourceId == null && direct }
+                prefetched = null
+                val s = ready?.stream ?: service.stream(target, startMs, audio, subtitleIndex, mediaSourceId, direct = direct, remembered = remembered, maxBitrateMbps = menus.maxBitrateMbps)
                 reporter.stream = s
                 player.load(s, startMs)
                 chrome.nextButton.visibility = if (target.isEpisode) View.VISIBLE else View.GONE
@@ -287,10 +302,42 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
      */
     private fun scheduleTick() {
         mainHandler.removeCallbacks(tick)
+        schedulePrefetch()
         val exo = player.exo
         if (!exo.isPlaying) return
         val delay = if (chrome.shown) TICK_MS else skipper.nextEdge(exo.currentPosition, TICK_MS, MAX_IDLE_TICK_MS) ?: return
         mainHandler.postDelayed(tick, delay)
+    }
+
+    /**
+     * Asks for the next episode's stream, and has the player buffer its start, [PREFETCH_LEAD_MS]
+     * before the credits (or the end, without them), so the switch doesn't wait on the server.
+     */
+    private fun schedulePrefetch() {
+        mainHandler.removeCallbacks(prefetchCheck)
+        if (next == null || prefetchJob != null || !player.exo.isPlaying || durationMs() <= 0) return
+        val credits = skipper.segments.firstOrNull { it.type == MediaSegmentType.OUTRO }?.startMs ?: durationMs()
+        mainHandler.postDelayed(prefetchCheck, (credits - PREFETCH_LEAD_MS - player.exo.currentPosition).coerceAtLeast(0))
+    }
+
+    private fun prefetchNext() {
+        val target = next ?: return
+        if (prefetchJob != null) return
+        val startMs = settings.startPosition(target.resumeMs)
+        val remembered = target.seriesId?.let(trackMemory::read)
+        val bitrate = menus.maxBitrateMbps
+        prefetchJob = scope.launch {
+            val s = try {
+                service.stream(target, startMs, remembered = remembered, maxBitrateMbps = bitrate)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The switch asks again, and shows the error if there is one
+                return@launch
+            }
+            prefetched = Prefetched(target.id, startMs, remembered, bitrate, s)
+            player.preload(s, startMs)
+        }
     }
 
     private fun ended() {
@@ -465,6 +512,7 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
 
     override fun destroy() {
         mainHandler.removeCallbacks(retryPrepare)
+        mainHandler.removeCallbacks(prefetchCheck)
         reporter.stop(player.exo.currentPosition)
         displayMatcher.restore()
         player.release()
@@ -481,5 +529,6 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     private companion object {
         const val TICK_MS = 250L
         const val MAX_IDLE_TICK_MS = 5_000L
+        const val PREFETCH_LEAD_MS = 30_000L
     }
 }

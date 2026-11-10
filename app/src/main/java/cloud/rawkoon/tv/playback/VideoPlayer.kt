@@ -17,6 +17,7 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.TsExtractor
@@ -34,14 +35,18 @@ import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
  * audio the TV can't decode, wider TS timestamp search), with Jellyfin's auth header on requests addressed to
  * [serverUrl] and Jellyfin's track numbers mapped onto ExoPlayer's tracks. [seekBackMs] and
  * [seekForwardMs] are how far the rewind and fast-forward buttons and keys seek. [ass] has libass
- * draw ASS/SSA subtitles, once [attachAss] put its layer over the picture.
+ * draw ASS/SSA subtitles, once [attachAss] put its layer over the picture. [preload] buffers the
+ * start of the next item while this one plays.
  */
 @OptIn(UnstableApi::class)
 class VideoPlayer(context: Context, authorization: String, serverUrl: String?, seekBackMs: Long, seekForwardMs: Long, ass: Boolean) {
-    private val trackSelector = DefaultTrackSelector(context).apply {
-        parameters = buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true).build()
-    }
+    private val trackSelector: DefaultTrackSelector
     val exo: ExoPlayer
+    private val preloads: DefaultPreloadManager
+
+    /** The next item being buffered, the stream it is for and where it starts, and the preloaded item now playing, removed once the player moves off it. */
+    private var preloaded: Triple<ExoItem, Stream, Long>? = null
+    private var playingPreloaded: ExoItem? = null
 
     /** What the next track change should apply, once ExoPlayer has listed the tracks. */
     private var pending: Pair<Int?, Int>? = null
@@ -66,14 +71,25 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
         }, if (assHandler != null && assParsers != null) extractors.withAssMkvSupport(assParsers, assHandler) else extractors)
         // Side-loaded .ass files go through the parser factory rather than an extractor
         assParsers?.let(sources::setSubtitleParserFactory)
-        exo = ExoPlayer.Builder(context)
-            .setRenderersFactory(assHandler?.let(renderers::withAssSupport) ?: renderers)
-            .setTrackSelector(trackSelector)
+        // The player and the preloader share their sources, renderers and loading thread, so a buffered item plays as is
+        val builder = DefaultPreloadManager.Builder(context) { _ ->
+            DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(preloaded?.third ?: 0L, PRELOAD_MS)
+        }
             .setMediaSourceFactory(sources)
-            .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
-            .setSeekBackIncrementMs(seekBackMs)
-            .setSeekForwardIncrementMs(seekForwardMs)
-            .build()
+            .setRenderersFactory(assHandler?.let(renderers::withAssSupport) ?: renderers)
+            .setTrackSelectorFactory { ctx ->
+                DefaultTrackSelector(ctx).apply {
+                    parameters = buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true).build()
+                }
+            }
+        exo = builder.buildExoPlayer(
+            ExoPlayer.Builder(context)
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
+                .setSeekBackIncrementMs(seekBackMs)
+                .setSeekForwardIncrementMs(seekForwardMs),
+        )
+        trackSelector = exo.trackSelector as DefaultTrackSelector
+        preloads = builder.build()
         assHandler?.init(exo)
         exo.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {
@@ -90,6 +106,49 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
     /** Plays [stream] from [startMs], with its chosen audio and subtitle tracks. */
     fun load(stream: Stream, startMs: Long) {
         this.stream = stream
+        val previous = playingPreloaded
+        playingPreloaded = null
+        val ready = preloaded?.takeIf { (_, s, start) -> s == stream && start == startMs }
+        val source = ready?.let { preloads.getMediaSource(it.first) }
+        if (source != null) {
+            exo.setMediaSource(source, startMs)
+            playingPreloaded = ready.first
+            preloaded = null
+        } else {
+            // Another stream of the preloaded item replaces it; reloading the item playing keeps the next one's
+            if (preloaded?.second?.itemId == stream.itemId) dropPreload()
+            exo.setMediaItem(exoItem(stream), startMs)
+        }
+        // Released only now that the player has moved on to another source
+        previous?.let(preloads::remove)
+        pending = stream.audioIndex to stream.subtitleIndex
+        exo.prepare()
+        exo.playWhenReady = true
+    }
+
+    /**
+     * Starts buffering [next] from [startMs], for a [load] of the same stream later. Only a file
+     * played directly: a transcode would have the server encode an episode that may never play.
+     * Not with ASS subtitles on either side, as libass keeps one state for the item playing.
+     */
+    fun preload(next: Stream, startMs: Long) {
+        dropPreload()
+        if (next.method != PlayMethod.DIRECT_PLAY) return
+        if (assHandler != null && (hasAss(next) || stream?.let(::hasAss) == true)) return
+        val item = exoItem(next)
+        preloaded = Triple(item, next, startMs)
+        preloads.add(item, 0)
+        preloads.invalidate()
+    }
+
+    private fun dropPreload() {
+        preloaded?.let { preloads.remove(it.first) }
+        preloaded = null
+    }
+
+    private fun hasAss(stream: Stream) = stream.subtitles.any { it.codec?.lowercase() in setOf("ass", "ssa") }
+
+    private fun exoItem(stream: Stream): ExoItem {
         val subtitles = stream.subtitles.filter(::sideLoads).mapNotNull { track ->
             val mime = subtitleMime(track.codec) ?: return@mapNotNull null
             ExoItem.SubtitleConfiguration.Builder(Uri.parse(track.url))
@@ -99,16 +158,12 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
                 .setLabel(track.title)
                 .build()
         }
-        val item = ExoItem.Builder()
+        // Jellyfin's HLS playlists cover the whole item, so a transcode is sought like a file
+        return ExoItem.Builder()
             .setUri(stream.url)
             .setMimeType(if (stream.method == PlayMethod.DIRECT_PLAY) null else MimeTypes.APPLICATION_M3U8)
             .setSubtitleConfigurations(subtitles)
             .build()
-        // Jellyfin's HLS playlists cover the whole item, so a transcode is sought like a file
-        exo.setMediaItem(item, startMs)
-        pending = stream.audioIndex to stream.subtitleIndex
-        exo.prepare()
-        exo.playWhenReady = true
     }
 
     /** True when the choice can be made here; false when the server must make a new stream (burned-in subtitles, a transcode). */
@@ -153,12 +208,16 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
 
     fun release() {
         exo.release()
+        preloads.release()
         // libass's renderer, tracks and fonts are native memory
         assHandler?.release()
     }
 
     private companion object {
         const val EXTERNAL_PREFIX = "jf-ext-"
+
+        /** How much of the next item [preload] buffers: enough to start without waiting. */
+        const val PRELOAD_MS = 10_000L
 
         fun externalId(index: Int) = "$EXTERNAL_PREFIX$index"
     }
