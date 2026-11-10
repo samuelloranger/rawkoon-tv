@@ -51,8 +51,12 @@ object Tokens {
     const val LAND_H = 108
     const val CARD_GAP = 16
 
+    /** Library grid posters: small enough for 8 per row beside the A-Z column. */
+    const val GRID_POSTER_W = 90
+    const val GRID_POSTER_H = 135
+
     /** Horizontal gap between the rings of neighbouring posters in a grid. */
-    const val POSTER_GAP = 14
+    const val POSTER_GAP = 6
     const val CARD_RADIUS = 7f
 
     /** Space around a card's art for the ring: a gap in the page colour, then the stroke. */
@@ -77,8 +81,19 @@ object Tokens {
     /** The width a backdrop is requested at, in px. */
     const val BACKDROP_W = 1920
 
-    /** How much every backdrop is darkened before the scrims, for readable text over any image. */
+    /** How much a full-screen backdrop is darkened before the scrims, for readable text over any image. */
     const val BACKDROP_DIM = 0.35f
+
+    /** A framed backdrop is darkened less: the header text sits on plain page colour beside it. */
+    const val FRAME_DIM = 0.2f
+
+    /** The framed backdrop is 16:9, anchored top-right, as a fraction of the screen width: home and library grids. */
+    const val FRAME_W_HOME = 0.75f
+    const val FRAME_W_GRID = 0.6f
+
+    /** How far the frame's left and bottom edges fade into the page, as a fraction of its width and height. */
+    const val FRAME_FADE_LEFT = 0.32f
+    const val FRAME_FADE_BOTTOM = 0.38f
 
     /**
      * Home's backdrop zooms this far in and back out, [DRIFT_MS] each way: a few pixels a second,

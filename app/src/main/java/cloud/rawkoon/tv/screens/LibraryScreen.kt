@@ -20,6 +20,7 @@ import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
+import cloud.rawkoon.tv.ui.Header
 import cloud.rawkoon.tv.ui.LetterColumn
 import cloud.rawkoon.tv.ui.MessagePanel
 import cloud.rawkoon.tv.ui.PillButton
@@ -54,6 +55,7 @@ class LibraryScreen(
     private val sortButton = PillButton(context, "")
     private val filterButton = PillButton(context, "")
     private val message = MessagePanel(context)
+    private val header = Header(context, app.images, compact = true)
     private val bar = object : LinearLayout(context) {
         /** Down returns to the grid, Left past the first button to the rail; nothing else leaves the bar. */
         override fun focusSearch(focused: View?, direction: Int): View? {
@@ -88,6 +90,8 @@ class LibraryScreen(
             if (message.hasFocus()) focusWhenLoaded = true
             // A restarted grid is no longer at a letter
             if (!jumping) letters.active = null
+            // A new list (sort, filter, retry): its first focus fills the header again
+            if (!jumping) header.clear()
             message.hide()
             grid.reset()
             count.text = ""
@@ -123,6 +127,7 @@ class LibraryScreen(
 
     init {
         backdrop.strength = 0.5f
+        backdrop.frameFraction = Tokens.FRAME_W_GRID
         bar.addView(label(context, 32f, Tokens.textPrimary, Fonts.title(context)).apply {
             text = collectionTitle ?: string(kind.label)
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(TITLE_GAP) })
@@ -134,12 +139,17 @@ class LibraryScreen(
             topMargin = context.dp(BAR_TOP)
         })
 
+        content.addView(header, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = context.dp(Tokens.CONTENT_START)
+            topMargin = context.dp(HEADER_TOP)
+        })
+
         // The grid is clipped to its own box, so rows gliding up never pass over the bar
         val gridBox = FrameLayout(context)
         gridBox.addView(grid, FrameLayout.LayoutParams(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET + PosterGrid.SPAN * PosterCell.CELL_W), ViewGroup.LayoutParams.MATCH_PARENT))
         content.addView(gridBox, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { topMargin = context.dp(GRID_TOP) })
         content.addView(letters, FrameLayout.LayoutParams(context.dp(LETTERS_W), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END).apply {
-            topMargin = context.dp(GRID_TOP + LETTERS_TOP)
+            topMargin = context.dp(LETTERS_TOP)
             bottomMargin = context.dp(LETTERS_BOTTOM)
             marginEnd = context.dp(LETTERS_END)
         })
@@ -193,11 +203,13 @@ class LibraryScreen(
     }
 
     private fun showMessage(text: String, retry: Boolean) {
+        header.clear()
         message.show(text, messageAction(if (retry) ({ loader.reload() }) else null), takeFocus = focusWhenLoaded)
         focusWhenLoaded = false
     }
 
     private fun showBackdropOf(position: Int) {
+        paged[position]?.let(header::show)
         val url = backdropRequest(paged[position]?.backdropUrl)
         if (url == backdropUrl) return
         backdropUrl = url
@@ -289,7 +301,10 @@ class LibraryScreen(
 
     private companion object {
         const val BAR_TOP = 26
-        const val GRID_TOP = 84
+
+        /** The compact header sits under the bar; the first row of art starts at about 172 dp (grid top, padding and ring). */
+        const val HEADER_TOP = 70
+        const val GRID_TOP = 160
 
         /** Pulls the bar left of the first poster's art, to offset the first button's own padding. */
         const val BAR_BLEED = 4
@@ -297,7 +312,7 @@ class LibraryScreen(
         const val BUTTON_GAP = 4
         const val COUNT_GAP = 14
         const val LETTERS_W = 18
-        const val LETTERS_TOP = 8
+        const val LETTERS_TOP = 92
         const val LETTERS_BOTTOM = 26
         const val LETTERS_END = 4
     }
