@@ -48,6 +48,8 @@ data class MediaItem(
     val resumeMs: Long = 0L,
     /** Set on a title that comes from TMDB through Rawkoon instead of from the library: [id] is then not a Jellyfin id. */
     val tmdb: TmdbRef? = null,
+    /** The library's own TMDB id, kept for movies and shows only: a season's or episode's provider id is its own, not the show's. */
+    val libraryTmdbId: Int? = null,
 ) {
     enum class Kind { MOVIE, SERIES, SEASON, EPISODE, OTHER }
 
@@ -86,7 +88,7 @@ data class MediaItem(
         .putOpt("progress", progress?.toDouble()).put("played", played).putOpt("seriesId", seriesId)
         .putOpt("seasonId", seasonId).putOpt("seasonNumber", seasonNumber).putOpt("episodeNumber", episodeNumber)
         .put("favorite", favorite).putOpt("media", media?.toJson()).putOpt("childCount", childCount)
-        .put("resumeMs", resumeMs).putOpt("tmdb", tmdb?.toJson())
+        .put("resumeMs", resumeMs).putOpt("tmdb", tmdb?.toJson()).putOpt("libraryTmdbId", libraryTmdbId)
 
     companion object {
         fun duration(minutes: Int) = if (minutes >= 60) MediaWords.duration(minutes / 60, minutes % 60) else MediaWords.minutes(minutes)
@@ -118,6 +120,7 @@ data class MediaItem(
                 childCount = json.optIntOrNull("childCount"),
                 resumeMs = json.optLong("resumeMs"),
                 tmdb = json.optJSONObject("tmdb")?.let(TmdbRef::fromJson),
+                libraryTmdbId = json.optIntOrNull("libraryTmdbId"),
             )
         }
 
@@ -170,6 +173,7 @@ data class MediaItem(
                 media = MediaInfo.from(dto.mediaStreams ?: dto.mediaSources?.firstOrNull()?.mediaStreams),
                 childCount = dto.childCount,
                 resumeMs = (dto.userData?.playbackPositionTicks ?: 0L) / 10_000L,
+                libraryTmdbId = if (kind == Kind.MOVIE || kind == Kind.SERIES) dto.providerIds?.get("Tmdb")?.toIntOrNull() else null,
             )
         }
     }

@@ -3,6 +3,7 @@ package cloud.rawkoon.tv
 import android.app.Application
 import android.content.Context
 import android.content.res.Configuration
+import cloud.rawkoon.tv.clips.Clips
 import cloud.rawkoon.tv.data.Fetcher
 import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.data.LegacyImport
@@ -27,6 +28,8 @@ class App : Application() {
         private set
     lateinit var launcher: LauncherChannels
         private set
+    lateinit var clips: Clips
+        private set
 
     /** The last item the player played, so the page below can focus it when the player closes. */
     var lastPlayed: MediaItem? = null
@@ -50,6 +53,7 @@ class App : Application() {
         profiles = ProfileStore(this)
         images = Images(this, Fetcher(this))
         launcher = LauncherChannels(this)
+        clips = Clips(this, images.disk)
         LegacyImport.run(this, profiles)
         LauncherSyncJob.schedule(this)
     }

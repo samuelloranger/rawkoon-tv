@@ -15,18 +15,22 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
     /** One lock per file being downloaded, so two callers asking for a URL fetch it once. */
     private val locks = ConcurrentHashMap<String, Any>()
 
-    /** Local copy of [url]: remote art goes through the cache, local paths are used as they are. */
-    fun file(url: String): File? {
+    /**
+     * Local copy of [url]: remote art goes through the cache, local paths are used as they are. With
+     * [maxAgeMs], a copy older than that is fetched again (and its age is not renewed by reading it),
+     * for content the server can replace under the same URL.
+     */
+    fun file(url: String, headers: Map<String, String> = emptyMap(), maxAgeMs: Long? = null): File? {
         if (url.startsWith("/")) return File(url).takeIf { it.isFile }
         val cached = File(dir, sha1Hex(url))
-        if (hit(cached)) return cached
+        if (hit(cached, maxAgeMs)) return cached
         val lock = locks.computeIfAbsent(cached.name) { Any() }
         synchronized(lock) {
-            if (hit(cached)) return cached
+            if (hit(cached, maxAgeMs)) return cached
             // A temp file of its own: a half-written download is never visible under the final name
             val tmp = File.createTempFile(cached.name, ".tmp", dir)
             try {
-                fetcher.open(url).use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                fetcher.open(url, headers).use { input -> tmp.outputStream().use { input.copyTo(it) } }
                 if (!tmp.renameTo(cached)) return null
             } finally {
                 tmp.delete()
@@ -39,8 +43,9 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
     }
 
     /** A hit counts as a use, so trimming drops what was read least recently. */
-    private fun hit(file: File): Boolean {
+    private fun hit(file: File, maxAgeMs: Long? = null): Boolean {
         if (!file.isFile || file.length() == 0L) return false
+        if (maxAgeMs != null) return isFresh(file.lastModified(), System.currentTimeMillis(), maxAgeMs)
         file.setLastModified(System.currentTimeMillis())
         return true
     }
@@ -68,6 +73,9 @@ class DiskCache(context: Context, private val fetcher: Fetcher) {
         const val STALE_TMP_MS = 60 * 60_000L
     }
 }
+
+/** Whether a copy written at [modifiedAt] still counts at [now]: always without a [maxAgeMs], else while younger than it. */
+internal fun isFresh(modifiedAt: Long, now: Long, maxAgeMs: Long?) = maxAgeMs == null || now - modifiedAt < maxAgeMs
 
 /** The SHA-1 of [text] as lowercase hex: the name a cached file gets from its URL. */
 fun sha1Hex(text: String): String =

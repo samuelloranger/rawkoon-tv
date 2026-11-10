@@ -88,6 +88,8 @@ class PlayerScreen(activity: MainActivity, private val session: JellyfinSession,
     }
 
     init {
+        // The preview clip's decoder would compete with the video's
+        app.clips.release()
         surface.player = player.exo
         view.addView(surface, fill())
     }
