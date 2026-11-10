@@ -2,6 +2,7 @@ package cloud.rawkoon.tv.playback
 
 import org.jellyfin.sdk.model.api.PlayMethod
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -72,5 +73,13 @@ class TrackSwitchTest {
     fun `direct play asks the server for an external subtitle it cannot side-load`() {
         assertFalse(canSwitchTracks(directPlay(-1), 1, 5))
         assertFalse(canSwitchTracks(directPlay(-1), 1, 6))
+    }
+
+    @Test
+    fun `an embedded subtitle counts the burned-in ones before it, as ExoPlayer lists them`() {
+        // An ASS track the server would burn in, then an SRT one: ExoPlayer has a text group for each
+        val file = listOf(sub(2, SubtitleDeliveryMethod.ENCODE, codec = "ass"), sub(3, SubtitleDeliveryMethod.EMBED), sub(4, SubtitleDeliveryMethod.EXTERNAL, "http://x/4.srt"))
+        assertEquals(1, embeddedPosition(file, file[1]))
+        assertEquals(0, embeddedPosition(file, file[0]))
     }
 }

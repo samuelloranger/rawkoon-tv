@@ -150,6 +150,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
+    // libass for ASS/SSA subtitles, as Jellyfin Android TV 0.20 draws them
+    implementation("io.github.peerless2012:ass-media:0.5.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20260814")

@@ -20,6 +20,12 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.TsExtractor
+import androidx.media3.ui.SubtitleView
+import io.github.peerless2012.ass.media.AssHandler
+import io.github.peerless2012.ass.media.kt.withAssMkvSupport
+import io.github.peerless2012.ass.media.kt.withAssSupport
+import io.github.peerless2012.ass.media.parser.AssSubtitleParserFactory
+import io.github.peerless2012.ass.media.type.AssRenderType
 import org.jellyfin.sdk.model.api.PlayMethod
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 
@@ -27,10 +33,11 @@ import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
  * ExoPlayer set up as the official client does it (decoder fallback, the ffmpeg extension for
  * audio the TV can't decode, wider TS timestamp search), with Jellyfin's auth header on requests addressed to
  * [serverUrl] and Jellyfin's track numbers mapped onto ExoPlayer's tracks. [seekBackMs] and
- * [seekForwardMs] are how far the rewind and fast-forward buttons and keys seek.
+ * [seekForwardMs] are how far the rewind and fast-forward buttons and keys seek. [ass] has libass
+ * draw ASS/SSA subtitles, once [attachAss] put its layer over the picture.
  */
 @OptIn(UnstableApi::class)
-class VideoPlayer(context: Context, authorization: String, serverUrl: String?, seekBackMs: Long, seekForwardMs: Long) {
+class VideoPlayer(context: Context, authorization: String, serverUrl: String?, seekBackMs: Long, seekForwardMs: Long, ass: Boolean) {
     private val trackSelector = DefaultTrackSelector(context).apply {
         parameters = buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true).build()
     }
@@ -39,6 +46,7 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
     /** What the next track change should apply, once ExoPlayer has listed the tracks. */
     private var pending: Pair<Int?, Int>? = null
     private var stream: Stream? = null
+    private val assHandler = if (ass) AssHandler(AssRenderType.OVERLAY_OPEN_GL) else null
 
     init {
         val renderers = DefaultRenderersFactory(context)
@@ -51,22 +59,32 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
             .setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 3)
             .setConstantBitrateSeekingEnabled(true)
             .setConstantBitrateSeekingAlwaysEnabled(true)
+        val assParsers = assHandler?.let(::AssSubtitleParserFactory)
+        val sources = DefaultMediaSourceFactory(ResolvingDataSource.Factory(DefaultDataSource.Factory(context, http)) { spec ->
+            // Only requests addressed to Jellyfin carry the token (a remote direct-play URL does not); a redirect off Jellyfin still re-sends it
+            if (sendsAuthorization(serverUrl, spec.uri.toString())) spec.withAdditionalHeaders(mapOf("Authorization" to authorization)) else spec
+        }, if (assHandler != null && assParsers != null) extractors.withAssMkvSupport(assParsers, assHandler) else extractors)
+        // Side-loaded .ass files go through the parser factory rather than an extractor
+        assParsers?.let(sources::setSubtitleParserFactory)
         exo = ExoPlayer.Builder(context)
-            .setRenderersFactory(renderers)
+            .setRenderersFactory(assHandler?.let(renderers::withAssSupport) ?: renderers)
             .setTrackSelector(trackSelector)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(ResolvingDataSource.Factory(DefaultDataSource.Factory(context, http)) { spec ->
-                // Only requests addressed to Jellyfin carry the token (a remote direct-play URL does not); a redirect off Jellyfin still re-sends it
-                if (sendsAuthorization(serverUrl, spec.uri.toString())) spec.withAdditionalHeaders(mapOf("Authorization" to authorization)) else spec
-            }, extractors))
+            .setMediaSourceFactory(sources)
             .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             .setSeekBackIncrementMs(seekBackMs)
             .setSeekForwardIncrementMs(seekForwardMs)
             .build()
+        assHandler?.init(exo)
         exo.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {
                 pending?.let { (audio, subtitle) -> if (applyTracks(audio, subtitle)) pending = null }
             }
         })
+    }
+
+    /** Puts libass's layer in [view], where it draws ASS/SSA subtitles over the picture. */
+    fun attachAss(view: SubtitleView?) {
+        assHandler?.let { view?.withAssSupport(it) }
     }
 
     /** Plays [stream] from [startMs], with its chosen audio and subtitle tracks. */
@@ -120,7 +138,7 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
             track == null -> null
             track.delivery == SubtitleDeliveryMethod.EXTERNAL -> textGroups.firstOrNull { g -> (0 until g.length).any { g.getTrackFormat(it).id?.endsWith(externalId(track.index)) == true } }
             track.delivery == SubtitleDeliveryMethod.EMBED -> textGroups.filter { g -> (0 until g.length).none { g.getTrackFormat(it).id?.contains(EXTERNAL_PREFIX) == true } }
-                .getOrNull(s.subtitles.filter { !it.external && it.delivery == SubtitleDeliveryMethod.EMBED }.indexOf(track))
+                .getOrNull(embeddedPosition(s.subtitles, track))
             // In an HLS transcode the chosen subtitle is the manifest's, whatever side-loaded ones sit beside it
             else -> textGroups.firstOrNull { g -> (0 until g.length).none { g.getTrackFormat(it).id?.contains(EXTERNAL_PREFIX) == true } }
         }
@@ -161,6 +179,13 @@ private fun subtitleMime(codec: String?) = when (codec?.lowercase()) {
     "ass", "ssa" -> MimeTypes.TEXT_SSA
     else -> null
 }
+
+/**
+ * Where [track] sits among the file's own subtitles, which is its ExoPlayer text group. Every embedded
+ * subtitle counts, also those the server would burn in (ASS without libass, PGS when off): ExoPlayer
+ * lists them all.
+ */
+internal fun embeddedPosition(subtitles: List<Track>, track: Track) = subtitles.filter { !it.external }.indexOf(track)
 
 /** True for a subtitle [VideoPlayer.load] hands to ExoPlayer as its own file, so selecting it needs no new stream. */
 internal fun sideLoads(track: Track) = track.delivery == SubtitleDeliveryMethod.EXTERNAL && track.url != null && subtitleMime(track.codec) != null

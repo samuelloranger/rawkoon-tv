@@ -129,6 +129,7 @@ object Prefs {
     const val SUBTITLE_BACKGROUND = "subtitles:background"
     const val SUBTITLE_EDGE = "subtitles:edge"
     const val PGS_DIRECT_PLAY = "subtitles:pgs_direct_play"
+    const val ASS_DIRECT_PLAY = "subtitles:ass_direct_play"
 
     // Audio
     const val AC3_PASSTHROUGH = "audio:ac3_passthrough"
@@ -219,6 +220,9 @@ object Prefs {
 
     /** Whether PGS subtitles are drawn by the player; off has the server burn them in. */
     fun pgsDirectPlay(context: Context): Boolean = of(context).getBoolean(PGS_DIRECT_PLAY, true)
+
+    /** Whether ASS/SSA subtitles are drawn by the player (libass), styling and all; off has the server burn them in. */
+    fun assDirectPlay(context: Context): Boolean = of(context).getBoolean(ASS_DIRECT_PLAY, true)
 
     /** The override for an HDR format, by the key of its setting ([HDR10] and the like). */
     fun hdrOverride(context: Context, key: String): HdrOverride = HdrOverride.of(of(context).getString(key, null))

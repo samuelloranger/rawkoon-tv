@@ -292,6 +292,8 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
         ), { Prefs.subtitleEdge(context) }) { put(Prefs.SUBTITLE_EDGE, it.key) }
         choice(column, R.string.setting_pgs_direct_play, listOf(true to string(R.string.setting_on), false to string(R.string.setting_off)),
             { Prefs.pgsDirectPlay(context) }) { put(Prefs.PGS_DIRECT_PLAY, it) }
+        choice(column, R.string.setting_ass_direct_play, listOf(true to string(R.string.setting_on), false to string(R.string.setting_off)),
+            { Prefs.assDirectPlay(context) }) { put(Prefs.ASS_DIRECT_PLAY, it) }
     }
 
     private fun addDisplayAndAudioSection(column: LinearLayout) {

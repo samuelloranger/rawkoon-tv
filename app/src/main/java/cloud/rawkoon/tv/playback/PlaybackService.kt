@@ -273,7 +273,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
             val built = withContext(Dispatchers.Default) {
                 createDeviceProfile(
                     context.applicationContext, version ?: FALLBACK_VERSION, quality.maxBitrate, quality.maxHeight,
-                    isAC3Enabled = quality.ac3Passthrough, downMixAudio = quality.downmixStereo, pgsDirectPlay = quality.pgsDirectPlay,
+                    isAC3Enabled = quality.ac3Passthrough, downMixAudio = quality.downmixStereo, pgsDirectPlay = quality.pgsDirectPlay, assDirectPlay = quality.assDirectPlay,
                     hdr10 = quality.hdr10, hdr10Plus = quality.hdr10Plus, dolbyVision = quality.dolbyVision,
                 )
             }
