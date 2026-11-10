@@ -134,6 +134,7 @@ abstract class RowsPage(
      * rail. Does nothing when nothing is shown.
      */
     protected fun clear() {
+        cancelClip()
         if (!hasRows() && backdropUrl == null) return
         header.visibility = View.INVISIBLE
         backdropUrl = null

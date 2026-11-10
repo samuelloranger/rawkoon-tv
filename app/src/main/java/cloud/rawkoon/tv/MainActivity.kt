@@ -269,9 +269,19 @@ class MainActivity : Activity() {
      */
     @SuppressLint("GestureBackNavigation")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN || event.keyCode !in CLIP_STOP_KEYS) return dispatchScreenKey(event)
+        // A key that may move focus ends a preview clip at once; the card that takes focus starts its own.
+        // When focus did not move (a row's end, a key that did nothing) the same card asks again.
+        val before = currentFocus
+        (application as App).clips.stop()
+        val handled = dispatchScreenKey(event)
+        if (currentFocus === before) stack.lastOrNull()?.onClipRearm()
+        return handled
+    }
+
+    @SuppressLint("GestureBackNavigation") // The TV remote delivers Back as a key; the guards above are the point
+    private fun dispatchScreenKey(event: KeyEvent): Boolean {
         val screen = stack.lastOrNull() ?: return super.dispatchKeyEvent(event)
-        // A key that may move focus ends a preview clip at once; the card that takes focus starts its own
-        if (event.action == KeyEvent.ACTION_DOWN) (application as App).clips.stop()
         val guarded = event.keyCode == KeyEvent.KEYCODE_BACK ||
             event.keyCode in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_CENTER ||
             event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
@@ -297,6 +307,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         foreground = false
+        (application as App).clips.foreground = false
         Installer.appInFront = false
         syncLive()
         (application as App).clips.stop()
@@ -313,6 +324,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         foreground = true
+        (application as App).clips.foreground = true
         Installer.openPending(this)
         syncLive()
         stack.lastOrNull()?.onResume()
@@ -324,5 +336,13 @@ class MainActivity : Activity() {
         liveScope.cancel()
         stack.forEach { it.destroy() }
         super.onDestroy()
+    }
+
+    private companion object {
+        /** Keys that can move focus or navigate: the ones that end a preview clip. */
+        val CLIP_STOP_KEYS = setOf(
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BACK,
+        )
     }
 }

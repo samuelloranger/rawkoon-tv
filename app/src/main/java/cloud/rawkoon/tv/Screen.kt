@@ -86,6 +86,9 @@ abstract class Screen(val activity: MainActivity) {
 
     open fun onResume() {}
 
+    /** A key that could have moved focus left it where it was: a preview clip it stopped may start again. */
+    open fun onClipRearm() {}
+
     /** A background update check finished: a screen that offers updates shows what it found. */
     open fun onUpdateChecked() {}
 

@@ -114,6 +114,14 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
 
     /** Where a preview clip plays; the player draws into it. */
     val clipView = TextureView(context)
+    // The same constant dim and top scrim the art gets, so the cross-fade keeps its brightness and the clock stays readable
+    private val dim = View(context).apply { setBackgroundColor(Color.argb((Tokens.FRAME_DIM * 255).toInt(), 0, 0, 0)) }
+    private val topScrim = View(context).apply {
+        background = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.argb((0.45f * 255).toInt(), 0, 0, 0), Color.TRANSPARENT),
+        )
+    }
     private val fadeLeft = EdgeFade(context, horizontal = true)
     private val fadeBottom = EdgeFade(context, horizontal = false)
 
@@ -121,6 +129,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private val clipLayer = FrameLayout(context).apply {
         alpha = 0f
         addView(clipView, fill())
+        addView(dim, fill())
+        addView(topScrim)
         addView(fadeLeft)
         addView(fadeBottom)
     }
@@ -165,6 +175,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         if (!BackdropFrame.isFramed(frameFraction)) return
         val f = frame()
         for (layer in listOf(bottom, top, clipLayer)) layer.layoutParams = LayoutParams(f.w, f.h, Gravity.TOP or Gravity.END)
+        topScrim.layoutParams = LayoutParams(f.w, (f.h * 0.2f).toInt(), Gravity.TOP)
         fadeLeft.layoutParams = LayoutParams((f.w * Tokens.FRAME_FADE_LEFT).toInt(), f.h, Gravity.START)
         fadeBottom.layoutParams = LayoutParams(f.w, (f.h * Tokens.FRAME_FADE_BOTTOM).toInt(), Gravity.BOTTOM)
         pivotX = (width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - f.w / 2f

@@ -112,6 +112,24 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     protected open val isRailPage: Boolean get() = false
 
     private var clipJob: Job? = null
+    private var clipItem: MediaItem? = null
+
+    /** Forgets the pending clip lookup: the focused card is gone or the page is leaving. */
+    protected fun cancelClip() {
+        clipJob?.cancel()
+        clipItem = null
+        backdrop.playClip(null)
+    }
+
+    /** A key left focus where it was: its card's clip is wanted again, if focus is on the page's content. */
+    override fun onClipRearm() {
+        clipItem?.takeIf { content.hasFocus() }?.let(::previewClip)
+    }
+
+    override fun onPause() {
+        cancelClip()
+        super.onPause()
+    }
 
     /**
      * The focused [item]'s preview clip (null: none) plays in the backdrop once focus rests, when the
@@ -119,8 +137,10 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
      */
     protected fun previewClip(item: MediaItem?) {
         clipJob?.cancel()
+        clipItem = item
         val profile = app.profiles.get(session.profile.id) ?: session.profile
         if (item == null || !app.clips.wanted(profile)) return backdrop.playClip(null)
+        val epoch = app.clips.epoch
         clipJob = scope.launch {
             val seriesTmdb = ClipKey.seriesToResolve(item)?.let { id ->
                 try {
@@ -131,6 +151,8 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
                     null
                 }
             }
+            // A stop since the lookup began (a key, the page leaving) voids it
+            if (app.clips.epoch != epoch) return@launch
             backdrop.playClip(ClipKey.of(item, seriesTmdb)?.let { app.clips.request(profile, it) })
         }
     }

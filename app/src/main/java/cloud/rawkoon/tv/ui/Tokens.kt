@@ -98,6 +98,9 @@ object Tokens {
     /** Focus rests this long before a preview clip starts playing. */
     const val CLIP_DWELL_MS = 1_500L
 
+    /** A downloaded clip is fetched again after this long, so a clip re-cut on the server reaches the TV. */
+    const val CLIP_TTL_MS = 12L * 60 * 60_000
+
     /**
      * Home's backdrop zooms this far in and back out, [DRIFT_MS] each way: a few pixels a second,
      * slow enough to read as stillness that breathes. It holds while keys are pressed and for
