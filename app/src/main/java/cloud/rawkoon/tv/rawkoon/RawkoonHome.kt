@@ -11,16 +11,17 @@ import java.time.LocalDate
 import java.util.Locale
 
 /**
- * The two Rawkoon rows of the home page: "Coming soon" (what releases or airs next, from the
- * dashboard) and "My requests" (the account's own, with their state). Either is left out when
+ * The Rawkoon rows of the home page: "Coming soon" (what releases or airs next, from the
+ * dashboard), "My requests" (the account's own, with their state) and "My list" (its watchlist). Any is left out when
  * empty or when its call fails, so a Rawkoon hiccup never costs the Jellyfin rows.
  */
 object RawkoonHome {
     const val UPCOMING_ID = "rawkoon:upcoming"
     const val REQUESTS_ID = "rawkoon:requests"
+    const val WATCHLIST_ID = "rawkoon:watchlist"
     const val MAX_ITEMS = 20
 
-    /** Fetches both rows at once; a row that fails is just missing, but a refused session is thrown for the caller to decide. */
+    /** Fetches the rows at once; a row that fails is just missing, but a refused session is thrown for the caller to decide. */
     suspend fun load(
         discover: RawkoonDiscover,
         /** The account's id, or null when Rawkoon has none to give (then there is no way to tell its requests apart). */
@@ -32,7 +33,8 @@ object RawkoonHome {
     ): List<HomeRow> = coroutineScope {
         val upcoming = async { optional { upcomingRow(discover, text, today, locale) } }
         val requests = async { optional { userId()?.let { RequestRows.row(discover, discover.requests(), it, text, now) } } }
-        listOfNotNull(upcoming.await(), requests.await())
+        val watchlist = async { optional { WatchlistRows.row(discover.watchlist(), text) } }
+        listOfNotNull(upcoming.await(), requests.await(), watchlist.await())
     }
 
     private suspend fun upcomingRow(discover: RawkoonDiscover, text: RawkoonText, today: LocalDate, locale: Locale): HomeRow? {
@@ -50,7 +52,14 @@ object RawkoonHome {
         null
     }
 
-    fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID
+    /**
+     * Set when the watchlist changed here: the server announces no such change, so the home must not
+     * reuse the Rawkoon rows it loaded a moment ago. Cleared by the home when it reads them again.
+     */
+    @Volatile
+    var watchlistChanged = false
+
+    fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID || row.id == WATCHLIST_ID
 
     /** Rows kept from before (cached or on screen) with their dates worded for [today] again. */
     fun refreshed(rows: List<HomeRow>, text: RawkoonText, today: LocalDate, locale: Locale): List<HomeRow> =

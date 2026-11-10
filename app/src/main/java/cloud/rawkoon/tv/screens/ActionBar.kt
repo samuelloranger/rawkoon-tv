@@ -18,8 +18,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
- * The actions under a title: play or resume (the player comes in the next milestone), watched and
- * favorite. The toggles change on screen at once, [onChanged] included, and go back if the server
+ * The actions under a title: play or resume (the player comes in the next milestone), watched,
+ * favorite and, when the page can reach Rawkoon, "My list". The toggles change on screen at once, [onChanged] included, and go back if the server
  * refuses.
  */
 class ActionBar(private val screen: RailScreen) {
@@ -43,7 +43,11 @@ class ActionBar(private val screen: RailScreen) {
     }.noClip()
     private val watched = CircleButton(context, Icon.CHECK, context.getString(R.string.watched))
     private val favorite = CircleButton(context, Icon.HEART, context.getString(R.string.favorite))
+    private val watchlist = CircleButton(context, Icon.PLUS, context.getString(R.string.rk_watchlist_add)).apply { visibility = View.GONE }
     private var item: MediaItem? = null
+
+    /** The "My list" button was pressed; the page owns the Rawkoon call. */
+    var onWatchlist: () -> Unit = {}
 
     /** For a show: the episode the play button resumes or starts. */
     var next: MediaItem? = null
@@ -58,9 +62,11 @@ class ActionBar(private val screen: RailScreen) {
         view.addView(primary)
         view.addView(watched, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(6) })
         view.addView(favorite, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(2) })
+        view.addView(watchlist, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(2) })
         primary.setOnClickListener { play() }
         watched.setOnClickListener { toggle(watched = true) }
         favorite.setOnClickListener { toggle(watched = false) }
+        watchlist.setOnClickListener { onWatchlist() }
     }
 
     fun bind(item: MediaItem) {
@@ -68,6 +74,13 @@ class ActionBar(private val screen: RailScreen) {
         primary.label.text = playLabel(item)
         watched.setOn(item.played)
         favorite.setOn(item.favorite)
+    }
+
+    /** Shows the "My list" button, lit when the title is in the list; [inList] null hides it (no Rawkoon, or no TMDB id). */
+    fun showWatchlist(inList: Boolean?) {
+        watchlist.visibility = if (inList == null) View.GONE else View.VISIBLE
+        watchlist.setOn(inList == true)
+        watchlist.contentDescription = context.getString(if (inList == true) R.string.rk_watchlist_in else R.string.rk_watchlist_add)
     }
 
     /** Plays the item, or for a show the episode it is at. */

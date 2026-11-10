@@ -8,6 +8,8 @@ import cloud.rawkoon.tv.jellyfin.MediaInfo
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
+import cloud.rawkoon.tv.rawkoon.RawkoonHome
+import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Chip
 import cloud.rawkoon.tv.ui.Destination
@@ -21,6 +23,8 @@ import cloud.rawkoon.tv.ui.fill
 import cloud.rawkoon.tv.ui.kindChip
 import cloud.rawkoon.tv.ui.showCountChips
 import cloud.rawkoon.tv.ui.yearChip
+import android.widget.Toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -41,11 +45,16 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
 
+    /** Whether Rawkoon's watchlist holds the title; null until known, or when the page has no way to ask. */
+    private var inList: Boolean? = null
+    private var listBusy = false
+
     init {
         page.column.setPadding(0, 0, 0, context.dp(200))
         page.anchor = context.dp(34)
         content.addView(page, fill())
         block.setActions(actions.view)
+        actions.onWatchlist = ::toggleWatchlist
         page.column.addView(block, TitleBlock.params(context))
         showItem(start, null)
         backdrop.show(backdropRequest(start.backdropUrl))
@@ -86,12 +95,59 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             showItem(d.item, d)
             actions.next = next.await()
             actions.bind(d.item)
+            loadWatchlist(d)
             backdrop.show(backdropRequest(d.item.backdropUrl))
             addRows(d, seasons.await(), similar.await())
             // Every episode's streams are the heaviest read, so they wait for the page: their chips join the meta line after
             if (start.kind != MediaItem.Kind.SERIES) return@launchLoading
             showMedia = runCatching { session.showMedia(start.id) }.getOrNull() ?: return@launchLoading
             block.setMeta(metaChips(d.item, d))
+        }
+    }
+
+    private fun rawkoon() = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context)
+
+    private var tmdbId: Int? = null
+
+    /**
+     * The button needs a Rawkoon session and the title's TMDB id. The state is one read of the
+     * watchlist, lighter than the title modal (which pulls TMDB's details and credits) for one flag.
+     */
+    private fun loadWatchlist(d: Details) {
+        tmdbId = d.tmdbId
+        val id = d.tmdbId ?: return
+        val api = rawkoon() ?: return
+        scope.launch {
+            val list = runCatching { api.watchlist() }.getOrNull() ?: return@launch
+            inList = list.any { it.tmdbId == id && it.isMovie == (start.kind != MediaItem.Kind.SERIES) }
+            actions.showWatchlist(inList)
+        }
+    }
+
+    /** Flips at once and goes back, with a message, if Rawkoon refuses. */
+    private fun toggleWatchlist() {
+        val id = tmdbId ?: return
+        val api = rawkoon() ?: return
+        if (listBusy) return
+        val wanted = inList != true
+        val isMovie = item.kind != MediaItem.Kind.SERIES
+        inList = wanted
+        actions.showWatchlist(wanted)
+        listBusy = true
+        scope.launch {
+            try {
+                if (wanted) api.addToWatchlist(isMovie, id, item.title, null, item.overview.ifEmpty { null }, item.year, item.communityRating?.toDouble())
+                else api.removeFromWatchlist(isMovie, id)
+                RawkoonHome.watchlistChanged = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                inList = !wanted
+                actions.showWatchlist(inList)
+                Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
+            } finally {
+                listBusy = false
+            }
         }
     }
 

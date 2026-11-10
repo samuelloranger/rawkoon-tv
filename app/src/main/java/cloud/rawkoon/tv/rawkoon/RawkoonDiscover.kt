@@ -62,6 +62,21 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
         if (response.code != 404 && response.code !in 200..299) response.okJson()
     }
 
+    /** The account's watchlist, "My list", in the server's order. */
+    suspend fun watchlist(): List<WatchlistEntry> = get("api/medias/watchlist", parse = ::parseWatchlist)
+
+    /** Adds the title to the watchlist; adding one that is already there is fine. */
+    suspend fun addToWatchlist(isMovie: Boolean, tmdbId: Int, title: String, posterUrl: String?, overview: String?, year: Int?, voteAverage: Double?) {
+        val body = JSONObject().put("tmdb_id", tmdbId).put("media_type", type(isMovie)).put("title", title)
+            .put("poster_url", posterUrl ?: JSONObject.NULL).put("overview", overview ?: JSONObject.NULL)
+            .put("release_year", year ?: JSONObject.NULL).put("vote_average", voteAverage ?: JSONObject.NULL)
+        client.send("POST", "api/medias/watchlist", body, token).okJson()
+    }
+
+    suspend fun removeFromWatchlist(isMovie: Boolean, tmdbId: Int) {
+        client.send("DELETE", "api/medias/watchlist/$tmdbId?type=${type(isMovie)}", token = token).okJson()
+    }
+
     /** The Rawkoon user id of the token, to tell the account's own requests apart. */
     suspend fun userId(): String = client.bootstrap(token).userId
 

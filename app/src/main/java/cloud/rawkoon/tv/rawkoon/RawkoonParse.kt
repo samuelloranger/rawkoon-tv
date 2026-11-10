@@ -62,6 +62,24 @@ internal fun parseModal(json: JSONObject): TitleModal {
         cast = credits?.objects("cast").orEmpty().mapNotNull { c ->
             c.optStringOrNull("name")?.let { CastMember(c.optInt("id"), it, c.optStringOrNull("character"), c.optStringOrNull("profile_url")) }
         },
+        inWatchlist = json.optBoolean("watchlist_status"),
+    )
+}
+
+internal fun parseWatchlist(json: JSONObject): List<WatchlistEntry> = json.objects("items").mapNotNull {
+    val type = it.optString("media_type")
+    val id = it.optInt("tmdb_id")
+    val title = it.optString("title")
+    if ((type != "movie" && type != "tv") || id <= 0 || title.isEmpty()) return@mapNotNull null
+    WatchlistEntry(
+        tmdbId = id,
+        isMovie = type == "movie",
+        title = title,
+        year = it.optIntOrNull("release_year"),
+        posterUrl = it.optStringOrNull("poster_url"),
+        overview = it.optStringOrNull("overview"),
+        voteAverage = it.optDoubleOrNull("vote_average"),
+        addedAt = it.optStringOrNull("added_at"),
     )
 }
 

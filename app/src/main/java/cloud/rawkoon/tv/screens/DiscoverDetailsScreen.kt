@@ -16,6 +16,7 @@ import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.rawkoon.AlreadyInLibrary
 import cloud.rawkoon.tv.rawkoon.AlreadyRequested
 import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
+import cloud.rawkoon.tv.rawkoon.RawkoonHome
 import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonText
 import cloud.rawkoon.tv.rawkoon.ResourceText
@@ -70,6 +71,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private val request = PillButton(context, string(R.string.rk_request), Icon.PLUS, primary = true, height = 40)
     private val open = PillButton(context, string(R.string.rk_open), Icon.PLAY, primary = true, height = 40)
     private val withdraw = PillButton(context, string(R.string.rk_withdraw), Icon.XMARK, height = 40)
+    private val watchlist = PillButton(context, string(R.string.rk_watchlist_add), Icon.PLUS, height = 40).apply { visibility = View.GONE }
     private val state = label(context, 13f, Tokens.textSoft, Fonts.bold(context))
     private val actions = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -82,6 +84,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
     private var modal: TitleModal? = null
     private var busy = false
     private var withdrawing = false
+    private var inList = false
+    private var listBusy = false
     private var loadJob: Job? = null
 
     /** The status fetch and the library lookup that follows it: the latest one wins. */
@@ -100,6 +104,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         showTitle()
         request.setOnClickListener { onRequest() }
         withdraw.setOnClickListener { onWithdraw() }
+        watchlist.setOnClickListener { onWatchlist() }
         open.setOnClickListener { inLibrary?.let { activity.push(DetailsScreen(activity, session, it)) } }
         load()
     }
@@ -108,6 +113,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         actions.addView(request)
         actions.addView(withdraw, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
         actions.addView(open)
+        actions.addView(watchlist, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
         actions.addView(state, LinearLayout.LayoutParams(context.dp(STATE_W), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(10) })
         block.setActions(actions)
         block.setPoster(start.posterUrl, fillWidth = false)
@@ -147,6 +153,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
             val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
             modal = modalCall.await()
             showTitle()
+            inList = modal?.inWatchlist == true
+            showWatchlist()
             modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
             val status = statusCall.await()
             statusJob?.cancel()
@@ -206,6 +214,39 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         state.text = aside.orEmpty()
         state.setTextColor(if (opens && badge != null) badgeColors(badge.tone).first else Tokens.textSoft)
         if (hadFocus) focusDefault()
+    }
+
+    private fun showWatchlist() {
+        watchlist.visibility = View.VISIBLE
+        watchlist.label.text = string(if (inList) R.string.rk_watchlist_in else R.string.rk_watchlist_add)
+    }
+
+    /** Flips at once and goes back, with a message, if Rawkoon refuses. */
+    private fun onWatchlist() {
+        if (listBusy) return
+        val api = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return reconnect()
+        val wanted = !inList
+        inList = wanted
+        showWatchlist()
+        listBusy = true
+        scope.launch {
+            try {
+                if (wanted) {
+                    api.addToWatchlist(isMovie, tmdbId, start.title, rawTmdbImage(start.posterUrl), modal?.overview ?: start.overview.ifEmpty { null }, modal?.year ?: start.year, modal?.voteAverage ?: start.communityRating?.toDouble())
+                } else {
+                    api.removeFromWatchlist(isMovie, tmdbId)
+                }
+                RawkoonHome.watchlistChanged = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                inList = !wanted
+                showWatchlist()
+                if (e is RawkoonException.Unauthorized) reconnect() else Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
+            } finally {
+                listBusy = false
+            }
+        }
     }
 
     private fun onRequest() {

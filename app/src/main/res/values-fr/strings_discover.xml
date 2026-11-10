@@ -2,6 +2,9 @@
 <resources>
     <string name="rk_row_upcoming">Prochainement</string>
     <string name="rk_row_requests">Mes demandes</string>
+    <string name="rk_row_watchlist">Ma liste</string>
+    <string name="rk_watchlist_add">Ajouter à ma liste</string>
+    <string name="rk_watchlist_in">Dans ma liste</string>
     <string name="rk_today">Aujourd\'hui</string>
     <string name="rk_tomorrow">Demain</string>
     <string name="rk_in_library">Dans ta bibliothèque</string>

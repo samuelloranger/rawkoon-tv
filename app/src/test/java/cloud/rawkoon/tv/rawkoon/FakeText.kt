@@ -4,6 +4,7 @@ package cloud.rawkoon.tv.rawkoon
 object FakeText : RawkoonText {
     override fun upcomingTitle() = "Coming soon"
     override fun requestsTitle() = "My requests"
+    override fun watchlistTitle() = "My list"
     override fun today() = "Today"
     override fun tomorrow() = "Tomorrow"
     override fun episodes(count: Int) = "$count episodes"

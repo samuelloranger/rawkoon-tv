@@ -11,6 +11,7 @@ import cloud.rawkoon.tv.jellyfin.Badge
 interface RawkoonText {
     fun upcomingTitle(): String
     fun requestsTitle(): String
+    fun watchlistTitle(): String
     fun today(): String
     fun tomorrow(): String
     fun episodes(count: Int): String
@@ -34,6 +35,7 @@ interface RawkoonText {
 class ResourceText(private val context: Context) : RawkoonText {
     override fun upcomingTitle() = context.getString(R.string.rk_row_upcoming)
     override fun requestsTitle() = context.getString(R.string.rk_row_requests)
+    override fun watchlistTitle() = context.getString(R.string.rk_row_watchlist)
     override fun today() = context.getString(R.string.rk_today)
     override fun tomorrow() = context.getString(R.string.rk_tomorrow)
     override fun episodes(count: Int) = context.resources.getQuantityString(R.plurals.episodes_count, count, count)
