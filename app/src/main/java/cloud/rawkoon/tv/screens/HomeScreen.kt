@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.data.Fetcher
@@ -143,7 +144,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
             try {
                 app.awaitStop()
                 session.requireSupportedServer()
-                val jellyfin = session.homeRows(Prefs.homeFetch(context).copy(hiddenSeries = Prefs.nextUpHidden(context, session.profile.id)))
+                val jellyfin = session.homeRows(Prefs.homeFetch(context))
                 app.launcher.syncAfterHome(profile(), jellyfin)
                 val previous = rawkoonRowsOnScreen(cached)
                 showHome(RawkoonHome.merge(jellyfin, previous))
@@ -248,21 +249,37 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     }
 
     /**
-     * Takes [item] off its row at once. Continue watching clears the resume point on Jellyfin; Next
-     * up has no server-side hide, so the series is kept in the profile's hidden set until it plays again.
+     * Takes [item] off its row at once, then reloads so a refresh already under way can't bring it
+     * back. Continue watching clears the resume point on Jellyfin; Next up has no server-side hide,
+     * so the series is kept in the profile's hidden set until it plays again. An episode leaves
+     * Next up too: with its resume point gone, Jellyfin would offer it there next.
      */
     private fun remove(item: MediaItem, rowId: String) {
         val seriesId = item.seriesId
-        if (rowId == ROW_RESUME) {
-            scope.launch { runCatching { session.clearResume(item.id) } }
-        } else if (seriesId != null) {
-            Prefs.setNextUpHidden(context, session.profile.id, Prefs.nextUpHidden(context, session.profile.id) + seriesId)
-        }
+        if (seriesId != null) Prefs.setNextUpHidden(context, session.profile.id, Prefs.nextUpHidden(context, session.profile.id) + seriesId)
         val rest = shown.map { row ->
-            if (row.id != rowId) row else row.copy(items = row.items.filter { if (rowId == ROW_RESUME) it.id != item.id else it.seriesId != seriesId })
+            when (row.id) {
+                ROW_RESUME -> row.copy(items = row.items.filter { it.id != item.id })
+                ROW_NEXT_UP -> row.copy(items = row.items.filter { seriesId == null || it.seriesId != seriesId })
+                else -> row
+            }
         }.filter { it.items.isNotEmpty() }
+        // An empty list leaves the rows on screen, so the last card goes with a clear
+        if (rest.isEmpty()) clear()
         showHome(rest)
-        scope.launch { saveCache(rest) }
+        scope.launch {
+            saveCache(rest)
+            if (rowId == ROW_RESUME) {
+                try {
+                    session.clearResume(item.id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+            load()
+        }
     }
 
     /** Opens a library card, or plays it at once when the setting asks for it in this row. */

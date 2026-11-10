@@ -11,8 +11,6 @@ data class HomeFetch(
     val nextUpDays: Int = 0,
     /** Whether Next up also offers episodes of shows already finished. */
     val rewatching: Boolean = false,
-    /** Series the profile removed from Next up; their episodes are left out. */
-    val hiddenSeries: Set<String> = emptySet(),
 ) {
     /** The oldest last-watched date Next up still counts, or null for no limit. */
     fun nextUpCutoff(now: LocalDateTime): LocalDateTime? = if (nextUpDays > 0) now.minusDays(nextUpDays.toLong()) else null

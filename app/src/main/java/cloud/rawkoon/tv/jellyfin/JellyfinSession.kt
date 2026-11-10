@@ -3,6 +3,7 @@ package cloud.rawkoon.tv.jellyfin
 import android.content.Context
 import cloud.rawkoon.tv.BuildConfig
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -28,9 +29,9 @@ import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
-import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
 import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.jellyfin.sdk.model.api.request.GetSeasonsRequest
@@ -107,7 +108,7 @@ class JellyfinSession(context: Context, val profile: Profile) {
                         nextUpDateCutoff = fetch.nextUpCutoff(LocalDateTime.now(ZoneOffset.UTC)), enableRewatching = fetch.nextUpRewatching(),
                     ),
                 ).content.items
-                HomeRow("nextup", strings.getString(R.string.row_next_up), withoutSeries(items.map { MediaItem.from(it, images) }, fetch.hiddenSeries), landscape = true)
+                HomeRow("nextup", strings.getString(R.string.row_next_up), withoutSeries(items.map { MediaItem.from(it, images) }, Prefs.nextUpHidden(strings, profile.id)), landscape = true)
             }
         }
         val latest = async {
