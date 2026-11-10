@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.screens
 
+import android.widget.Toast
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.Details
@@ -23,7 +24,6 @@ import cloud.rawkoon.tv.ui.fill
 import cloud.rawkoon.tv.ui.kindChip
 import cloud.rawkoon.tv.ui.showCountChips
 import cloud.rawkoon.tv.ui.yearChip
-import android.widget.Toast
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -134,11 +134,12 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         inList = wanted
         actions.showWatchlist(wanted)
         listBusy = true
+        // Set before the call: leaving the page cancels it after the server may already have the change
+        RawkoonHome.watchlistChanged = true
         scope.launch {
             try {
                 if (wanted) api.addToWatchlist(isMovie, id, item.title, null, item.overview.ifEmpty { null }, item.year, item.communityRating?.toDouble())
                 else api.removeFromWatchlist(isMovie, id)
-                RawkoonHome.watchlistChanged = true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

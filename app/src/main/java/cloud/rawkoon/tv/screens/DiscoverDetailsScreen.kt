@@ -153,8 +153,11 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
             val similarCall = async { optional { api.similar(isMovie, tmdbId) }.orEmpty() }
             modal = modalCall.await()
             showTitle()
-            inList = modal?.inWatchlist == true
-            showWatchlist()
+            // Without the modal the list state is unknown, so the button stays hidden
+            modal?.let {
+                inList = it.inWatchlist
+                showWatchlist()
+            }
             modal?.backdropUrl?.let { backdrop.show(tmdbBackdrop(it)) }
             val status = statusCall.await()
             statusJob?.cancel()
@@ -229,6 +232,8 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         inList = wanted
         showWatchlist()
         listBusy = true
+        // Set before the call: leaving the page cancels it after the server may already have the change
+        RawkoonHome.watchlistChanged = true
         scope.launch {
             try {
                 if (wanted) {
@@ -236,7 +241,6 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
                 } else {
                     api.removeFromWatchlist(isMovie, tmdbId)
                 }
-                RawkoonHome.watchlistChanged = true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
