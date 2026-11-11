@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -19,5 +20,11 @@ class BufferTargetTest {
     fun `a large heap keeps media3's defaults`() {
         assertNull(bufferTargets(384))
         assertNull(bufferTargets(512))
+    }
+
+    @Test
+    fun `the cap stops where a third of the heap reaches media3's default`() {
+        assertNull(bufferTargets(375))
+        assertNotNull(bufferTargets(374))
     }
 }
