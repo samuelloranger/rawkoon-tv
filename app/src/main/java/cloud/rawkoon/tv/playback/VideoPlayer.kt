@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.playback
 
+import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.OptIn
@@ -14,8 +15,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -82,6 +85,15 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
                     parameters = buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true).build()
                 }
             }
+        // One load control for both, so their buffers share the budget this device's heap allows
+        bufferTargets(context.getSystemService(ActivityManager::class.java).memoryClass)?.let { targets ->
+            builder.setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setTargetBufferBytes(targets.player)
+                    .setPlayerTargetBufferBytes(PlayerId.PRELOAD.name, targets.preload)
+                    .build(),
+            )
+        }
         exo = builder.buildExoPlayer(
             ExoPlayer.Builder(context)
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
@@ -221,6 +233,24 @@ class VideoPlayer(context: Context, authorization: String, serverUrl: String?, s
 
         fun externalId(index: Int) = "$EXTERNAL_PREFIX$index"
     }
+}
+
+/** What the playing item and the preloaded next one may each buffer, in bytes. */
+internal data class BufferTargets(val player: Int, val preload: Int)
+
+/**
+ * Buffer targets on a device whose app heap is [heapMiB], or null to keep media3's defaults. Buffered
+ * media lives in the Java heap, and the default (~125 MiB per player) fills most of a 192 MiB heap
+ * during 4K playback, with the preloaded next item on top. Below that default, a third of the heap is
+ * shared: a quarter of it for the preload (a few seconds of 4K, enough to start at once), the rest for
+ * playback. Larger heaps keep the defaults; the preload stops at its own short range there anyway.
+ */
+@OptIn(UnstableApi::class)
+internal fun bufferTargets(heapMiB: Int): BufferTargets? {
+    val third = heapMiB / 3 * 1024 * 1024
+    if (third >= DefaultLoadControl.DEFAULT_VIDEO_BUFFER_SIZE) return null
+    val preload = third / 4
+    return BufferTargets(player = third - preload, preload = preload)
 }
 
 /** True when [requestUrl] is addressed to the same host and port as [serverUrl], default ports normalised. */
