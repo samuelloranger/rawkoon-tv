@@ -126,7 +126,7 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
 
     override val livePage get() = LivePage.SHELVES
 
-    /** A library change rewrites covers and marks; a shelf added or edited in Rawkoon shows too. */
+    /** A library change rewrites covers and marks; a shelf added or edited in Rawkoon shows on the next visit. */
     override fun onLive(kinds: Set<LiveKind>) {
         if (kinds.any { it != LiveKind.USER_DATA }) load()
     }

@@ -73,11 +73,19 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
 
     /** Shows [list]; the cover focused last keeps focus, and the grid stays where it was. */
     fun setShelves(list: List<ShelfSummary>) {
-        val same = list.map { it.id } == shelves.map { it.id }
+        val old = shelves
+        val same = list.map { it.id } == old.map { it.id }
         val hadFocus = hasFocus()
         val position = lastPosition
         shelves = list
-        if (same) adapter?.notifyItemRangeChanged(0, shelves.size) else adapter?.notifyDataSetChanged()
+        if (same) {
+            // Only a changed cover is rebuilt: a refresh with the same shelves must not redraw them all
+            val changed = list.indices.filter { list[it] != old[it] }
+            if (changed.isEmpty()) return
+            changed.forEach { adapter?.notifyItemChanged(it) }
+        } else {
+            adapter?.notifyDataSetChanged()
+        }
         lastPosition = position.coerceIn(0, (shelves.size - 1).coerceAtLeast(0))
         // After the rebind, not before: a card removed from its cell takes the focus with it
         if (hadFocus) focusWhenLaidOut(lastPosition)
