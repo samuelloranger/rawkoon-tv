@@ -51,4 +51,6 @@ data class Bootstrap(
     val userName: String,
     val jellyfinUrl: String?,
     val jellyfinLinked: Boolean,
+    /** Whether the account may edit shelves; older servers don't say, so it stays null. */
+    val isAdmin: Boolean?,
 )

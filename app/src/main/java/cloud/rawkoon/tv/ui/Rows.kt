@@ -36,9 +36,9 @@ class SectionTitle(context: Context, text: String) : TextView(context) {
     }
 }
 
-/** A titled row of cards. [id] stays stable across reloads so unchanged rows are left alone. */
+/** A titled row of cards. [id] stays stable across reloads so unchanged rows are left alone; no [title] keeps the title off. */
 @SuppressLint("ViewConstructor")
-class Section(context: Context, val id: String, title: String) : LinearLayout(context) {
+class Section(context: Context, val id: String, title: String?) : LinearLayout(context) {
     val row = FocusRow(context)
     var signature = ""
 
@@ -46,8 +46,8 @@ class Section(context: Context, val id: String, title: String) : LinearLayout(co
         orientation = VERTICAL
         clipChildren = false
         clipToPadding = false
-        addView(SectionTitle(context, title))
-        addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(6) })
+        if (!title.isNullOrEmpty()) addView(SectionTitle(context, title))
+        addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(if (title.isNullOrEmpty()) 0 else 6) })
         setPadding(0, 0, 0, context.dp(10))
     }
 }

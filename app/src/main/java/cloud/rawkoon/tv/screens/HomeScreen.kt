@@ -25,8 +25,12 @@ import cloud.rawkoon.tv.jellyfin.playsRightAway
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonHome
+import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.RawkoonOutcome
 import cloud.rawkoon.tv.rawkoon.ResourceText
+import cloud.rawkoon.tv.rawkoon.ShelfCache
+import cloud.rawkoon.tv.rawkoon.ShelfRows
+import cloud.rawkoon.tv.rawkoon.ShelfSource
 import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
@@ -199,6 +203,20 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Read again each time: linking the account from Discover changes the saved profile, not this screen's copy. */
     private fun profile() = app.profiles.get(session.profile.id) ?: session.profile
 
+    /**
+     * The shelves that asked for a Home row (at most two), each with the titles this profile can
+     * see. A shelf whose entries all belong to other profiles has no row to show.
+     */
+    private suspend fun shelfRows(api: RawkoonDiscover): List<HomeRow> {
+        val source = ShelfSource(api, ShelfCache(context, profile().id))
+        val home = ShelfRows.homeShelves(source.shelves())
+        if (home.isEmpty()) return emptyList()
+        val details = home.mapNotNull { source.shelf(it.id) }
+        if (details.isEmpty()) return emptyList()
+        val index = app.tmdbIndex.index(session)
+        return withContext(Dispatchers.Default) { ShelfRows.rows(details, index, text) }
+    }
+
     /** The Rawkoon rows: Coming soon, My requests and My list, capped so a slow Rawkoon can't hold the home refresh. */
     private suspend fun rawkoonOutcome(): RawkoonOutcome {
         val profile = profile()
@@ -208,7 +226,9 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 val userId = suspend {
                     profile.rawkoonUserId ?: api.userId().ifBlank { null }?.also { id -> app.profiles.get(profile.id)?.let { app.profiles.save(it.copy(rawkoonUserId = id)) } }
                 }
-                RawkoonOutcome.Loaded(RawkoonHome.load(api, userId, text, LocalDate.now(), Instant.now(), Locale.getDefault()))
+                RawkoonOutcome.Loaded(
+                    RawkoonHome.load(api, userId, text, LocalDate.now(), Instant.now(), Locale.getDefault(), shelves = { shelfRows(api) }),
+                )
             } ?: RawkoonOutcome.Unavailable
         } catch (e: CancellationException) {
             throw e

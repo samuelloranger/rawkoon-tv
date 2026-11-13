@@ -11,6 +11,7 @@ import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.ProfileStore
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.MediaWords
+import cloud.rawkoon.tv.jellyfin.TmdbIndexStore
 import cloud.rawkoon.tv.launcher.LauncherChannels
 import cloud.rawkoon.tv.launcher.LauncherSyncJob
 import java.util.Locale
@@ -29,6 +30,10 @@ class App : Application() {
     lateinit var launcher: LauncherChannels
         private set
     lateinit var clips: Clips
+        private set
+
+    /** Each profile's TMDB → Jellyfin index, shared by the Collections row, a shelf page and Home. */
+    lateinit var tmdbIndex: TmdbIndexStore
         private set
 
     /** The last item the player played, so the page below can focus it when the player closes. */
@@ -54,6 +59,7 @@ class App : Application() {
         images = Images(this, Fetcher(this))
         launcher = LauncherChannels(this)
         clips = Clips(this, images.disk)
+        tmdbIndex = TmdbIndexStore(this)
         LegacyImport.run(this, profiles)
         LauncherSyncJob.schedule(this)
     }

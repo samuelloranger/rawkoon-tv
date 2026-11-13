@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Étagères : des listes de titres nommées et ordonnées, chacune sa page sous l'entrée Étagères du rail. -->
+    <string name="rk_shelves">Étagères</string>
+    <string name="rk_shelf_request">Demander</string>
+    <string name="rk_shelf_season">Saison %1$d</string>
+    <string name="rk_shelf_empty">Rien ici que tu puisses regarder avec ce profil.</string>
+    <string name="rk_shelf_error">Impossible de charger cette étagère.</string>
+    <string name="rk_shelf_add">Ajouter à une étagère</string>
+    <string name="rk_shelf_none">Aucune étagère n\'accepte encore les titres à la main.</string>
+    <string name="rk_shelf_added">Ajouté à %1$s</string>
+    <string name="rk_shelf_removed">Retiré de %1$s</string>
+
+    <string name="rk_shelves_empty">Aucune étagère pour l\'instant.</string>
+    <string name="rk_shelves_error">Impossible de charger les étagères.</string>
+
+    <plurals name="rk_shelf_count">
+        <item quantity="one">%d étagère</item>
+        <item quantity="other">%d étagères</item>
+    </plurals>
+
+    <plurals name="rk_shelf_titles">
+        <item quantity="one">%d titre</item>
+        <item quantity="other">%d titres</item>
+    </plurals>
+</resources>

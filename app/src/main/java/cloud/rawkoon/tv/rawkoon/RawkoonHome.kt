@@ -30,11 +30,15 @@ object RawkoonHome {
         today: LocalDate,
         now: Instant,
         locale: Locale,
+        /** The shelves' rows: they need the Jellyfin library and the shelf payloads, so the page builds them. */
+        shelves: suspend () -> List<HomeRow> = { emptyList() },
     ): List<HomeRow> = coroutineScope {
+        val shelfRows = async { optional { shelves() } }
         val upcoming = async { optional { upcomingRow(discover, text, today, locale) } }
         val requests = async { optional { userId()?.let { RequestRows.row(discover, discover.requests(), it, text, now) } } }
         val watchlist = async { optional { WatchlistRows.row(discover.watchlist(), text) } }
-        listOfNotNull(upcoming.await(), requests.await(), watchlist.await())
+        // Shelves lead: a shelf the account featured is the point of the row, not a footnote under it
+        shelfRows.await().orEmpty() + listOfNotNull(upcoming.await(), requests.await(), watchlist.await())
     }
 
     private suspend fun upcomingRow(discover: RawkoonDiscover, text: RawkoonText, today: LocalDate, locale: Locale): HomeRow? {
@@ -68,7 +72,7 @@ object RawkoonHome {
     var watchlistEdits = 0
         private set
 
-    fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID || row.id == WATCHLIST_ID
+    fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID || row.id == WATCHLIST_ID || shelfIdOf(row.id) != null
 
     /** Rows kept from before (cached or on screen) with their dates worded for [today] again. */
     fun refreshed(rows: List<HomeRow>, text: RawkoonText, today: LocalDate, locale: Locale): List<HomeRow> =

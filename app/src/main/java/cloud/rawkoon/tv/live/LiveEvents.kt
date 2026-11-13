@@ -33,6 +33,8 @@ enum class LivePage {
 
     /** A TMDB title's page: its request state and its Jellyfin item follow the server. */
     DISCOVER_DETAILS,
+    /** A page of shelves: their covers follow the library and Rawkoon's own changes. */
+    SHELVES,
     OTHER,
     ;
 
@@ -40,6 +42,8 @@ enum class LivePage {
     fun reactsTo(kind: LiveKind): Boolean = when (this) {
         HOME -> true
         DETAILS, SEASON, LIBRARY -> !kind.fromRawkoon
+        // A shelf's covers and marks come from the library; its own edits arrive with the next visit
+        SHELVES -> kind == LiveKind.LIBRARY
         FAVORITES -> kind == LiveKind.USER_DATA
         // Not the user's watched state: the page shows neither
         DISCOVER_DETAILS -> kind != LiveKind.USER_DATA

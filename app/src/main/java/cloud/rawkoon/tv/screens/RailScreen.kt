@@ -95,6 +95,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
             Destination.FAVORITES -> open(destination) { FavoritesScreen(activity, session) }
             Destination.DISCOVER -> open(destination) { DiscoverScreen(activity, session) }
             Destination.MOVIES, Destination.SHOWS, Destination.COLLECTIONS -> open(destination) { LibraryScreen(activity, session, destination) }
+            Destination.SHELVES -> open(destination) { ShelvesScreen(activity, session) }
         }
     }
 

@@ -10,6 +10,9 @@ object FakeText : RawkoonText {
     override fun episodes(count: Int) = "$count episodes"
     override fun inLibrary() = "in library"
     override fun inProgress() = "in progress"
+    override fun request() = "Request"
+    override fun season(number: Int) = "Season $number"
+    override fun titles(count: Int) = "$count titles"
 
     override fun stateLabel(state: TitleState): String? = when (state) {
         TitleState.Requestable -> null

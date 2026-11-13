@@ -7,6 +7,10 @@ import android.widget.Toast
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.rawkoon.RawkoonHome
+import cloud.rawkoon.tv.rawkoon.ShelfForbidden
+import cloud.rawkoon.tv.rawkoon.ShelfMembership
+import cloud.rawkoon.tv.rawkoon.ShelfOrder
+import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawTmdbImage
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.CardMenu
@@ -18,7 +22,7 @@ import org.jellyfin.sdk.model.api.ImageType
 /** What a card's menu can do with its item. */
 enum class CardAction {
     PLAY, RESUME, START_OVER, MARK_WATCHED, MARK_UNWATCHED, ADD_FAVORITE, REMOVE_FAVORITE, ADD_TO_LIST, REMOVE_FROM_LIST, GO_TO_SHOW,
-    CHANGE_POSTER, CHANGE_BACKGROUND,
+    CHANGE_POSTER, CHANGE_BACKGROUND, ADD_TO_SHELF,
 }
 
 /**
@@ -26,10 +30,11 @@ enum class CardAction {
  * plays on its own, watched and favorite for anything in the library, "My list" for a movie or a
  * show when [inList] is known (null: no Rawkoon, or no TMDB id), and the show for an episode or a
  * season. With [canEditArt] (a server administrator) a movie or show can change its poster and
- * background, a season its poster. A TMDB title from Rawkoon is not in the library: only "My list"
+ * background, a season its poster; with [canEditShelves] (a Rawkoon administrator) a library movie
+ * or show can join a shelf. A TMDB title from Rawkoon is not in the library: only "My list"
  * applies to it.
  */
-fun cardActions(item: MediaItem, inList: Boolean?, canEditArt: Boolean = false): List<CardAction> = buildList {
+fun cardActions(item: MediaItem, inList: Boolean?, canEditArt: Boolean = false, canEditShelves: Boolean = false): List<CardAction> = buildList {
     val list = when (inList) {
         true -> CardAction.REMOVE_FROM_LIST
         false -> CardAction.ADD_TO_LIST
@@ -51,7 +56,11 @@ fun cardActions(item: MediaItem, inList: Boolean?, canEditArt: Boolean = false):
     }
     add(if (item.played) CardAction.MARK_UNWATCHED else CardAction.MARK_WATCHED)
     add(if (item.favorite) CardAction.REMOVE_FAVORITE else CardAction.ADD_FAVORITE)
-    if (kind == MediaItem.Kind.MOVIE || kind == MediaItem.Kind.SERIES) list?.let(::add)
+    if (kind == MediaItem.Kind.MOVIE || kind == MediaItem.Kind.SERIES) {
+        list?.let(::add)
+        // A shelf holds library titles by TMDB id, so a title without one has nothing to add
+        if (canEditShelves && item.libraryTmdbId != null) add(CardAction.ADD_TO_SHELF)
+    }
     if ((kind == MediaItem.Kind.EPISODE || kind == MediaItem.Kind.SEASON) && item.seriesId != null) add(CardAction.GO_TO_SHOW)
     if (canEditArt && kind != MediaItem.Kind.EPISODE) {
         add(CardAction.CHANGE_POSTER)
@@ -93,9 +102,17 @@ class CardMenus(private val screen: RailScreen) {
     private var watchlistEdits = -1
     private var listBusy = false
 
+    /** Whether the Rawkoon account may edit shelves; null until the bootstrap or a refused call says. */
+    private var shelvesAdmin: Boolean? = null
+    private var shelvesBusy = false
+
     init {
         // Asked once, ahead of the first long-press: the art entries only show for an administrator
         screen.scope.launch { screen.session.loadCanEditArt() }
+        val profile = screen.app.profiles.get(screen.session.profile.id) ?: screen.session.profile
+        shelvesAdmin = profile.rawkoonAdmin
+        // An account linked before the app knew the flag: ask the server once
+        if (shelvesAdmin == null && profile.hasRawkoonSession(context)) screen.scope.launch { refreshShelvesAdmin() }
     }
 
     /**
@@ -139,7 +156,8 @@ class CardMenus(private val screen: RailScreen) {
         val key = listKey(item).takeIf { CardAction.ADD_TO_LIST !in skip }
         val api = rawkoon()
         val known = key?.let { k -> freshWatchlist()?.let { k in it } }
-        val entries = cardActions(item, known, screen.session.canEditArt == true).filter { it !in skip }.map { entry(it, item, key, changed) } + extras
+        val entries = cardActions(item, known, screen.session.canEditArt == true, shelvesAdmin == true)
+            .filter { it !in skip }.map { entry(it, item, key, changed, card) } + extras
         val lookUp = key != null && api != null && known == null
         if (entries.isEmpty() && !lookUp) return
         // A title whose only action is "My list" waits for the list: an empty menu would only flash
@@ -188,7 +206,95 @@ class CardMenus(private val screen: RailScreen) {
 
     private fun rawkoon() = (screen.app.profiles.get(screen.session.profile.id) ?: screen.session.profile).rawkoonDiscover(context)
 
-    private fun entry(action: CardAction, item: MediaItem, key: ListKey?, changed: Changed): CardMenu.Entry {
+    /** Asks the server whether this account may edit shelves, and remembers the answer on the profile. */
+    private suspend fun refreshShelvesAdmin() {
+        val api = rawkoon() ?: return
+        val admin = try {
+            api.bootstrap().isAdmin
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return
+        } ?: return
+        shelvesAdmin = admin
+        val profile = screen.app.profiles.get(screen.session.profile.id) ?: return
+        screen.app.profiles.save(profile.copy(rawkoonAdmin = admin))
+    }
+
+    /**
+     * The second menu: the shelves that take titles by hand, each with a check when it already
+     * holds [item]. Picking one adds or removes the title and says so.
+     */
+    private fun openShelves(card: View, item: MediaItem) {
+        val api = rawkoon() ?: return failed()
+        val tmdbId = item.libraryTmdbId ?: return failed()
+        if (shelvesBusy) return
+        shelvesBusy = true
+        screen.scope.launch {
+            try {
+                val manual = api.shelvesForTitle(tmdbId, item.kind == MediaItem.Kind.MOVIE).filter { it.order == ShelfOrder.MANUAL }
+                if (manual.isEmpty()) {
+                    Toast.makeText(context, R.string.rk_shelf_none, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                showShelves(card, item, tmdbId, manual)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ShelfForbidden) {
+                // Not an administrator after all: the entry goes from every menu from now on
+                shelvesAdmin = false
+                screen.app.profiles.get(screen.session.profile.id)?.let { screen.app.profiles.save(it.copy(rawkoonAdmin = false)) }
+                failed()
+            } catch (e: Exception) {
+                failed()
+            } finally {
+                shelvesBusy = false
+            }
+        }
+    }
+
+    private fun showShelves(card: View, item: MediaItem, tmdbId: Int, shelves: List<ShelfMembership>) {
+        val entries = shelves.map { membership ->
+            val glyph = if (membership.holds) Icon.CHECK else Icon.PLUS
+            CardMenu.Entry(glyph, membership.name) { toggleShelf(item, tmdbId, membership) }
+        }
+        CardMenu(context, screen.string(R.string.rk_shelf_add), item.title, entries).also {
+            menu = it
+            it.onClosed = { if (menu === it) menu = null }
+            it.fallbackFocus = { screen.contentFocus() }
+            it.open(screen.view, card)
+        }
+    }
+
+    /** Adds [item] to a shelf it lacks, or takes it off the one it is on. */
+    private fun toggleShelf(item: MediaItem, tmdbId: Int, membership: ShelfMembership) {
+        val api = rawkoon() ?: return failed()
+        if (shelvesBusy) return
+        shelvesBusy = true
+        screen.scope.launch {
+            try {
+                if (membership.holds) {
+                    api.removeFromShelf(membership.id, membership.entryId ?: return@launch)
+                } else {
+                    api.addToShelf(membership.id, tmdbId, item.kind == MediaItem.Kind.MOVIE)
+                }
+                val message = if (membership.holds) R.string.rk_shelf_removed else R.string.rk_shelf_added
+                Toast.makeText(context, screen.string(message, membership.name), Toast.LENGTH_SHORT).show()
+                screen.onCardChanged(rawkoon = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ShelfForbidden) {
+                shelvesAdmin = false
+                failed()
+            } catch (e: Exception) {
+                failed()
+            } finally {
+                shelvesBusy = false
+            }
+        }
+    }
+
+    private fun entry(action: CardAction, item: MediaItem, key: ListKey?, changed: Changed, shelfAnchor: View? = null): CardMenu.Entry {
         fun e(glyph: String, text: Int, run: () -> Unit) = CardMenu.Entry(glyph, screen.string(text), run)
         return when (action) {
             CardAction.PLAY -> e(Icon.PLAY, R.string.play) { play(item) }
@@ -203,6 +309,7 @@ class CardMenus(private val screen: RailScreen) {
             CardAction.GO_TO_SHOW -> e(Icon.TV, R.string.card_go_to_show) { goToShow(item) }
             CardAction.CHANGE_POSTER -> e(Icon.IMAGE, R.string.card_change_poster) { changeArt(item, ImageType.PRIMARY, changed) }
             CardAction.CHANGE_BACKGROUND -> e(Icon.IMAGES, R.string.card_change_background) { changeArt(item, ImageType.BACKDROP, changed) }
+            CardAction.ADD_TO_SHELF -> e(Icon.PLUS, R.string.rk_shelf_add) { shelfAnchor?.let { openShelves(it, item) } }
         }
     }
 

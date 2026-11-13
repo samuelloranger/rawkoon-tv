@@ -233,6 +233,24 @@ class RawkoonHomeTest {
     }
 
     @Test
+    fun `a shelf row is a rawkoon row, and stays through a failed refresh`() {
+        val shelf = HomeRow(homeRowId(7), "Featured", emptyList(), false)
+        assertEquals(true, RawkoonHome.isRawkoonRow(shelf))
+        assertEquals(listOf(shelf), RawkoonHome.rowsFor(RawkoonOutcome.Unavailable, listOf(row("resume"), shelf)).map { it })
+        assertEquals(listOf(shelf), RawkoonHome.refreshed(listOf(shelf), FakeText, today, Locale.ENGLISH))
+    }
+
+    @Test
+    fun `shelf rows lead the rawkoon block, after what continues`() {
+        val jellyfin = listOf(row("resume"), row("latest:a"))
+        val rawkoon = listOf(row(homeRowId(1)), row(RawkoonHome.UPCOMING_ID))
+        assertEquals(
+            listOf("resume", homeRowId(1), RawkoonHome.UPCOMING_ID, "latest:a"),
+            RawkoonHome.merge(jellyfin, rawkoon).map { it.id },
+        )
+    }
+
+    @Test
     fun `discover shows the wanted genres only, movies then shows`() {
         val movies = listOf(Genre(28, "Action"), Genre(99, "Documentary"), Genre(35, "Comedy"))
         val shows = listOf(Genre(80, "Crime"), Genre(16, "Animation"))

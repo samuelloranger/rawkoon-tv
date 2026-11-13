@@ -73,6 +73,7 @@ class RawkoonClient(baseUrl: String) {
             userName = user?.optString("name").orEmpty(),
             jellyfinUrl = jellyfin?.optString("url")?.takeIf { it.isNotEmpty() },
             jellyfinLinked = jellyfin?.optBoolean("linked") == true,
+            isAdmin = user?.takeIf { it.has("is_admin") }?.optBoolean("is_admin"),
         )
     }
 
