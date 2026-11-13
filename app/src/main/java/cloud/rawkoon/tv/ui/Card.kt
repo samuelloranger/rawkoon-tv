@@ -70,6 +70,8 @@ class Card(
     fun update(updated: MediaItem) {
         item = updated
         showMarks(updated, animate = true)
+        // New artwork has a new URL: it replaces the old art when it arrives, without a blank between
+        if (artUrl() != shownArt && isAttachedToWindow) requestArt()
     }
 
     /** The progress bar and the watched check for [item]; a check that appears pops in when [animate]. */
@@ -113,11 +115,17 @@ class Card(
      * would only flash the placeholder when the card comes back.
      */
     private fun requestArt() {
-        if (frame.art.bitmap != null) return
-        val url = (if (landscape) item.thumbUrl else item.posterUrl ?: item.thumbUrl) ?: return
+        val url = artUrl() ?: return
+        if (frame.art.bitmap != null && url == shownArt) return
+        shownArt = url
         // A TMDB image's URL is final; a library image is asked at the card's width
-        images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive }) { frame.art.bitmap = it }
+        images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive && shownArt == url }) { frame.art.bitmap = it }
     }
+
+    private fun artUrl() = if (landscape) item.thumbUrl else item.posterUrl ?: item.thumbUrl
+
+    /** The art last asked for: a different URL means the image itself changed. */
+    private var shownArt: String? = null
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()

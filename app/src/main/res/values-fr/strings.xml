@@ -70,6 +70,16 @@
     <string name="card_remove_favorite">Retirer des favoris</string>
     <string name="card_remove_from_list">Retirer de ma liste</string>
     <string name="card_go_to_show">Aller à la série</string>
+    <string name="card_change_poster">Changer l\'affiche</string>
+    <string name="card_change_background">Changer l\'arrière-plan</string>
+    <string name="art_title_poster">Affiche</string>
+    <string name="art_title_background">Arrière-plan</string>
+    <string name="art_loading">Recherche d\'images…</string>
+    <string name="art_none">Les fournisseurs d\'images de ton serveur n\'ont rien pour ce titre.</string>
+    <string name="art_error">Impossible de charger les images. Reviens en arrière et réessaie.</string>
+    <string name="art_hint">Choisis-en une : le serveur la garde et toutes les apps l\'affichent.</string>
+    <string name="art_current">Actuelle</string>
+    <string name="art_saving">Enregistrement…</string>
     <string name="recently_added">Récemment ajouté</string>
     <string name="row_latest">Récemment ajoutés dans %1$s</string>
     <string name="home_empty">Rien à afficher pour l\'instant.</string>

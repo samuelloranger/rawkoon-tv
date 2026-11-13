@@ -76,4 +76,6 @@ object Icon {
     const val EYE_SLASH = "\uf070"
     const val HEART_CRACK = "\uf7a9"
     const val BOOKMARK = "\uf02e"
+    const val IMAGE = "\uf03e"
+    const val IMAGES = "\uf302"
 }
