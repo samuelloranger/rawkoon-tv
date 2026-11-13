@@ -117,6 +117,15 @@ class CardMenus(private val screen: RailScreen) {
         }
     }
 
+    /**
+     * Opens [item]'s menu beside [anchor], a page's "…" button, without the actions in [skip]: the
+     * page has buttons of its own for those.
+     */
+    fun openFor(anchor: View, item: MediaItem, skip: Set<CardAction>, changed: Changed) = open(anchor, item, emptyList(), changed, skip)
+
+    /** Whether [item]'s menu has anything besides [skip]; a page hides its "…" button otherwise. */
+    fun offers(item: MediaItem, skip: Set<CardAction>) = cardActions(item, inList = null, canEditArt = screen.session.canEditArt == true).any { it !in skip }
+
     /** Closes an open menu; true when there was one. */
     fun close(): Boolean {
         // One still fading out takes Back too: the page under it must not go back meanwhile
@@ -125,12 +134,12 @@ class CardMenus(private val screen: RailScreen) {
         return true
     }
 
-    private fun open(card: View, item: MediaItem, extras: List<CardMenu.Entry>, changed: Changed) {
+    private fun open(card: View, item: MediaItem, extras: List<CardMenu.Entry>, changed: Changed, skip: Set<CardAction> = emptySet()) {
         if (menu?.isAttachedToWindow == true || !card.isAttachedToWindow) return
-        val key = listKey(item)
+        val key = listKey(item).takeIf { CardAction.ADD_TO_LIST !in skip }
         val api = rawkoon()
         val known = key?.let { k -> freshWatchlist()?.let { k in it } }
-        val entries = cardActions(item, known, screen.session.canEditArt == true).map { entry(it, item, key, changed) } + extras
+        val entries = cardActions(item, known, screen.session.canEditArt == true).filter { it !in skip }.map { entry(it, item, key, changed) } + extras
         val lookUp = key != null && api != null && known == null
         if (entries.isEmpty() && !lookUp) return
         // A title whose only action is "My list" waits for the list: an empty menu would only flash

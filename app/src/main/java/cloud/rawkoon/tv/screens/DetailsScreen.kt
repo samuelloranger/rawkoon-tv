@@ -55,6 +55,15 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         content.addView(page, fill())
         block.setActions(actions.view)
         actions.onWatchlist = ::toggleWatchlist
+        // New artwork from "…" shows on the page at once; the toggles leave the image URLs alone
+        actions.onChanged = { id, change ->
+            if (id == item.id) {
+                val updated = change(item)
+                if (updated.posterUrl != item.posterUrl) block.setPoster(updated.posterUrl, fillWidth = true)
+                if (updated.backdropUrl != item.backdropUrl) backdrop.show(backdropRequest(updated.backdropUrl))
+                item = updated
+            }
+        }
         page.column.addView(block, TitleBlock.params(context))
         showItem(start, null)
         backdrop.show(backdropRequest(start.backdropUrl))

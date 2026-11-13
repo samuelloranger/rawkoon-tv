@@ -19,7 +19,8 @@ for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop ch
   start over, mark watched or not, favorite, My list, go to the show, and on Home, clear it off
   Continue watching or Next up. It only lists what applies to that card as it stands. A Jellyfin
   administrator can also change a movie's or show's poster and background, or a season's poster,
-  picking from what the server's image providers (TMDB, Fanart…) offer.
+  picking from what the server's image providers (TMDB, Fanart…) offer. A title page's "…" button
+  has the same menu, without what its own buttons already do.
 - **Discover and requests.** Rawkoon's trending, popular and upcoming titles; open one and request
   it, then follow its state. A title already in the library opens there.
 - **Player.** media3 with the Jellyfin ffmpeg decoders, the server's own choice of direct play or
