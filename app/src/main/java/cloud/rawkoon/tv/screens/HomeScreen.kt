@@ -18,6 +18,7 @@ import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.JellyfinTooOldException
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.itemsByIds
 import cloud.rawkoon.tv.jellyfin.arrangeRows
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
@@ -150,7 +151,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 session.requireSupportedServer()
                 val jellyfin = session.homeRows(Prefs.homeFetch(context))
                 app.launcher.syncAfterHome(profile(), jellyfin)
-                val previous = rawkoonRowsOnScreen(cached)
+                val previous = freshShelfMarks(rawkoonRowsOnScreen(cached))
                 showHome(RawkoonHome.merge(jellyfin, previous))
                 val outcome = rawkoon?.await()
                 if (outcome is RawkoonOutcome.Loaded) {
@@ -213,8 +214,26 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         if (home.isEmpty()) return emptyList()
         val details = home.mapNotNull { source.shelf(it.id) }
         if (details.isEmpty()) return emptyList()
-        val index = app.tmdbIndex.index(session)
-        return withContext(Dispatchers.Default) { ShelfRows.rows(details, index, text) }
+        // No index yet (a failed first build): no shelf rows, quietly, rather than rows of nothing
+        val index = app.tmdbIndex.index(session) ?: return emptyList()
+        val items = session.itemsByIds(details.flatMap { ShelfRows.libraryIds(it.entries, index) })
+        return withContext(Dispatchers.Default) { ShelfRows.rows(details, index, items, text) }
+    }
+
+    /**
+     * Shelf rows reused from the screen or the cache (Rawkoon's rows are not asked again within a
+     * minute) still carry the watched marks they were saved with; their library cards are read again.
+     */
+    private suspend fun freshShelfMarks(rows: List<HomeRow>): List<HomeRow> {
+        val ids = ShelfRows.libraryIds(rows)
+        if (ids.isEmpty()) return rows
+        return try {
+            ShelfRows.refreshed(rows, session.itemsByIds(ids))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            rows
+        }
     }
 
     /** The Rawkoon rows: Coming soon, My requests and My list, capped so a slow Rawkoon can't hold the home refresh. */

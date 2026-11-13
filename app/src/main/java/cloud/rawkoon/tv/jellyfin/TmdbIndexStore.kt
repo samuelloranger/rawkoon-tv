@@ -15,17 +15,21 @@ import kotlinx.coroutines.withContext
  * saved copy answers meanwhile, so a shelf never waits on a broken server.
  */
 class TmdbIndexStore(context: Context) {
-    private val dir = File(context.cacheDir, "tmdb-index").apply { mkdirs() }
+    // filesDir, not DiskCache: that is an LRU of images trimmed by size, and Android may purge cacheDir.
+    // The index is small and costs a full library read to rebuild, and offline it is the only copy.
+    private val dir = File(context.filesDir, "tmdb-index").apply { mkdirs() }
     private val memory = ConcurrentHashMap<String, TmdbIndex>()
     private val built = ConcurrentHashMap.newKeySet<String>()
     private val failedAt = ConcurrentHashMap<String, Long>()
     private val locks = ConcurrentHashMap<String, Mutex>()
 
     /**
-     * The index for [session]'s profile. [refresh] is for a library that just changed: the memory
+     * The index for [session]'s profile, or null when the first build failed and nothing was saved:
+     * an index that is missing is not an index that is empty, and the caller must not read it as
+     * "no title is in the library". [refresh] is for a library that just changed: the memory
      * copy is dropped and the server read again, with the saved copy still there if that fails.
      */
-    suspend fun index(session: JellyfinSession, refresh: Boolean = false): TmdbIndex {
+    suspend fun index(session: JellyfinSession, refresh: Boolean = false): TmdbIndex? {
         val id = session.profile.id
         if (refresh) invalidate(id)
         memory[id]?.let { return it }
@@ -34,7 +38,7 @@ class TmdbIndexStore(context: Context) {
             memory[id]?.let { return@withLock it }
             val saved = read(id)
             val retry = (failedAt[id] ?: 0L).let { it != 0L && System.currentTimeMillis() - it < RETRY_MS }
-            if (built.contains(id) || retry) return@withLock saved ?: TmdbIndex.of(emptyList())
+            if (built.contains(id) || retry) return@withLock saved
             try {
                 val fresh = session.buildTmdbIndex()
                 memory[id] = fresh
@@ -46,7 +50,7 @@ class TmdbIndexStore(context: Context) {
                 throw e
             } catch (e: Exception) {
                 failedAt[id] = System.currentTimeMillis()
-                saved ?: TmdbIndex.of(emptyList())
+                saved
             }
         }
     }

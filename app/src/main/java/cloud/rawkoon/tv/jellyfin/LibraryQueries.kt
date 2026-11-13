@@ -101,3 +101,22 @@ suspend fun JellyfinSession.libraryLetterIndex(types: List<BaseItemKind>, parent
     val request = libraryRequest(userId, types, parentId?.let(JellyfinSession::parseId), query, 0, 1, bound)
     return api.libraryApi.getItems(request).content.totalRecordCount
 }
+
+/**
+ * The current state of the titles [ids] (marks, progress, favorite), read as the profile's user in
+ * chunks so the request line stays short. An id the account can't see is missing from the answer.
+ */
+suspend fun JellyfinSession.itemsByIds(ids: Collection<String>): Map<String, MediaItem> = withContext(Dispatchers.Default) {
+    ids.distinct().chunked(IDS_CHUNK).flatMap { chunk ->
+        api.libraryApi.getItems(
+            GetItemsRequest(
+                userId = userId,
+                ids = chunk.map(JellyfinSession::parseId),
+                // The fields the library grids ask for, so a card reads the same wherever it is drawn
+                fields = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO, ItemFields.PROVIDER_IDS),
+            ),
+        ).content.items.map { MediaItem.from(it, images) }
+    }.associateBy { it.id }
+}
+
+private const val IDS_CHUNK = 100

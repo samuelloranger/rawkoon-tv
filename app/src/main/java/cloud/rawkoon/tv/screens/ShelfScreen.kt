@@ -7,6 +7,7 @@ import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.itemsByIds
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.rawkoon.ResolvedShelfEntry
@@ -53,6 +54,7 @@ class ShelfScreen(
     private val message = MessagePanel(context)
     private val text = ResourceText(context)
     private var loadJob: Job? = null
+    private var marksJob: Job? = null
 
     /** The shelf as last shown: what a refresh keeps on screen until its answer lands. */
     private var detail: ShelfDetail? = null
@@ -83,6 +85,7 @@ class ShelfScreen(
 
     private fun load() {
         loadJob?.cancel()
+        marksJob?.cancel()
         loadJob = scope.launch {
             val profile = app.profiles.get(session.profile.id) ?: session.profile
             val source = profile.shelfSource(context)
@@ -102,8 +105,20 @@ class ShelfScreen(
                 showEmpty(string(R.string.rk_shelf_error), retry = true)
                 return@launch
             }
+            // No index and no saved one is a failure to show, not a shelf nobody can watch
             val index = app.tmdbIndex.index(session)
-            val cards = withContext(Dispatchers.Default) { ShelfRows.resolve(loaded.entries, index, text) }
+            val cards = try {
+                val items = session.itemsByIds(ShelfRows.libraryIds(loaded.entries, index))
+                withContext(Dispatchers.Default) { ShelfRows.resolve(loaded.entries, index, items, text) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (cards == null) {
+                showEmpty(string(R.string.rk_shelf_error), retry = true)
+                return@launch
+            }
             show(loaded, cards)
         }
     }
@@ -162,8 +177,8 @@ class ShelfScreen(
     /** The focused title's backdrop, once focus rests. */
     private fun preview(card: Card) {
         val item = card.item
-        val url = item.backdropUrl ?: return
-        val request = backdropRequest(if (item.tmdb != null) tmdbImage(url) else url)
+        // A title without a backdrop clears the last one: leaving it would show another title's art
+        val request = backdropRequest(item.backdropUrl?.let { if (item.tmdb != null) tmdbImage(it) else it })
         mainHandler.removeCallbacks(settleBackdrop)
         backdropUrl = request
         mainHandler.postDelayed(settleBackdrop, Tokens.BACKDROP_SETTLE_MS)
@@ -205,13 +220,47 @@ class ShelfScreen(
 
     override val livePage get() = LivePage.LIBRARY
 
-    /** The library changed (a title landed): the shelf's marks and cards are read again. */
+    /**
+     * The library changed: the shelf and its cards are read again. Watched state, progress or a
+     * favorite changed: only the library cards' marks are, in place, so focus and scroll stay put.
+     */
     override fun onLive(kinds: Set<LiveKind>) {
-        if (kinds.contains(LiveKind.LIBRARY) || kinds.contains(LiveKind.RAWKOON_LANDED)) load()
+        if (LiveKind.LIBRARY in kinds) load() else refreshMarks()
     }
 
-    /** A page of the Shelves destination: the rail highlights it, and another destination replaces it. */
+    private fun refreshMarks() {
+        marksJob?.cancel()
+        marksJob = scope.launch {
+            val cards = rows.sections().flatMap { it.row.cards() }.filterIsInstance<Card>().filter { it.item.tmdb == null }
+            if (cards.isEmpty()) return@launch
+            val fresh = try {
+                session.itemsByIds(cards.map { it.item.id })
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return@launch
+            }
+            cards.forEach { card -> fresh[card.item.id]?.let(card::update) }
+        }
+    }
+
+    /** A page above Shelves: the rail highlights Shelves, and another destination must replace both. */
     override val isRailPage get() = true
+
+    /**
+     * Shelves sits under this page, so leaving for another rail page drops back to it first and
+     * lets the replace take its place; replacing only this page would leave Shelves under the new one.
+     */
+    override fun navigate(destination: Destination) {
+        when (destination) {
+            Destination.SHELVES -> activity.popTo { it is ShelvesScreen }
+            Destination.SEARCH, Destination.FAVORITES, Destination.DISCOVER, Destination.MOVIES, Destination.SHOWS, Destination.COLLECTIONS -> {
+                activity.popTo { it is ShelvesScreen }
+                super.navigate(destination)
+            }
+            else -> super.navigate(destination)
+        }
+    }
 
     /** Coming back to the page reads the shelf again, keeping what is on screen meanwhile. */
     override fun onShown(first: Boolean) {
@@ -221,6 +270,7 @@ class ShelfScreen(
 
     override fun destroy() {
         loadJob?.cancel()
+        marksJob?.cancel()
         super.destroy()
     }
 
