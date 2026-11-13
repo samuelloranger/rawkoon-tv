@@ -193,7 +193,7 @@ abstract class RowsPage(
 
     /** The card for [item] in the row [rowId]; a page whose cards look or open differently overrides it. */
     protected open fun card(item: MediaItem, landscape: Boolean, rowId: String) =
-        Card(context, item, landscape, app.images, ::onFocused, { openItem(it.item) }, cardCaption(item))
+        Card(context, item, landscape, app.images, ::onFocused, { openItem(it.item) }, cardCaption(item)).withMenu()
 
     private fun section(row: HomeRow) = Section(context, row.id, row.title).apply {
         signature = row.signature

@@ -78,6 +78,9 @@ abstract class Screen(val activity: MainActivity) {
     /** True when the screen handled Back itself; otherwise the stack pops it. */
     open fun onBack(): Boolean = false
 
+    /** Closes a small panel over the page (a card's menu) when one is open; Back does this before [onBack]. */
+    open fun closePopup(): Boolean = false
+
     /** Keys before the focused view sees them; true when consumed. */
     open fun onKey(event: KeyEvent): Boolean = false
 

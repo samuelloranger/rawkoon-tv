@@ -63,6 +63,13 @@
     <string name="row_next_up">Prochains épisodes</string>
     <string name="remove_from_resume">Retirer de Continuer à regarder</string>
     <string name="remove_from_next_up">Retirer de Prochains épisodes</string>
+    <string name="card_start_over">Recommencer</string>
+    <string name="card_mark_watched">Marquer comme vu</string>
+    <string name="card_mark_unwatched">Marquer comme non vu</string>
+    <string name="card_add_favorite">Ajouter aux favoris</string>
+    <string name="card_remove_favorite">Retirer des favoris</string>
+    <string name="card_remove_from_list">Retirer de ma liste</string>
+    <string name="card_go_to_show">Aller à la série</string>
     <string name="recently_added">Récemment ajouté</string>
     <string name="row_latest">Récemment ajoutés dans %1$s</string>
     <string name="home_empty">Rien à afficher pour l\'instant.</string>

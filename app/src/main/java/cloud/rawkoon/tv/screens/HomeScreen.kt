@@ -31,7 +31,7 @@ import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
 import cloud.rawkoon.tv.ui.Card
-import cloud.rawkoon.tv.ui.ChoiceDialog
+import cloud.rawkoon.tv.ui.CardMenu
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Icon
 import cloud.rawkoon.tv.ui.PillButton
@@ -75,7 +75,6 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     private var loadJob: Job? = null
     private var rawkoonJob: Job? = null
     private var backdropJob: Job? = null
-    private var dialog: ChoiceDialog? = null
 
     /**
      * Backdrops looked up for TMDB cards focused before, by item id; "" for a title with none or
@@ -235,20 +234,20 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** A Rawkoon row's card is a TMDB title, which opens its own page, or the library item when it's there. */
     override fun card(item: MediaItem, landscape: Boolean, rowId: String) =
         if (item.tmdb != null) {
-            Card(context, item, false, app.images, ::onFocused, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) }, cardCaption(item))
+            Card(context, item, false, app.images, ::onFocused, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) }, cardCaption(item)).withMenu()
         } else {
-            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) }).also { card ->
-                if (rowId == ROW_RESUME || (rowId == ROW_NEXT_UP && item.seriesId != null)) {
-                    card.setOnLongClickListener { openRemoveMenu(card.item, rowId); true }
-                }
-            }
+            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) }).withMenu { current -> rowEntries(current, rowId) }
         }
 
-    /** Long-press on a Continue watching or Next up card offers to clear it off the row. */
-    private fun openRemoveMenu(item: MediaItem, rowId: String) {
-        val label = string(if (rowId == ROW_RESUME) R.string.remove_from_resume else R.string.remove_from_next_up)
-        dialog = ChoiceDialog(context, item.headerTitle, listOf(label to { remove(item, rowId) })).also { it.open(view) }
+    /** A Continue watching or Next up card's menu also offers to clear it off the row. */
+    private fun rowEntries(item: MediaItem, rowId: String): List<CardMenu.Entry> = when {
+        rowId == ROW_RESUME -> listOf(CardMenu.Entry(Icon.XMARK, string(R.string.remove_from_resume)) { remove(item, rowId) })
+        rowId == ROW_NEXT_UP && item.seriesId != null -> listOf(CardMenu.Entry(Icon.EYE_SLASH, string(R.string.remove_from_next_up)) { remove(item, rowId) })
+        else -> emptyList()
     }
+
+    /** Watched state moves cards between Continue watching and Next up; a "My list" change is Rawkoon's row alone. */
+    override fun onCardChanged(rawkoon: Boolean) = if (rawkoon) refreshRawkoon() else load()
 
     /**
      * Takes [item] off its row at once, then reloads so a refresh already under way can't bring it
@@ -411,10 +410,6 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
 
     /** Back on the page goes to the rail, as in Wholphin; Back on the rail leaves the app. */
     override fun onBack(): Boolean {
-        dialog?.takeIf { it.isAttachedToWindow }?.let {
-            it.close()
-            return true
-        }
         if (rail.isOpen) {
             activity.finish()
         } else {

@@ -16,6 +16,8 @@ import cloud.rawkoon.tv.jellyfin.ImageUrls
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.ui.Backdrop
+import cloud.rawkoon.tv.ui.Card
+import cloud.rawkoon.tv.ui.CardMenu
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.FlatView
 import cloud.rawkoon.tv.ui.NavRail
@@ -176,6 +178,22 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         if (!first) rail.refreshAvatar()
         // Back from a page above: the card that gets focus back wants its clip again
         if (!first) onClipRearm()
+    }
+
+    /** Every card's long-press and Menu menu on this page. */
+    protected val cardMenus = CardMenus(this)
+
+    override fun closePopup() = cardMenus.close()
+
+    /**
+     * A card's menu changed something on the server: [rawkoon] for "My list", else the item's
+     * watched or favorite state. A page whose rows depend on it (home) refreshes them.
+     */
+    open fun onCardChanged(rawkoon: Boolean) {}
+
+    /** Gives this card the shared menu; [extras] are the page's own actions for its item, after the shared ones. */
+    protected fun Card.withMenu(extras: (MediaItem) -> List<CardMenu.Entry> = { emptyList() }): Card = also { card ->
+        cardMenus.attach(card, { card.item }, extras) { id, change -> if (card.item.id == id) card.update(change(card.item)) }
     }
 
     /** Back from the rail returns to the page; from the page it goes back a screen. */

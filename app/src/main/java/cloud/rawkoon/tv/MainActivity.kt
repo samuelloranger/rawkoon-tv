@@ -290,7 +290,7 @@ class MainActivity : Activity() {
             !remoteKeys.accepts(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.repeatCount, event.downTime, screen)) return true
         if (screen.onKey(event)) return true
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && remoteKeys.backAllowed(event.eventTime) && screen.onBack() != true) pop()
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && remoteKeys.backAllowed(event.eventTime) && !screen.closePopup() && screen.onBack() != true) pop()
             return true
         }
         return super.dispatchKeyEvent(event)

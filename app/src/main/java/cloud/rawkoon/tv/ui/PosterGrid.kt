@@ -25,6 +25,9 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     var onFocused: (Int) -> Unit = {}
     var onOpen: (MediaItem) -> Unit = {}
 
+    /** Each cell once, as it is built: the page gives it its menu. */
+    var onCell: (PosterCell) -> Unit = {}
+
     /** Pages that need fetching: the focus got near them, or a poster of theirs was shown empty. */
     var onPages: (List<Int>) -> Unit = {}
 
@@ -76,6 +79,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
             val cell = PosterCell(context, images)
             cell.onFocused = ::focused
             cell.onOpen = { onOpen(it) }
+            onCell(cell)
             return object : RecyclerView.ViewHolder(cell) {}
         }
 
@@ -105,6 +109,14 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     }
 
     /** Starts over at the first poster, e.g. after the sort changed. */
+    /** Applies [change] to the poster of title [id] and shows it at once, its watched check included; a title no longer loaded is left alone. */
+    fun change(id: String, change: (MediaItem) -> MediaItem) {
+        val position = paged.positionOf(id) ?: return
+        val updated = paged[position]?.let(change) ?: return
+        paged[position] = updated
+        (findViewHolderForAdapterPosition(position)?.itemView as? PosterCell)?.bind(updated, position)
+    }
+
     fun reset() {
         stopScroll()
         lastPosition = 0

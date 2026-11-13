@@ -153,7 +153,7 @@ class DiscoverScreen(activity: MainActivity, session: JellyfinSession) : RailScr
         return Section(context, id, title).apply {
             row.setCards(titles.map { title ->
                 val item = title.toItem(text)
-                Card(context, item, false, app.images, ::onFocused, { card -> opener.open(card.item) }, cardCaption(item))
+                Card(context, item, false, app.images, ::onFocused, { card -> opener.open(card.item) }, cardCaption(item)).withMenu()
             })
             row.onLeftEdge = { rail.activeItem() }
         }

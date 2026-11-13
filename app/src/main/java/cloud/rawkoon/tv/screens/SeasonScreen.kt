@@ -151,7 +151,7 @@ class SeasonScreen(
                 episodes.setCards(
                     list.map { e ->
                         val name = listOfNotNull(episodeTag(e), e.title).joinToString(" · ")
-                        Card(context, e, true, app.images, { showEpisode(it.item) }, { describePending(); actions.primary.performClick() }, caption = name to e.runtimeMinutes?.let { MediaItem.duration(it) })
+                        Card(context, e, true, app.images, { showEpisode(it.item) }, { describePending(); actions.primary.performClick() }, caption = name to e.runtimeMinutes?.let { MediaItem.duration(it) }).withMenu()
                     },
                 )
                 val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull() ?: return@launchLoading

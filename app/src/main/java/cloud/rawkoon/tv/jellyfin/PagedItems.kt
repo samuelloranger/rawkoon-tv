@@ -35,6 +35,23 @@ class PagedItems(val pageSize: Int = PAGE_SIZE, private val keepRadius: Int = KE
 
     operator fun get(position: Int): MediaItem? = pages[position / pageSize]?.getOrNull(position % pageSize)
 
+    /** Where the loaded item with [id] is; null when no loaded page has it. */
+    fun positionOf(id: String): Int? {
+        for ((page, items) in pages) {
+            val index = items.indexOfFirst { it.id == id }
+            if (index >= 0) return page * pageSize + index
+        }
+        return null
+    }
+
+    /** Replaces the item at [position], as the page just changed it; a page not loaded is left alone. */
+    operator fun set(position: Int, item: MediaItem) {
+        val page = position / pageSize
+        val items = pages[page] ?: return
+        val index = position % pageSize
+        if (index in items.indices) pages[page] = items.toMutableList().also { it[index] = item }
+    }
+
     /**
      * The pages around [position] (within [margin] items) that are neither loaded nor on their way;
      * they count as asked for. A page that failed is left alone for [RETRY_MS], so a server that is
