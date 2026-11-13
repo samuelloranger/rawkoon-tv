@@ -16,7 +16,8 @@ enum class LibrarySort(val keys: List<ItemSortBy>, val newestFirst: Boolean) {
     // Bulk additions share a timestamp: the name keeps their order stable from one page to the next
     ADDED(listOf(ItemSortBy.DATE_CREATED, ItemSortBy.SORT_NAME), true),
     TITLE(listOf(ItemSortBy.SORT_NAME), false),
-    YEAR(listOf(ItemSortBy.PRODUCTION_YEAR, ItemSortBy.SORT_NAME), true),
+    // Oldest first: a collection reads in release order
+    YEAR(listOf(ItemSortBy.PRODUCTION_YEAR, ItemSortBy.SORT_NAME), false),
     RATING(listOf(ItemSortBy.COMMUNITY_RATING, ItemSortBy.SORT_NAME), true),
 }
 
@@ -34,6 +35,9 @@ data class LibraryQuery(val sort: LibrarySort = LibrarySort.ADDED, val reverse: 
     val sortOrder: List<SortOrder>
         get() = sort.keys.indices.map { if (it == 0 && descending) SortOrder.DESCENDING else SortOrder.ASCENDING }
 }
+
+/** [sort] in its natural direction (oldest first by year, A to Z, newest added, best rated): picking a sort never inherits the last one's Reverse. */
+fun LibraryQuery.withSort(sort: LibrarySort): LibraryQuery = copy(sort = sort, reverse = false)
 
 /** How a picked sort is saved: "TITLE" or "YEAR:reverse". */
 fun LibraryQuery.sortKey(): String = if (reverse) "${sort.name}:reverse" else sort.name

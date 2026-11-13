@@ -93,6 +93,14 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
         return json.optJSONObject("artwork_sync")?.optStringOrNull(kind)
     }
 
+    /** The sort each library page opens in, shared by every TV on the server: page key → saved sort. */
+    suspend fun librarySorts(): Map<String, String> = get("api/tv/library-sorts", parse = ::parseLibrarySorts)
+
+    /** Sets one library page's shared sort. */
+    suspend fun setLibrarySort(page: String, sort: String) {
+        client.send("PUT", "api/tv/library-sorts", JSONObject().put("page", page).put("sort", sort), token).okJson()
+    }
+
     /** The Rawkoon user id of the token, to tell the account's own requests apart. */
     suspend fun userId(): String = client.bootstrap(token).userId
 

@@ -25,8 +25,8 @@ class LibraryQueriesTest {
 
     @Test
     fun `only the main sort key flips, ties on the title stay A to Z`() {
-        assertEquals(listOf(SortOrder.DESCENDING, SortOrder.ASCENDING), LibraryQuery(LibrarySort.YEAR).sortOrder)
-        assertEquals(listOf(SortOrder.ASCENDING, SortOrder.ASCENDING), LibraryQuery(LibrarySort.YEAR, reverse = true).sortOrder)
+        assertEquals(listOf(SortOrder.ASCENDING, SortOrder.ASCENDING), LibraryQuery(LibrarySort.YEAR).sortOrder)
+        assertEquals(listOf(SortOrder.DESCENDING, SortOrder.ASCENDING), LibraryQuery(LibrarySort.YEAR, reverse = true).sortOrder)
         assertEquals(listOf(SortOrder.ASCENDING), LibraryQuery(LibrarySort.TITLE).sortOrder)
     }
 
@@ -83,5 +83,14 @@ class LibraryQueriesTest {
         assertNull(savedSort(null))
         assertNull(savedSort(""))
         assertNull(savedSort("POPULARITY:reverse"))
+    }
+
+    @Test
+    fun `picking a sort starts in its natural direction, whatever the last one was`() {
+        val reversedTitle = LibraryQuery(sort = LibrarySort.TITLE, reverse = true, filter = LibraryFilter.UNWATCHED)
+        val year = reversedTitle.withSort(LibrarySort.YEAR)
+        assertEquals(LibraryQuery(sort = LibrarySort.YEAR, reverse = false, filter = LibraryFilter.UNWATCHED), year)
+        // Year's natural direction is oldest first, as a collection reads in release order
+        assertFalse(year.descending)
     }
 }

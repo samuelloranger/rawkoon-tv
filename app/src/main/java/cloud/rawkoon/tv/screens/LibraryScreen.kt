@@ -20,6 +20,7 @@ import cloud.rawkoon.tv.jellyfin.savedSort
 import cloud.rawkoon.tv.jellyfin.sortKey
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
+import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -35,6 +36,9 @@ import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 /**
@@ -129,8 +133,14 @@ class LibraryScreen(
     /** Where this page's sort is remembered: one key per library, and one per collection. */
     private val sortPage = parentId?.let { "collection:$it" } ?: kind.name
 
+    /** Sorts are shared by every TV and profile on a server; this one's local copy is keyed by its Jellyfin address. */
+    private val sortServer = session.profile.jellyfinUrl
+
+    /** Set once someone sorts, filters or jumps to a letter here: the page is theirs, and the shared sort no longer applies. */
+    private var touched = false
+
     private val loader: LibraryLoader = LibraryLoader(scope, session, paged, types, parentId, host).also { loader ->
-        savedSort(Prefs.librarySort(context, session.profile.id, sortPage))?.let { loader.query = it }
+        savedSort(Prefs.librarySort(context, sortServer, sortPage))?.let { loader.query = it }
     }
 
     init {
@@ -174,7 +184,33 @@ class LibraryScreen(
         sortButton.setOnClickListener { showSortChoices() }
         filterButton.setOnClickListener { showFilterChoices() }
         paintButtons()
-        loader.reload()
+        // The shared sort decides the first load, so the page loads once; a slow Rawkoon gets a moment, then the local copy stands
+        scope.launch {
+            withTimeoutOrNull(SHARED_SORT_WAIT_MS) { followSharedSort() }
+            if (touched) return@launch
+            paintButtons()
+            loader.reload()
+        }
+    }
+
+    private fun rawkoon() = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context)
+
+    /**
+     * Reads the sorts the server keeps for every TV, refreshes the local copy, and takes this page's
+     * if another TV changed it since. No Rawkoon, or one too old to keep sorts: the local copy stands.
+     */
+    private suspend fun followSharedSort() {
+        val api = rawkoon() ?: return
+        val shared = try {
+            api.librarySorts()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return
+        }
+        shared.forEach { (page, value) -> Prefs.setLibrarySort(context, sortServer, page, value) }
+        val wanted = savedSort(shared[sortPage]) ?: return
+        if (!touched) loader.query = loader.query.copy(sort = wanted.sort, reverse = wanted.reverse)
     }
 
     private fun paintButtons() {
@@ -194,9 +230,20 @@ class LibraryScreen(
     /** Applies a new sort or filter: the grid starts over from the first title. */
     private fun apply(next: LibraryQuery) {
         if (next == loader.query) return
+        touched = true
         // Only the sort is remembered for this page; the A to Z jump changes it without coming here
         if (next.sort != loader.query.sort || next.reverse != loader.query.reverse) {
-            Prefs.setLibrarySort(context, session.profile.id, sortPage, next.sortKey())
+            val key = next.sortKey()
+            Prefs.setLibrarySort(context, sortServer, sortPage, key)
+            scope.launch {
+                try {
+                    rawkoon()?.setLibrarySort(sortPage, key)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // The local copy keeps it on this TV; the next pick here shares it again
+                }
+            }
         }
         loader.query = next
         paintButtons()
@@ -206,6 +253,7 @@ class LibraryScreen(
     /** The A to Z column picked [letter]: the grid is sorted by title first if it was not. */
     private fun jumpToLetter(letter: Char) {
         letters.active = letter
+        touched = true
         if (loader.query.sort != LibrarySort.TITLE) {
             loader.query = loader.query.copy(sort = LibrarySort.TITLE)
             paintButtons()
@@ -314,6 +362,9 @@ class LibraryScreen(
     }
 
     private companion object {
+        /** How long the first load waits for the shared sort: Rawkoon on the LAN answers well within it. */
+        const val SHARED_SORT_WAIT_MS = 800L
+
         const val BAR_TOP = 26
 
         /** The compact header sits under the bar; the first row of art starts at about 172 dp (grid top, padding and ring). */
