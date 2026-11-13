@@ -146,8 +146,12 @@ class ShelfCoverCard(
 }
 
 /**
- * A shelf's art URL as [Images] loads it: TMDB art needs the query its proxy expects, and library
- * art is asked at the width it will be drawn (a library override may be either).
+ * A shelf's art URL as [Images] loads it: TMDB art needs the query its proxy expects, library art
+ * is asked at the width it will be drawn (a library override may be either), and an uploaded
+ * cover has no query to extend, so it starts one.
  */
-private fun art(url: String, width: Int): String =
-    if (url.contains("image.tmdb.org")) tmdbImage(url) ?: url else "$url&fillWidth=$width"
+private fun art(url: String, width: Int): String = when {
+    url.contains("image.tmdb.org") -> tmdbImage(url) ?: url
+    '?' in url -> "$url&fillWidth=$width"
+    else -> "$url?fillWidth=$width"
+}

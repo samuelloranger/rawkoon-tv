@@ -34,7 +34,17 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
     private val covers = object : Adapter<Holder>() {
         override fun getItemCount() = shelves.size
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = Holder(FrameLayout(context))
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+            Holder(FrameLayout(context).apply {
+                // Room between cards: a grid of covers needs more air than a row of posters
+                layoutParams = RecyclerView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    bottomMargin = context.dp(ROW_GAP)
+                    marginEnd = context.dp(COLUMN_GAP)
+                }
+            })
 
         override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(shelves[position], position)
     }
@@ -142,6 +152,10 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
 
         /** Room above the anchored row for the focus ring. */
         const val PAD_TOP = 8
+
+        /** Between the covers: the grid reads as separate cards, not a tiled sheet. */
+        const val ROW_GAP = 20
+        const val COLUMN_GAP = 12
 
         /** Lets the last row glide up to the anchor. */
         const val PAD_BOTTOM = 200

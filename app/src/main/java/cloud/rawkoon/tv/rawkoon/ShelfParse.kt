@@ -49,7 +49,11 @@ internal fun parseShelfSummary(json: JSONObject): ShelfSummary? {
 
 private fun parseCover(json: JSONObject?): ShelfCover {
     if (json == null) return ShelfCover.Mosaic(emptyList())
-    if (json.optString("style") == "backdrop") return ShelfCover.Backdrop(json.optStringOrNull("backdrop_url"))
+    // An uploaded cover is one image, drawn like a backdrop
+    when (json.optString("style")) {
+        "backdrop" -> return ShelfCover.Backdrop(json.optStringOrNull("backdrop_url"))
+        "upload" -> return ShelfCover.Backdrop(json.optStringOrNull("url"))
+    }
     val array = json.optJSONArray("posters") ?: return ShelfCover.Mosaic(emptyList())
     return ShelfCover.Mosaic((0 until array.length()).mapNotNull { array.optString(it).takeIf(String::isNotEmpty) })
 }

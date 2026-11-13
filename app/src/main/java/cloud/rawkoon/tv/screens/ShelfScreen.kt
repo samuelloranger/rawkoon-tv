@@ -122,6 +122,8 @@ class ShelfScreen(
         val numbers = cards.withIndex().associate { (i, resolved) -> resolved.entry.id to i + 1 }
         val sections = ShelfRows.groups(cards).mapIndexed { i, (label, entries) ->
             Section(context, "${loaded.summary.id}-$i", label).apply {
+                // Groups read as separate bands: more air under a row than the default
+                setPadding(0, 0, 0, context.dp(SECTION_GAP))
                 signature = entries.joinToString("|") { it.entry.id.toString() }
                 row.setCards(entries.map { card(it, numbers.getValue(it.entry.id), numbered) })
                 row.onLeftEdge = { rail.activeItem() }
@@ -227,5 +229,8 @@ class ShelfScreen(
         const val DESCRIPTION_TOP = 68
         const val DESCRIPTION_W = 620
         const val ROWS_TOP = 108
+
+        /** Room between a group's row and the next group's title. */
+        const val SECTION_GAP = 24
     }
 }
