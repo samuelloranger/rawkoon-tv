@@ -158,7 +158,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
             section.row.setCards(
                 seasons.map { s ->
                     val count = s.childCount?.let { context.resources.getQuantityString(R.plurals.episodes_count, it, it) }
-                    Card(context, s, false, app.images, {}, { openItem(it.item) }, caption = s.title to count)
+                    Card(context, s, false, app.images, {}, { openItem(it.item) }, caption = s.title to count).withMenu()
                 },
             )
             addSection(section)
@@ -170,7 +170,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         }
         if (similar.isNotEmpty()) {
             val section = Section(context, "similar", string(R.string.row_similar))
-            section.row.setCards(similar.map { s -> Card(context, s, false, app.images, {}, { openItem(it.item) }) })
+            section.row.setCards(similar.map { s -> Card(context, s, false, app.images, {}, { openItem(it.item) }).withMenu() })
             addSection(section)
         }
     }

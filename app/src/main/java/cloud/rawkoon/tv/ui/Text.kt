@@ -73,4 +73,7 @@ object Icon {
     const val SKIP = "\uf04e"
     const val EPISODES = "\uf0ca"
     const val DOWNLOAD = "\uf019"
+    const val EYE_SLASH = "\uf070"
+    const val HEART_CRACK = "\uf7a9"
+    const val BOOKMARK = "\uf02e"
 }

@@ -131,4 +131,18 @@ class PagedItemsTest {
         assertEquals("Title 55", paged[55]?.title)
         assertEquals(listOf(2), paged.claimAround(25, 0))
     }
+
+    @Test
+    fun `a changed item is found by id and replaced in its page`() {
+        val paged = PagedItems(pageSize = 10)
+        val gen = paged.begin()
+        paged.put(gen, 2, page(20, 5), 25)
+        assertEquals(23, paged.positionOf("23"))
+        paged[23] = item(23).copy(played = true)
+        assertTrue(paged[23]!!.played)
+        assertNull(paged.positionOf("3"))
+        // A page not loaded stays empty
+        paged[3] = item(3)
+        assertNull(paged[3])
+    }
 }

@@ -64,6 +64,9 @@ abstract class Focusable(context: Context) : FrameLayout(context) {
         }
     }
 
+    /** Looks focused without focus, while its menu has it: the ring stays, so the menu reads as this card's. */
+    fun holdFocusLook() = motion.focus(true)
+
     protected fun listenForFocus(onFocused: () -> Unit = {}) {
         setOnFocusChangeListener { _, focused ->
             motion.focus(focused)

@@ -152,6 +152,8 @@ class SeasonScreen(
                     list.map { e ->
                         val name = listOfNotNull(episodeTag(e), e.title).joinToString(" · ")
                         Card(context, e, true, app.images, { showEpisode(it.item) }, { describePending(); actions.primary.performClick() }, caption = name to e.runtimeMinutes?.let { MediaItem.duration(it) })
+                            // The header and its buttons show the focused episode: a change from its menu shows there too
+                            .withMenu(onChanged = { card -> if (card.hasFocus()) showEpisode(card.item, settle = false) })
                     },
                 )
                 val target = list.firstOrNull { it.id == episodeId } ?: list.firstOrNull { !it.played } ?: list.firstOrNull() ?: return@launchLoading

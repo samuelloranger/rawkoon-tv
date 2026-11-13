@@ -157,6 +157,7 @@ class LibraryScreen(
 
         grid.onFocused = ::showBackdropOf
         grid.onOpen = ::open
+        grid.onCell = { cell -> cardMenus.attach(cell, { cell.item }) { id, change -> grid.change(id, change) } }
         grid.onPages = loader::fetch
         grid.onLeftEdge = { rail.activeItem() }
         grid.onTopEdge = { sortButton }

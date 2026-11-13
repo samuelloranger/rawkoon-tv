@@ -58,6 +58,15 @@ object RawkoonHome {
      */
     @Volatile
     var watchlistChanged = false
+        set(value) {
+            if (value) watchlistEdits++
+            field = value
+        }
+
+    /** Counts the watchlist changes made here; unlike [watchlistChanged], nothing resets it, so a copy read before a change is never mistaken for current. */
+    @Volatile
+    var watchlistEdits = 0
+        private set
 
     fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID || row.id == WATCHLIST_ID
 

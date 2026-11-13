@@ -67,6 +67,13 @@
     <string name="row_next_up">Next up</string>
     <string name="remove_from_resume">Remove from Continue watching</string>
     <string name="remove_from_next_up">Remove from Next up</string>
+    <string name="card_start_over">Start over</string>
+    <string name="card_mark_watched">Mark as watched</string>
+    <string name="card_mark_unwatched">Mark as unwatched</string>
+    <string name="card_add_favorite">Add to favorites</string>
+    <string name="card_remove_favorite">Remove from favorites</string>
+    <string name="card_remove_from_list">Remove from my list</string>
+    <string name="card_go_to_show">Go to show</string>
     <string name="recently_added">Recently added</string>
     <string name="row_latest">Recently added in %1$s</string>
     <string name="home_empty">Nothing to show yet.</string>

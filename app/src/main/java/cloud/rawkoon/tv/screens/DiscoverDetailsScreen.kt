@@ -344,7 +344,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         }
         if (similar.isNotEmpty()) {
             val section = Section(context, "similar", string(R.string.row_similar))
-            section.row.setCards(similar.map { s -> Card(context, s, false, app.images, {}, { opener.open(it.item) }, cardCaption(s)) })
+            section.row.setCards(similar.map { s -> Card(context, s, false, app.images, {}, { opener.open(it.item) }, cardCaption(s)).withMenu() })
             addSection(section)
         }
     }

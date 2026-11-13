@@ -15,6 +15,9 @@ for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop ch
 - **Library.** Movies, Shows and Collections as poster grids with sorting, filters and a letter
   index; movie and show pages, seasons and episodes, in the layout of
   [Wholphin](https://github.com/damontecres/Wholphin). Search and Favorites.
+- **Card menus.** Hold OK (or press Menu) on any card for a small menu beside it: play, resume or
+  start over, mark watched or not, favorite, My list, go to the show, and on Home, clear it off
+  Continue watching or Next up. It only lists what applies to that card as it stands.
 - **Discover and requests.** Rawkoon's trending, popular and upcoming titles; open one and request
   it, then follow its state. A title already in the library opens there.
 - **Player.** media3 with the Jellyfin ffmpeg decoders, the server's own choice of direct play or
