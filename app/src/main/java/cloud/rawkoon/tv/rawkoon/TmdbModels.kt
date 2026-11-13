@@ -53,7 +53,7 @@ data class WatchlistEntry(
     val addedAt: String?,
 )
 
-data class LibraryEntry(val status: String, val episodeCount: Int?, val downloadedEpisodeCount: Int?)
+data class LibraryEntry(val status: String, val episodeCount: Int?, val downloadedEpisodeCount: Int?, val id: Int? = null)
 
 /** [mine] is true when this account made the request. */
 data class RequestEntry(val id: Int, val status: String, val denyReason: String?, val mine: Boolean = false)

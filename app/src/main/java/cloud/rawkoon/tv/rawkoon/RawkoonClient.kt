@@ -7,6 +7,12 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 private val INVISIBLE = setOf('\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF')
 
@@ -95,7 +101,8 @@ class RawkoonClient(baseUrl: String) {
     }
 
     internal suspend fun send(method: String, path: String, body: JSONObject? = null, token: String? = null): Response =
-        withContext(Dispatchers.IO) {
+        // HttpURLConnection refuses PATCH; OkHttp, already in the app for Jellyfin, sends it
+        if (method == "PATCH") sendWithOkHttp(method, path, body, token) else withContext(Dispatchers.IO) {
             val url = try {
                 URL("$base/$path").also { require(it.protocol == "https" || it.protocol == "http") }
             } catch (e: Exception) {
@@ -131,7 +138,29 @@ class RawkoonClient(baseUrl: String) {
             }
         }
 
+    private suspend fun sendWithOkHttp(method: String, path: String, body: JSONObject?, token: String?): Response = withContext(Dispatchers.IO) {
+        val url = "$base/$path".toHttpUrlOrNull() ?: throw RawkoonException.InvalidUrl()
+        val request = Request.Builder().url(url).header("Accept", "application/json")
+            .apply { if (token != null) header("Authorization", "Bearer $token") }
+            .method(method, (body ?: JSONObject()).toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        try {
+            okHttp.newCall(request).execute().use { response ->
+                Response(response.code, response.body.string(), response.headers.toMultimap().mapValues { it.value.firstOrNull().orEmpty() })
+            }
+        } catch (e: IOException) {
+            throw RawkoonException.Unreachable(e)
+        }
+    }
+
     companion object {
+        private val okHttp by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+                .readTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+                .build()
+        }
+
         /** True for an http:// request answered with a redirect to https://: HttpURLConnection never follows that across protocols. */
         internal fun redirectsToHttps(protocol: String, code: Int, location: String?): Boolean =
             protocol == "http" && code in setOf(301, 302, 303, 307, 308) && location?.startsWith("https://", ignoreCase = true) == true

@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.rawkoon
 
+import cloud.rawkoon.tv.jellyfin.RemoteArt
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -141,7 +142,7 @@ class RawkoonParseTest {
                     "request":{"id":5,"status":"denied","deny_reason":"Not now"}}""",
             ),
         )
-        assertEquals(LibraryEntry("downloading", 10, 4), both.library)
+        assertEquals(LibraryEntry("downloading", 10, 4, id = 12), both.library)
         assertEquals(RequestEntry(5, "denied", "Not now"), both.request)
         val none = parseStatus(JSONObject("""{"library":null,"request":null}"""))
         assertNull(none.library)
@@ -207,5 +208,22 @@ class RawkoonParseTest {
     fun `a request carries the library entry it was approved into`() {
         val request = parseRequests(JSONObject("""{"requests":[{"id":5,"type":"movie","status":"approved","library_media_id":42}]}""")).single()
         assertEquals(42, request.libraryMediaId)
+    }
+
+    @Test
+    fun `artwork choices keep their source, size and language`() {
+        val art = parseArtwork(
+            JSONObject(
+                """{"candidates":[
+                    {"url":"https://image.tmdb.org/t/p/original/a.jpg","thumb_url":"https://image.tmdb.org/t/p/w342/a.jpg","width":2000,"height":3000,"language":"fr","vote":5.2,"source":"tmdb"},
+                    {"url":"https://assets.fanart.tv/b.jpg","thumb_url":"https://assets.fanart.tv/preview/b.jpg","width":null,"height":null,"language":null,"vote":3,"source":"fanart"},
+                    {"thumb_url":"https://example.test/no-url.jpg","source":"tmdb"}
+                ]}""",
+            ),
+        )
+        assertEquals(2, art.size)
+        assertEquals(RemoteArt("https://image.tmdb.org/t/p/original/a.jpg", "https://image.tmdb.org/t/p/w342/a.jpg", "TMDB", 2000, 3000, "fr"), art[0])
+        assertEquals("Fanart", art[1].provider)
+        assertEquals("", art[1].details())
     }
 }
