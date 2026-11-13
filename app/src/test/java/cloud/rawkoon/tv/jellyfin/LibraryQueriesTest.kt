@@ -70,4 +70,18 @@ class LibraryQueriesTest {
         assertEquals("C", collection.nameLessThan)
         assertNull(collection.nameStartsWithOrGreater)
     }
+
+    @Test
+    fun `a picked sort comes back as it was saved, with the default filter`() {
+        val picked = LibraryQuery(sort = LibrarySort.YEAR, reverse = true, filter = LibraryFilter.UNWATCHED)
+        assertEquals(LibraryQuery(sort = LibrarySort.YEAR, reverse = true), savedSort(picked.sortKey()))
+        assertEquals(LibraryQuery(sort = LibrarySort.TITLE), savedSort(LibraryQuery(sort = LibrarySort.TITLE).sortKey()))
+    }
+
+    @Test
+    fun `nothing saved or a sort this version doesn't know means the default`() {
+        assertNull(savedSort(null))
+        assertNull(savedSort(""))
+        assertNull(savedSort("POPULARITY:reverse"))
+    }
 }

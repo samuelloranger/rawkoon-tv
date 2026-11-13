@@ -35,6 +35,16 @@ data class LibraryQuery(val sort: LibrarySort = LibrarySort.ADDED, val reverse: 
         get() = sort.keys.indices.map { if (it == 0 && descending) SortOrder.DESCENDING else SortOrder.ASCENDING }
 }
 
+/** How a picked sort is saved: "TITLE" or "YEAR:reverse". */
+fun LibraryQuery.sortKey(): String = if (reverse) "${sort.name}:reverse" else sort.name
+
+/** The query a saved sort stands for, with the default filter; null for nothing saved or a sort this version doesn't know. */
+fun savedSort(raw: String?): LibraryQuery? {
+    if (raw.isNullOrEmpty()) return null
+    val sort = LibrarySort.entries.firstOrNull { it.name == raw.substringBefore(':') } ?: return null
+    return LibraryQuery(sort = sort, reverse = raw.endsWith(":reverse"))
+}
+
 /** One page of a library, with the number of titles in all of it. */
 data class LibraryPage(val items: List<MediaItem>, val total: Int)
 
