@@ -11,14 +11,17 @@ import org.json.JSONObject
  * row needs no list, and a stale shelf never outlives its list entry. Files are small and read off
  * the main thread.
  */
-class ShelfCache(context: Context, profileId: String) {
-    private val listFile = File(context.cacheDir, "shelves-$profileId.json")
-    private val detailDir = File(context.cacheDir, "shelves-$profileId")
+class ShelfCache(private val listFile: File, private val detailDir: File) {
+    // filesDir, not DiskCache: that is an LRU of images trimmed by size, and Android may purge cacheDir;
+    // offline, this is the only copy of the shelves.
+    constructor(context: Context, profileId: String) :
+        this(File(context.filesDir, "shelves-$profileId.json"), File(context.filesDir, "shelves-$profileId"))
 
-    fun list(): List<ShelfSummary> = runCatching {
+    /** The saved list; null when none was saved, which is not the same as a saved empty list. */
+    fun list(): List<ShelfSummary>? = runCatching {
         val array = JSONArray(listFile.readText())
         (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(::parseShelfSummary) }
-    }.getOrDefault(emptyList())
+    }.getOrNull()
 
     /** Saves [shelves] and drops the copies of shelves no longer listed. */
     fun saveList(shelves: List<ShelfSummary>) {
