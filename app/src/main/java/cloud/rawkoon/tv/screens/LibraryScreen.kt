@@ -8,6 +8,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cloud.rawkoon.tv.MainActivity
 import cloud.rawkoon.tv.R
+import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.LibraryFilter
 import cloud.rawkoon.tv.jellyfin.LibraryQuery
@@ -15,6 +16,8 @@ import cloud.rawkoon.tv.jellyfin.LibrarySort
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.PagedItems
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
+import cloud.rawkoon.tv.jellyfin.savedSort
+import cloud.rawkoon.tv.jellyfin.sortKey
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.ui.ChoiceDialog
@@ -123,7 +126,12 @@ class LibraryScreen(
         override fun jumpTo(index: Int) = grid.jumpTo(index)
     }
 
-    private val loader: LibraryLoader = LibraryLoader(scope, session, paged, types, parentId, host)
+    /** Where this page's sort is remembered: one key per library, and one per collection. */
+    private val sortPage = parentId?.let { "collection:$it" } ?: kind.name
+
+    private val loader: LibraryLoader = LibraryLoader(scope, session, paged, types, parentId, host).also { loader ->
+        savedSort(Prefs.librarySort(context, session.profile.id, sortPage))?.let { loader.query = it }
+    }
 
     init {
         backdrop.strength = 0.5f
@@ -186,6 +194,10 @@ class LibraryScreen(
     /** Applies a new sort or filter: the grid starts over from the first title. */
     private fun apply(next: LibraryQuery) {
         if (next == loader.query) return
+        // Only the sort is remembered for this page; the A to Z jump changes it without coming here
+        if (next.sort != loader.query.sort || next.reverse != loader.query.reverse) {
+            Prefs.setLibrarySort(context, session.profile.id, sortPage, next.sortKey())
+        }
         loader.query = next
         paintButtons()
         loader.reload()
