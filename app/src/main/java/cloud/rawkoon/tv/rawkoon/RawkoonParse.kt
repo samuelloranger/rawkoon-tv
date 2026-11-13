@@ -4,6 +4,7 @@ import cloud.rawkoon.tv.data.objects
 import cloud.rawkoon.tv.data.optDoubleOrNull
 import cloud.rawkoon.tv.data.optIntOrNull
 import cloud.rawkoon.tv.data.optStringOrNull
+import cloud.rawkoon.tv.jellyfin.RemoteArt
 import org.json.JSONObject
 
 // Rawkoon's answers as the models: pure, and called off the main thread by RawkoonDiscover.
@@ -85,7 +86,7 @@ internal fun parseWatchlist(json: JSONObject): List<WatchlistEntry> = json.objec
 
 internal fun parseStatus(json: JSONObject): TitleStatus = TitleStatus(
     library = json.optJSONObject("library")?.let {
-        LibraryEntry(it.optString("status"), it.optIntOrNull("episode_count"), it.optIntOrNull("downloaded_episode_count"))
+        LibraryEntry(it.optString("status"), it.optIntOrNull("episode_count"), it.optIntOrNull("downloaded_episode_count"), it.optIntOrNull("id"))
     },
     request = json.optJSONObject("request")?.let {
         RequestEntry(it.optInt("id"), it.optString("status"), it.optStringOrNull("deny_reason"), it.optBoolean("mine"))
@@ -135,3 +136,20 @@ internal fun parseRequests(json: JSONObject): List<RequestSummary> = json.object
 }
 
 private fun year(date: String?) = date?.take(4)?.toIntOrNull()
+
+/** Rawkoon's poster or backdrop choices for a library title, TMDB's first. */
+internal fun parseArtwork(json: JSONObject): List<RemoteArt> = json.objects("candidates").mapNotNull {
+    val url = it.optStringOrNull("url") ?: return@mapNotNull null
+    RemoteArt(
+        url = url,
+        thumbnailUrl = it.optStringOrNull("thumb_url"),
+        provider = when (it.optString("source")) {
+            "tmdb" -> "TMDB"
+            "fanart" -> "Fanart"
+            else -> null
+        },
+        width = it.optIntOrNull("width"),
+        height = it.optIntOrNull("height"),
+        language = it.optStringOrNull("language"),
+    )
+}

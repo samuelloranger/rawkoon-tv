@@ -1,5 +1,7 @@
 package cloud.rawkoon.tv.rawkoon
 
+import cloud.rawkoon.tv.data.optStringOrNull
+import cloud.rawkoon.tv.jellyfin.RemoteArt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -75,6 +77,20 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
 
     suspend fun removeFromWatchlist(isMovie: Boolean, tmdbId: Int) {
         client.send("DELETE", "api/medias/watchlist/$tmdbId?type=${type(isMovie)}", token = token).okJson()
+    }
+
+    /** Rawkoon's poster ([kind] "poster") or backdrop ("backdrop") choices for its library title [libraryId]. */
+    suspend fun artwork(libraryId: Int, kind: String): List<RemoteArt> = get("api/library/$libraryId/images", "kind" to kind, parse = ::parseArtwork)
+
+    /**
+     * Makes [url] the library title's [kind] in Rawkoon, which also sets it in Jellyfin. Returns
+     * how that went for Jellyfin ("synced", "not_found", "failed", "off"), or null from a server
+     * too old to say.
+     */
+    suspend fun setArtwork(libraryId: Int, kind: String, url: String): String? {
+        val field = if (kind == "poster") "poster_url" else "backdrop_url"
+        val json = client.send("PATCH", "api/library/$libraryId/overrides", JSONObject().put(field, url), token).okJson()
+        return json.optJSONObject("artwork_sync")?.optStringOrNull(kind)
     }
 
     /** The Rawkoon user id of the token, to tell the account's own requests apart. */

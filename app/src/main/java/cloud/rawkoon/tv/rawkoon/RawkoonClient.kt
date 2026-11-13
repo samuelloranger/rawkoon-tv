@@ -7,6 +7,12 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 private val INVISIBLE = setOf('\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF')
 
@@ -95,7 +101,8 @@ class RawkoonClient(baseUrl: String) {
     }
 
     internal suspend fun send(method: String, path: String, body: JSONObject? = null, token: String? = null): Response =
-        withContext(Dispatchers.IO) {
+        // HttpURLConnection refuses PATCH; OkHttp, already in the app for Jellyfin, sends it
+        if (method == "PATCH") sendWithOkHttp(method, path, body, token) else withContext(Dispatchers.IO) {
             val url = try {
                 URL("$base/$path").also { require(it.protocol == "https" || it.protocol == "http") }
             } catch (e: Exception) {
@@ -131,7 +138,37 @@ class RawkoonClient(baseUrl: String) {
             }
         }
 
+    private suspend fun sendWithOkHttp(method: String, path: String, body: JSONObject?, token: String?): Response = withContext(Dispatchers.IO) {
+        val url = "$base/$path".toHttpUrlOrNull() ?: throw RawkoonException.InvalidUrl()
+        val request = Request.Builder().url(url).header("Accept", "application/json")
+            .apply { if (token != null) header("Authorization", "Bearer $token") }
+            .method(method, (body ?: JSONObject()).toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        try {
+            okHttp.newCall(request).execute().use { response ->
+                if (redirectsToHttps(url.scheme, response.code, response.header("Location"))) throw RawkoonException.UseHttps()
+                Response(response.code, response.body.string(), response.headers.toMultimap().mapValues { it.value.firstOrNull().orEmpty() })
+            }
+        } catch (e: IOException) {
+            throw RawkoonException.Unreachable(e)
+        }
+    }
+
     companion object {
+        /**
+         * Redirects are not followed, like HttpURLConnection across protocols: a 301 would turn the
+         * PATCH into a GET without its body. The longer read covers a save that waits on Jellyfin.
+         */
+        private val okHttp by lazy {
+            OkHttpClient.Builder()
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .connectTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+                .readTimeout(PATCH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .callTimeout(PATCH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .build()
+        }
+
         /** True for an http:// request answered with a redirect to https://: HttpURLConnection never follows that across protocols. */
         internal fun redirectsToHttps(protocol: String, code: Int, location: String?): Boolean =
             protocol == "http" && code in setOf(301, 302, 303, 307, 308) && location?.startsWith("https://", ignoreCase = true) == true
@@ -173,5 +210,8 @@ class RawkoonClient(baseUrl: String) {
         const val CLIENT_ID = "rawkoon-tv"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         private const val TIMEOUT_MS = 10_000
+
+        /** Under the artwork picker's 30 s wait, so a slow save still leaves it time to fall back. */
+        private const val PATCH_TIMEOUT_MS = 20_000L
     }
 }

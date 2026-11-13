@@ -15,6 +15,8 @@ import cloud.rawkoon.tv.data.Images
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.RemoteArt
+import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
+import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.CaptionColumn
 import cloud.rawkoon.tv.ui.FocusMotion
 import cloud.rawkoon.tv.ui.Focusable
@@ -31,7 +33,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
- * Picks [item]'s poster or background from what the server's image providers offer. The current
+ * Picks [item]'s poster or background. A movie or show in Rawkoon's library gets Rawkoon's choices
+ * and is saved through Rawkoon, which sets it in Jellyfin too, so Rawkoon's apps show it as well;
+ * anything else gets what Jellyfin's image providers offer. The current
  * image comes first; choosing another has the server download it and keep it, then [onPicked]
  * gets the item with its new image URLs and the page goes back. Back waits while it saves, for
  * [SAVE_TIMEOUT_MS] at most.
@@ -49,6 +53,10 @@ class ArtworkScreen(
     private val grid = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }.noClip()
     private val tiles = mutableListOf<ArtTile>()
     private var saving = false
+    private val kind = if (poster) "poster" else "backdrop"
+
+    /** Rawkoon and the title's id there, when the choices came from Rawkoon: a pick is then saved through it. */
+    private var rawkoon: Pair<RawkoonDiscover, Int>? = null
 
     init {
         view.setBackgroundColor(Tokens.background)
@@ -81,7 +89,12 @@ class ArtworkScreen(
         status.text = string(R.string.art_loading)
         val current = if (poster) item.posterUrl else item.backdropUrl
         launchLoading(onError = { status.text = string(R.string.art_error) }) {
-            val offered = session.remoteArt(item.id, type)
+            // Rawkoon's choices when it has the title; Jellyfin's when it doesn't, offers none, or is slow
+            val fromRawkoon = withTimeoutOrNull(RAWKOON_TIMEOUT_MS) {
+                findInRawkoon()?.let { found -> rawkoonArt(found)?.let { found to it } }
+            }
+            rawkoon = fromRawkoon?.first
+            val offered = fromRawkoon?.second ?: session.remoteArt(item.id, type)
             status.text = if (offered.isEmpty()) string(R.string.art_none) else string(R.string.art_hint)
             val all = listOfNotNull(current?.let { null to it }) + offered.map { it to it.previewUrl(if (poster) "w342" else "w780") }
             all.chunked(if (poster) POSTERS_PER_ROW else BACKDROPS_PER_ROW).forEach { chunk ->
@@ -111,7 +124,7 @@ class ArtworkScreen(
             val updated = try {
                 // The server fetches the image from the provider: a stalled provider must not hold the page
                 withTimeoutOrNull(SAVE_TIMEOUT_MS) {
-                    session.setArt(item.id, type, art.url)
+                    save(art)
                     session.item(item.id)
                 }
             } catch (e: CancellationException) {
@@ -128,6 +141,42 @@ class ArtworkScreen(
             onPicked(updated)
             activity.pop()
         }
+    }
+
+    /** The title in Rawkoon's library, when the profile is linked and Rawkoon has it; null otherwise. */
+    private suspend fun findInRawkoon(): Pair<RawkoonDiscover, Int>? {
+        if (item.kind != MediaItem.Kind.MOVIE && item.kind != MediaItem.Kind.SERIES) return null
+        val tmdbId = item.libraryTmdbId ?: return null
+        val api = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context) ?: return null
+        val id = try {
+            api.status(item.kind == MediaItem.Kind.MOVIE, tmdbId).library?.id
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        return id?.let { api to it }
+    }
+
+    private suspend fun rawkoonArt(found: Pair<RawkoonDiscover, Int>): List<RemoteArt>? = try {
+        found.first.artwork(found.second, kind).takeIf { it.isNotEmpty() }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Through Rawkoon, which sets Jellyfin too, when the choices came from it; Jellyfin directly otherwise, or when Rawkoon couldn't. */
+    private suspend fun save(art: RemoteArt) {
+        val (api, id) = rawkoon ?: return session.setArt(item.id, type, art.url)
+        val synced = try {
+            api.setArtwork(id, kind, art.url) == "synced"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+        if (!synced) session.setArt(item.id, type, art.url)
     }
 
     override fun focusDefault() {
@@ -163,5 +212,8 @@ class ArtworkScreen(
         const val POSTERS_PER_ROW = 7
         const val BACKDROPS_PER_ROW = 4
         const val SAVE_TIMEOUT_MS = 30_000L
+
+        /** How long the Rawkoon lookup may hold the page before Jellyfin's choices are shown instead. */
+        const val RAWKOON_TIMEOUT_MS = 4_000L
     }
 }
