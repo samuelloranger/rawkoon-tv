@@ -108,7 +108,6 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         setPadding(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET), context.dp(PAD_TOP), 0, context.dp(PAD_BOTTOM))
     }
 
-    /** Starts over at the first poster, e.g. after the sort changed. */
     /** Applies [change] to the poster of title [id] and shows it at once, its watched check included; a title no longer loaded is left alone. */
     fun change(id: String, change: (MediaItem) -> MediaItem) {
         val position = paged.positionOf(id) ?: return
@@ -117,6 +116,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         (findViewHolderForAdapterPosition(position)?.itemView as? PosterCell)?.bind(updated, position)
     }
 
+    /** Starts over at the first poster, e.g. after the sort changed. */
     fun reset() {
         stopScroll()
         lastPosition = 0

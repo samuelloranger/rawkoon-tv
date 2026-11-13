@@ -60,6 +60,9 @@ class CardMenu(context: Context, title: String, subtitle: String?, entries: List
     /** Runs once, after the menu has left: the page uses it to forget the menu. */
     var onClosed: () -> Unit = {}
 
+    /** Where focus goes on close when the card is gone (the page rebuilt its rows meanwhile). */
+    var fallbackFocus: () -> View? = { null }
+
     init {
         isFocusable = false
         val maxText = context.dp(MAX_W) - context.dp(12) * 2
@@ -132,7 +135,7 @@ class CardMenu(context: Context, title: String, subtitle: String?, entries: List
         closing = true
         descendantFocusability = FOCUS_BLOCK_DESCENDANTS
         // Focus goes back before the rows leave, so Android doesn't pick the page's first row meanwhile
-        anchor?.takeIf { it.isAttachedToWindow }?.requestFocus()
+        (anchor?.takeIf { it.isAttachedToWindow } ?: fallbackFocus())?.requestFocus()
         caret.animate().alpha(0f).setDuration(CLOSE_MS).start()
         panel.animate().alpha(0f).setDuration(CLOSE_MS).withEndAction {
             (parent as? ViewGroup)?.removeView(this)

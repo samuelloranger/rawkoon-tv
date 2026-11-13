@@ -71,14 +71,16 @@ fun cardMenuSubtitle(item: MediaItem): String? = when {
 /**
  * Opens a card's menu and runs what is picked, for every card of a page. Changes show at once
  * through the page's `changed` and go back, with a message, if the server refuses. Whether a
- * title is in "My list" is one read of the watchlist, kept for a minute and updated by the
- * menu's own changes.
+ * title is in "My list" is one read of the watchlist, kept for a minute unless the list changes.
  */
 class CardMenus(private val screen: RailScreen) {
     private val context = screen.context
     private var menu: CardMenu? = null
     private var watchlist: Set<ListKey>? = null
     private var watchlistAt = 0L
+
+    /** [RawkoonHome.watchlistEdits] when [watchlist] was asked for: any change since, here or on a title page, voids it. */
+    private var watchlistEdits = -1
     private var listBusy = false
 
     /**
@@ -102,7 +104,8 @@ class CardMenus(private val screen: RailScreen) {
 
     /** Closes an open menu; true when there was one. */
     fun close(): Boolean {
-        val open = menu?.takeIf { it.isAttachedToWindow && !it.closing } ?: return false
+        // One still fading out takes Back too: the page under it must not go back meanwhile
+        val open = menu?.takeIf { it.isAttachedToWindow } ?: return false
         open.close()
         return true
     }
@@ -118,6 +121,7 @@ class CardMenus(private val screen: RailScreen) {
         // A title whose only action is "My list" waits for the list: an empty menu would only flash
         val shown = if (entries.isNotEmpty()) show(card, item, entries) else null
         if (!lookUp) return
+        val edits = RawkoonHome.watchlistEdits
         screen.scope.launch {
             val list = try {
                 api!!.watchlist().map { ListKey(it.isMovie, it.tmdbId) }.toSet()
@@ -128,6 +132,7 @@ class CardMenus(private val screen: RailScreen) {
             }
             watchlist = list
             watchlistAt = SystemClock.elapsedRealtime()
+            watchlistEdits = edits
             val action = if (key!! in list) CardAction.REMOVE_FROM_LIST else CardAction.ADD_TO_LIST
             val entry = entry(action, item, key, changed)
             when {
@@ -141,10 +146,11 @@ class CardMenus(private val screen: RailScreen) {
         CardMenu(context, item.headerTitle, cardMenuSubtitle(item), entries).also {
             menu = it
             it.onClosed = { if (menu === it) menu = null }
+            it.fallbackFocus = { screen.contentFocus() }
             it.open(screen.view, card)
         }
 
-    private fun freshWatchlist() = watchlist?.takeIf { SystemClock.elapsedRealtime() - watchlistAt < WATCHLIST_FRESH_MS && !RawkoonHome.watchlistChanged }
+    private fun freshWatchlist() = watchlist?.takeIf { SystemClock.elapsedRealtime() - watchlistAt < WATCHLIST_FRESH_MS && watchlistEdits == RawkoonHome.watchlistEdits }
 
     private fun rawkoon() = (screen.app.profiles.get(screen.session.profile.id) ?: screen.session.profile).rawkoonDiscover(context)
 
@@ -202,7 +208,6 @@ class CardMenus(private val screen: RailScreen) {
         val api = rawkoon() ?: return failed()
         if (listBusy) return
         listBusy = true
-        watchlist = watchlist?.let { if (wanted) it + key else it - key }
         // Set before the call: leaving the page cancels it after the server may already have the change
         RawkoonHome.watchlistChanged = true
         screen.scope.launch {
@@ -216,7 +221,6 @@ class CardMenus(private val screen: RailScreen) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                watchlist = watchlist?.let { if (wanted) it - key else it + key }
                 failed()
             } finally {
                 listBusy = false

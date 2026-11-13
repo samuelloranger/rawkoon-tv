@@ -191,9 +191,16 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
      */
     open fun onCardChanged(rawkoon: Boolean) {}
 
-    /** Gives this card the shared menu; [extras] are the page's own actions for its item, after the shared ones. */
-    protected fun Card.withMenu(extras: (MediaItem) -> List<CardMenu.Entry> = { emptyList() }): Card = also { card ->
-        cardMenus.attach(card, { card.item }, extras) { id, change -> if (card.item.id == id) card.update(change(card.item)) }
+    /**
+     * Gives this card the shared menu; [extras] are the page's own actions for its item, after the
+     * shared ones. [onChanged] follows each change the menu makes to the card's item.
+     */
+    protected fun Card.withMenu(extras: (MediaItem) -> List<CardMenu.Entry> = { emptyList() }, onChanged: (Card) -> Unit = {}): Card = also { card ->
+        cardMenus.attach(card, { card.item }, extras) { id, change ->
+            if (card.item.id != id) return@attach
+            card.update(change(card.item))
+            onChanged(card)
+        }
     }
 
     /** Back from the rail returns to the page; from the page it goes back a screen. */

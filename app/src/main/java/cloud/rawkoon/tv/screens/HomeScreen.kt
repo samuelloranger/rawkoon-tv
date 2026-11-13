@@ -236,7 +236,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         if (item.tmdb != null) {
             Card(context, item, false, app.images, ::onFocused, { opener.open(it.item, preferLibrary = it.item.tmdb?.inLibrary == true) }, cardCaption(item)).withMenu()
         } else {
-            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) }).withMenu { current -> rowEntries(current, rowId) }
+            Card(context, item, landscape, app.images, ::onFocused, { openFromRow(it.item, rowId) }).withMenu(extras = { current -> rowEntries(current, rowId) })
         }
 
     /** A Continue watching or Next up card's menu also offers to clear it off the row. */
