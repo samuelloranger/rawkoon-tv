@@ -88,7 +88,10 @@ class ActionBar(private val screen: RailScreen) {
     }
 
     private fun showMore(item: MediaItem) {
-        more.visibility = if (screen.cardMenus.offers(item, BAR_ACTIONS)) View.VISIBLE else View.GONE
+        val show = screen.cardMenus.offers(item, BAR_ACTIONS)
+        // A hidden focused button would hand focus to whatever Android finds first: the main action takes it
+        if (!show && more.hasFocus()) primary.requestFocus()
+        more.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     /** The menu beside "…": the bar's item, and a change from it reaches the page like the bar's own toggles. */
@@ -160,7 +163,7 @@ class ActionBar(private val screen: RailScreen) {
         }
     }
 
-    private companion object {
+    internal companion object {
         /** What the bar's own buttons do: play or resume, watched, favorite and "My list". */
         val BAR_ACTIONS = setOf(
             CardAction.PLAY, CardAction.RESUME, CardAction.MARK_WATCHED, CardAction.MARK_UNWATCHED,

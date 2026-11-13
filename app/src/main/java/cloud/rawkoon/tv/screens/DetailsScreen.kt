@@ -213,6 +213,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
                 app.awaitStop()
                 val d = session.details(start.id)
                 actions.next = if (start.kind == MediaItem.Kind.SERIES) session.nextEpisode(start.id) else null
+                item = d.item
                 actions.bind(d.item)
             }
         }
