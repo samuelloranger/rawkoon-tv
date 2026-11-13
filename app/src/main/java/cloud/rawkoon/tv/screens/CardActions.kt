@@ -135,6 +135,7 @@ class CardMenus(private val screen: RailScreen) {
         if (entries.isEmpty() && !lookUp) return
         // A title whose only action is "My list" waits for the list: an empty menu would only flash
         val shown = if (entries.isNotEmpty()) show(card, item, entries) else null
+        if (shown != null && screen.session.canEditArt == null) addArtWhenKnown(shown, item, key, changed)
         if (!lookUp) return
         val edits = RawkoonHome.watchlistEdits
         screen.scope.launch {
@@ -154,6 +155,15 @@ class CardMenus(private val screen: RailScreen) {
                 shown != null -> shown.add(entry)
                 card.isAttachedToWindow && card.hasFocus() && menu?.isAttachedToWindow != true -> show(card, item, listOf(entry))
             }
+        }
+    }
+
+    /** The account's policy wasn't read yet (or the read failed): asks now, and adds the artwork entries if it may change them. */
+    private fun addArtWhenKnown(shown: CardMenu, item: MediaItem, key: ListKey?, changed: Changed) {
+        val art = cardActions(item, null, canEditArt = true) - cardActions(item, null, canEditArt = false).toSet()
+        if (art.isEmpty()) return
+        screen.scope.launch {
+            if (screen.session.loadCanEditArt() == true) art.forEach { shown.add(entry(it, item, key, changed)) }
         }
     }
 

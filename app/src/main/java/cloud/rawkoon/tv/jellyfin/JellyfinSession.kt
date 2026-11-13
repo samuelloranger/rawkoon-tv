@@ -18,6 +18,7 @@ import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.remoteImageApi
 import org.jellyfin.sdk.api.client.extensions.showApi
@@ -272,9 +273,17 @@ class JellyfinSession(context: Context, val profile: Profile) {
                 RemoteArt(url, info.thumbnailUrl, info.providerName, info.width, info.height, info.language)
             }
 
-    /** Makes the image at [url] item [id]'s artwork of [type]; the server downloads and keeps it. */
+    /**
+     * Makes the image at [url] item [id]'s artwork of [type]; the server downloads and keeps it. A
+     * poster replaces the one there; a backdrop is added after the item's others, so it is moved
+     * first, where every page reads it. The others stay on the server.
+     */
     suspend fun setArt(id: String, type: ImageType, url: String) {
-        api.remoteImageApi.downloadRemoteImage(itemId = parseId(id), type = type, imageUrl = url)
+        val itemId = parseId(id)
+        api.remoteImageApi.downloadRemoteImage(itemId = itemId, type = type, imageUrl = url)
+        if (type != ImageType.BACKDROP) return
+        val count = api.libraryApi.getItem(itemId = itemId, userId = userId).content.backdropImageTags.orEmpty().size
+        if (count > 1) api.imageApi.updateItemImageIndex(itemId, type, count - 1, 0)
     }
 
     companion object {

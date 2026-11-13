@@ -27,12 +27,14 @@ import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
  * Picks [item]'s poster or background from what the server's image providers offer. The current
  * image comes first; choosing another has the server download it and keep it, then [onPicked]
- * gets the item with its new image URLs and the page goes back. Back waits while it saves.
+ * gets the item with its new image URLs and the page goes back. Back waits while it saves, for
+ * [SAVE_TIMEOUT_MS] at most.
  */
 class ArtworkScreen(
     activity: MainActivity,
@@ -88,7 +90,7 @@ class ArtworkScreen(
                     // The current image has no RemoteArt: it is what the server shows now, sized like a card
                     val src = if (art == null) "$preview&fillWidth=${context.dp(if (poster) Tokens.POSTER_W else Tokens.LAND_W)}" else preview
                     val caption = if (art == null) string(R.string.art_current) to null else (art.provider ?: "") to art.details()
-                    val tile = ArtTile(context, app.images, src, poster, caption)
+                    val tile = ArtTile(context, app.images, src, poster, caption) { alive }
                     tile.setOnClickListener { if (art == null) activity.pop() else pick(art) }
                     tiles += tile
                     // The tile's own size, which leaves room for its caption under the art
@@ -106,18 +108,25 @@ class ArtworkScreen(
         saving = true
         status.text = string(R.string.art_saving)
         scope.launch {
-            try {
-                session.setArt(item.id, type, art.url)
-                val updated = session.item(item.id)
-                onPicked(updated)
-                activity.pop()
+            val updated = try {
+                // The server fetches the image from the provider: a stalled provider must not hold the page
+                withTimeoutOrNull(SAVE_TIMEOUT_MS) {
+                    session.setArt(item.id, type, art.url)
+                    session.item(item.id)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                null
+            }
+            if (updated == null) {
                 saving = false
                 status.text = string(R.string.art_hint)
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
+                return@launch
             }
+            onPicked(updated)
+            activity.pop()
         }
     }
 
@@ -130,7 +139,7 @@ class ArtworkScreen(
 
     /** One image to choose: the art in a card's frame, its provider and size under it. */
     @SuppressLint("ViewConstructor")
-    private class ArtTile(context: Context, images: Images, url: String, poster: Boolean, caption: Pair<String, String?>) : Focusable(context) {
+    private class ArtTile(context: Context, images: Images, url: String, poster: Boolean, caption: Pair<String, String?>, isCurrent: () -> Boolean) : Focusable(context) {
         private val artW = context.dp(if (poster) Tokens.POSTER_W else Tokens.LAND_W)
         private val artH = context.dp(if (poster) Tokens.POSTER_H else Tokens.LAND_H)
         private val frame = PosterFrame(context, artW, artH, context.dpf(Tokens.CARD_RADIUS))
@@ -143,7 +152,7 @@ class ArtworkScreen(
             addView(frame, frame.frameParams())
             addView(CaptionColumn(context, caption.first, caption.second), LayoutParams(artW, captionH, Gravity.BOTTOM).apply { leftMargin = context.dp(Tokens.RING_INSET) })
             listenForFocus()
-            images.load(url, artW, artH, context.dpf(Tokens.CARD_RADIUS), isCurrent = { true }) { frame.art.bitmap = it }
+            images.load(url, artW, artH, context.dpf(Tokens.CARD_RADIUS), isCurrent = isCurrent) { frame.art.bitmap = it }
         }
     }
 
@@ -153,5 +162,6 @@ class ArtworkScreen(
         const val GAP = 10
         const val POSTERS_PER_ROW = 7
         const val BACKDROPS_PER_ROW = 4
+        const val SAVE_TIMEOUT_MS = 30_000L
     }
 }
