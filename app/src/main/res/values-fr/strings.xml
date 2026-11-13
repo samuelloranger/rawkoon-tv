@@ -72,6 +72,7 @@
     <string name="card_go_to_show">Aller à la série</string>
     <string name="card_change_poster">Changer l\'affiche</string>
     <string name="card_change_background">Changer l\'arrière-plan</string>
+    <string name="more_actions">Plus</string>
     <string name="art_title_poster">Affiche</string>
     <string name="art_title_background">Arrière-plan</string>
     <string name="art_loading">Recherche d\'images…</string>

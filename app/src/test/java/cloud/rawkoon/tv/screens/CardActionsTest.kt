@@ -86,4 +86,13 @@ class CardActionsTest {
         assertEquals(emptyList<CardAction>(), cardActions(item(MediaItem.Kind.MOVIE).copy(tmdb = TmdbRef(id = 7)), inList = null, canEditArt = true))
         assertEquals(listOf(PLAY, MARK_WATCHED, ADD_FAVORITE), cardActions(item(MediaItem.Kind.MOVIE), inList = null, canEditArt = false))
     }
+
+    @Test
+    fun `a title page's "…" has only what its buttons don't do`() {
+        val extras = { item: MediaItem, admin: Boolean -> cardActions(item, inList = true, canEditArt = admin).filter { it !in ActionBar.BAR_ACTIONS } }
+        assertEquals(emptyList<CardAction>(), extras(item(MediaItem.Kind.MOVIE), false))
+        assertEquals(listOf(START_OVER), extras(item(MediaItem.Kind.MOVIE).copy(resumeMs = 60_000), false))
+        assertEquals(listOf(CHANGE_POSTER, CHANGE_BACKGROUND), extras(item(MediaItem.Kind.SERIES), true))
+        assertEquals(listOf(GO_TO_SHOW), extras(item(MediaItem.Kind.EPISODE).copy(seriesId = "s"), false))
+    }
 }

@@ -78,4 +78,5 @@ object Icon {
     const val BOOKMARK = "\uf02e"
     const val IMAGE = "\uf03e"
     const val IMAGES = "\uf302"
+    const val ELLIPSIS = "\uf141"
 }

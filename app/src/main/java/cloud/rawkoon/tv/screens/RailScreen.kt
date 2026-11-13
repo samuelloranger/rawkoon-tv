@@ -181,7 +181,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     }
 
     /** Every card's long-press and Menu menu on this page. */
-    protected val cardMenus = CardMenus(this)
+    internal val cardMenus = CardMenus(this)
 
     override fun closePopup() = cardMenus.close()
 

@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 /**
  * The actions under a title: play or resume (the player comes in the next milestone), watched,
  * favorite and, when the page can reach Rawkoon, "My list". The toggles change on screen at once, [onChanged] included, and go back if the server
- * refuses.
+ * refuses. "…" opens the card menu's other actions for the same item.
  */
 class ActionBar(private val screen: RailScreen) {
     private val context = screen.context
@@ -44,6 +44,9 @@ class ActionBar(private val screen: RailScreen) {
     private val watched = CircleButton(context, Icon.CHECK, context.getString(R.string.watched))
     private val favorite = CircleButton(context, Icon.HEART, context.getString(R.string.favorite))
     private val watchlist = CircleButton(context, Icon.PLUS, context.getString(R.string.rk_watchlist_add)).apply { visibility = View.GONE }
+
+    /** The card menu's other actions (start over, artwork, the show); hidden when the bar's buttons cover them all. */
+    private val more = CircleButton(context, Icon.ELLIPSIS, context.getString(R.string.more_actions)).apply { visibility = View.GONE }
     private var item: MediaItem? = null
 
     /** The "My list" button was pressed; the page owns the Rawkoon call. */
@@ -63,10 +66,17 @@ class ActionBar(private val screen: RailScreen) {
         view.addView(watched, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(6) })
         view.addView(favorite, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(2) })
         view.addView(watchlist, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(2) })
+        view.addView(more, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(2) })
         primary.setOnClickListener { play() }
         watched.setOnClickListener { toggle(watched = true) }
         favorite.setOnClickListener { toggle(watched = false) }
         watchlist.setOnClickListener { onWatchlist() }
+        more.setOnClickListener { openMore() }
+        // Artwork actions wait on the account's policy: the button shows once it is known
+        screen.scope.launch {
+            screen.session.loadCanEditArt()
+            item?.let(::showMore)
+        }
     }
 
     fun bind(item: MediaItem) {
@@ -74,6 +84,24 @@ class ActionBar(private val screen: RailScreen) {
         primary.label.text = playLabel(item)
         watched.setOn(item.played)
         favorite.setOn(item.favorite)
+        showMore(item)
+    }
+
+    private fun showMore(item: MediaItem) {
+        val show = screen.cardMenus.offers(item, BAR_ACTIONS)
+        // A hidden focused button would hand focus to whatever Android finds first: the main action takes it
+        if (!show && more.hasFocus()) primary.requestFocus()
+        more.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    /** The menu beside "…": the bar's item, and a change from it reaches the page like the bar's own toggles. */
+    private fun openMore() {
+        beforeUse()
+        val current = item ?: return
+        screen.cardMenus.openFor(more, current, BAR_ACTIONS) { id, change ->
+            item?.takeIf { it.id == id }?.let { bind(change(it)) }
+            onChanged(id, change)
+        }
     }
 
     /** Shows the "My list" button, lit when the title is in the list; [inList] null hides it (no Rawkoon, or no TMDB id). */
@@ -133,5 +161,13 @@ class ActionBar(private val screen: RailScreen) {
                 Toast.makeText(context, R.string.action_failed, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    internal companion object {
+        /** What the bar's own buttons do: play or resume, watched, favorite and "My list". */
+        val BAR_ACTIONS = setOf(
+            CardAction.PLAY, CardAction.RESUME, CardAction.MARK_WATCHED, CardAction.MARK_UNWATCHED,
+            CardAction.ADD_FAVORITE, CardAction.REMOVE_FAVORITE, CardAction.ADD_TO_LIST, CardAction.REMOVE_FROM_LIST,
+        )
     }
 }
