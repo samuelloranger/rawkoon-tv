@@ -56,7 +56,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
     /** Shows [item] at grid [position], or an empty poster when it is not loaded yet. */
     fun bind(item: MediaItem?, position: Int) {
         // Rebinding the same title (its page was refreshed) keeps its art: clearing it would flash the poster empty
-        val keepArt = item != null && item.id == this.item?.id && art.bitmap != null
+        val keepArt = item != null && item.id == this.item?.id && item.posterUrl == this.item?.posterUrl && art.bitmap != null
         this.item = item
         this.position = position
         boundId = item?.id

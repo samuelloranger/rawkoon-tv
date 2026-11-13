@@ -74,6 +74,16 @@
     <string name="card_remove_favorite">Remove from favorites</string>
     <string name="card_remove_from_list">Remove from my list</string>
     <string name="card_go_to_show">Go to show</string>
+    <string name="card_change_poster">Change poster</string>
+    <string name="card_change_background">Change background</string>
+    <string name="art_title_poster">Poster</string>
+    <string name="art_title_background">Background</string>
+    <string name="art_loading">Looking for images…</string>
+    <string name="art_none">Your server\'s image providers have nothing for this title.</string>
+    <string name="art_error">Couldn\'t load the images. Go back and try again.</string>
+    <string name="art_hint">Pick one: the server keeps it and every app shows it.</string>
+    <string name="art_current">Current</string>
+    <string name="art_saving">Saving…</string>
     <string name="recently_added">Recently added</string>
     <string name="row_latest">Recently added in %1$s</string>
     <string name="home_empty">Nothing to show yet.</string>

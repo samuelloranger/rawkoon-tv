@@ -18,8 +18,11 @@ import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
+import org.jellyfin.sdk.api.client.extensions.remoteImageApi
 import org.jellyfin.sdk.api.client.extensions.showApi
+import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userDataApi
 import org.jellyfin.sdk.api.client.extensions.userViewApi
 import org.jellyfin.sdk.createJellyfin
@@ -242,7 +245,50 @@ class JellyfinSession(context: Context, val profile: Profile) {
         if (favorite) api.userDataApi.markFavoriteItem(itemId = parseId(id), userId = userId) else api.userDataApi.unmarkFavoriteItem(itemId = parseId(id), userId = userId)
     }
 
+    /** Whether this account may change artwork: the server keeps that to administrators. Null until [loadCanEditArt] answers. */
+    @Volatile
+    var canEditArt: Boolean? = null
+        private set
+
+    /** Reads the account's policy once; a failed read leaves [canEditArt] unknown, and the next call asks again. */
+    suspend fun loadCanEditArt(): Boolean? {
+        canEditArt?.let { return it }
+        return try {
+            (api.userApi.getCurrentUser().content.policy?.isAdministrator == true).also { canEditArt = it }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** One library item as it is now: after its artwork changed, its image URLs carry the new tags. */
+    suspend fun item(id: String): MediaItem = MediaItem.from(api.libraryApi.getItem(itemId = parseId(id), userId = userId).content, images)
+
+    /** The artwork of [type] the server's image providers offer for item [id], in the server's order (its language first). */
+    suspend fun remoteArt(id: String, type: ImageType): List<RemoteArt> =
+        api.remoteImageApi.getRemoteImages(itemId = parseId(id), type = type, limit = ART_LIMIT, includeAllLanguages = true)
+            .content.images.orEmpty().mapNotNull { info ->
+                val url = info.url ?: return@mapNotNull null
+                RemoteArt(url, info.thumbnailUrl, info.providerName, info.width, info.height, info.language)
+            }
+
+    /**
+     * Makes the image at [url] item [id]'s artwork of [type]; the server downloads and keeps it. A
+     * poster replaces the one there; a backdrop is added after the item's others, so it is moved
+     * first, where every page reads it. The others stay on the server.
+     */
+    suspend fun setArt(id: String, type: ImageType, url: String) {
+        val itemId = parseId(id)
+        api.remoteImageApi.downloadRemoteImage(itemId = itemId, type = type, imageUrl = url)
+        if (type != ImageType.BACKDROP) return
+        val count = api.libraryApi.getItem(itemId = itemId, userId = userId).content.backdropImageTags.orEmpty().size
+        if (count > 1) api.imageApi.updateItemImageIndex(itemId, type, count - 1, 0)
+    }
+
     companion object {
+        /** The most artwork choices asked for at once: TMDB alone can offer a hundred posters for a popular film. */
+        private const val ART_LIMIT = 60
         private const val PEOPLE_LIMIT = 12
         private const val ROW_LIMIT = 20
 

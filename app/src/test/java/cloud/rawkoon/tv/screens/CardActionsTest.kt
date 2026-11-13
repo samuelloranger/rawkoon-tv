@@ -4,6 +4,8 @@ import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.TmdbRef
 import cloud.rawkoon.tv.screens.CardAction.ADD_FAVORITE
 import cloud.rawkoon.tv.screens.CardAction.ADD_TO_LIST
+import cloud.rawkoon.tv.screens.CardAction.CHANGE_BACKGROUND
+import cloud.rawkoon.tv.screens.CardAction.CHANGE_POSTER
 import cloud.rawkoon.tv.screens.CardAction.GO_TO_SHOW
 import cloud.rawkoon.tv.screens.CardAction.MARK_UNWATCHED
 import cloud.rawkoon.tv.screens.CardAction.MARK_WATCHED
@@ -70,5 +72,18 @@ class CardActionsTest {
         assertEquals(ListKey(isMovie = true, tmdbId = 9), listKey(item(MediaItem.Kind.MOVIE).copy(libraryTmdbId = 9)))
         assertNull(listKey(item(MediaItem.Kind.MOVIE)))
         assertNull(listKey(item(MediaItem.Kind.EPISODE).copy(libraryTmdbId = 9)))
+    }
+
+    @Test
+    fun `an administrator can change a title's poster and background, a season's poster`() {
+        assertEquals(listOf(PLAY, MARK_WATCHED, ADD_FAVORITE, CHANGE_POSTER, CHANGE_BACKGROUND), cardActions(item(MediaItem.Kind.MOVIE), inList = null, canEditArt = true))
+        assertEquals(listOf(MARK_WATCHED, ADD_FAVORITE, GO_TO_SHOW, CHANGE_POSTER), cardActions(item(MediaItem.Kind.SEASON).copy(seriesId = "s"), inList = null, canEditArt = true))
+    }
+
+    @Test
+    fun `an episode, a Rawkoon title and anyone else get no artwork actions`() {
+        assertEquals(listOf(PLAY, MARK_WATCHED, ADD_FAVORITE), cardActions(item(MediaItem.Kind.EPISODE), inList = null, canEditArt = true))
+        assertEquals(emptyList<CardAction>(), cardActions(item(MediaItem.Kind.MOVIE).copy(tmdb = TmdbRef(id = 7)), inList = null, canEditArt = true))
+        assertEquals(listOf(PLAY, MARK_WATCHED, ADD_FAVORITE), cardActions(item(MediaItem.Kind.MOVIE), inList = null, canEditArt = false))
     }
 }

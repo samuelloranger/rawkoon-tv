@@ -13,17 +13,23 @@ import cloud.rawkoon.tv.ui.CardMenu
 import cloud.rawkoon.tv.ui.Icon
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import org.jellyfin.sdk.model.api.ImageType
 
 /** What a card's menu can do with its item. */
-enum class CardAction { PLAY, RESUME, START_OVER, MARK_WATCHED, MARK_UNWATCHED, ADD_FAVORITE, REMOVE_FAVORITE, ADD_TO_LIST, REMOVE_FROM_LIST, GO_TO_SHOW }
+enum class CardAction {
+    PLAY, RESUME, START_OVER, MARK_WATCHED, MARK_UNWATCHED, ADD_FAVORITE, REMOVE_FAVORITE, ADD_TO_LIST, REMOVE_FROM_LIST, GO_TO_SHOW,
+    CHANGE_POSTER, CHANGE_BACKGROUND,
+}
 
 /**
  * The actions a card's menu offers for [item], in order: play or resume (and start over) for what
  * plays on its own, watched and favorite for anything in the library, "My list" for a movie or a
  * show when [inList] is known (null: no Rawkoon, or no TMDB id), and the show for an episode or a
- * season. A TMDB title from Rawkoon is not in the library: only "My list" applies to it.
+ * season. With [canEditArt] (a server administrator) a movie or show can change its poster and
+ * background, a season its poster. A TMDB title from Rawkoon is not in the library: only "My list"
+ * applies to it.
  */
-fun cardActions(item: MediaItem, inList: Boolean?): List<CardAction> = buildList {
+fun cardActions(item: MediaItem, inList: Boolean?, canEditArt: Boolean = false): List<CardAction> = buildList {
     val list = when (inList) {
         true -> CardAction.REMOVE_FROM_LIST
         false -> CardAction.ADD_TO_LIST
@@ -47,6 +53,10 @@ fun cardActions(item: MediaItem, inList: Boolean?): List<CardAction> = buildList
     add(if (item.favorite) CardAction.REMOVE_FAVORITE else CardAction.ADD_FAVORITE)
     if (kind == MediaItem.Kind.MOVIE || kind == MediaItem.Kind.SERIES) list?.let(::add)
     if ((kind == MediaItem.Kind.EPISODE || kind == MediaItem.Kind.SEASON) && item.seriesId != null) add(CardAction.GO_TO_SHOW)
+    if (canEditArt && kind != MediaItem.Kind.EPISODE) {
+        add(CardAction.CHANGE_POSTER)
+        if (kind != MediaItem.Kind.SEASON) add(CardAction.CHANGE_BACKGROUND)
+    }
 }
 
 /** Applies a change (or its undo) to the page's copy of the item with this id, wherever it is now. */
@@ -83,6 +93,11 @@ class CardMenus(private val screen: RailScreen) {
     private var watchlistEdits = -1
     private var listBusy = false
 
+    init {
+        // Asked once, ahead of the first long-press: the art entries only show for an administrator
+        screen.scope.launch { screen.session.loadCanEditArt() }
+    }
+
     /**
      * Long-press OK or Menu on [card] opens its menu. [item] reads the card's current item (null:
      * not loaded yet); [extras] are the page's own actions for it, after the shared ones; [changed]
@@ -115,11 +130,12 @@ class CardMenus(private val screen: RailScreen) {
         val key = listKey(item)
         val api = rawkoon()
         val known = key?.let { k -> freshWatchlist()?.let { k in it } }
-        val entries = cardActions(item, known).map { entry(it, item, key, changed) } + extras
+        val entries = cardActions(item, known, screen.session.canEditArt == true).map { entry(it, item, key, changed) } + extras
         val lookUp = key != null && api != null && known == null
         if (entries.isEmpty() && !lookUp) return
         // A title whose only action is "My list" waits for the list: an empty menu would only flash
         val shown = if (entries.isNotEmpty()) show(card, item, entries) else null
+        if (shown != null && screen.session.canEditArt == null) addArtWhenKnown(shown, item, key, changed)
         if (!lookUp) return
         val edits = RawkoonHome.watchlistEdits
         screen.scope.launch {
@@ -139,6 +155,15 @@ class CardMenus(private val screen: RailScreen) {
                 shown != null -> shown.add(entry)
                 card.isAttachedToWindow && card.hasFocus() && menu?.isAttachedToWindow != true -> show(card, item, listOf(entry))
             }
+        }
+    }
+
+    /** The account's policy wasn't read yet (or the read failed): asks now, and adds the artwork entries if it may change them. */
+    private fun addArtWhenKnown(shown: CardMenu, item: MediaItem, key: ListKey?, changed: Changed) {
+        val art = cardActions(item, null, canEditArt = true) - cardActions(item, null, canEditArt = false).toSet()
+        if (art.isEmpty()) return
+        screen.scope.launch {
+            if (screen.session.loadCanEditArt() == true) art.forEach { shown.add(entry(it, item, key, changed)) }
         }
     }
 
@@ -167,6 +192,8 @@ class CardMenus(private val screen: RailScreen) {
             CardAction.ADD_TO_LIST -> e(Icon.BOOKMARK, R.string.rk_watchlist_add) { setInList(item, key ?: return@e, true) }
             CardAction.REMOVE_FROM_LIST -> e(Icon.XMARK, R.string.card_remove_from_list) { setInList(item, key ?: return@e, false) }
             CardAction.GO_TO_SHOW -> e(Icon.TV, R.string.card_go_to_show) { goToShow(item) }
+            CardAction.CHANGE_POSTER -> e(Icon.IMAGE, R.string.card_change_poster) { changeArt(item, ImageType.PRIMARY, changed) }
+            CardAction.CHANGE_BACKGROUND -> e(Icon.IMAGES, R.string.card_change_background) { changeArt(item, ImageType.BACKDROP, changed) }
         }
     }
 
@@ -226,6 +253,16 @@ class CardMenus(private val screen: RailScreen) {
                 listBusy = false
             }
         }
+    }
+
+    /** Opens the picker; the card takes the new image URLs as soon as the server has the image. */
+    private fun changeArt(item: MediaItem, type: ImageType, changed: Changed) {
+        screen.activity.push(
+            ArtworkScreen(screen.activity, screen.session, item, type) { updated ->
+                changed(item.id) { it.copy(posterUrl = updated.posterUrl, thumbUrl = updated.thumbUrl, backdropUrl = updated.backdropUrl) }
+                screen.onCardChanged(rawkoon = false)
+            },
+        )
     }
 
     private fun goToShow(item: MediaItem) {
