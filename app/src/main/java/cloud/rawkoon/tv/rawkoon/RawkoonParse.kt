@@ -153,3 +153,9 @@ internal fun parseArtwork(json: JSONObject): List<RemoteArt> = json.objects("can
         language = it.optStringOrNull("language"),
     )
 }
+
+/** The shared library sorts; a value that isn't a string is skipped. */
+internal fun parseLibrarySorts(json: JSONObject): Map<String, String> {
+    val sorts = json.optJSONObject("sorts") ?: return emptyMap()
+    return sorts.keys().asSequence().mapNotNull { page -> (sorts.opt(page) as? String)?.takeIf { it.isNotEmpty() }?.let { page to it } }.toMap()
+}

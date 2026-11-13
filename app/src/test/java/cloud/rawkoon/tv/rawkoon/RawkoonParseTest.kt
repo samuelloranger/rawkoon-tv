@@ -226,4 +226,11 @@ class RawkoonParseTest {
         assertEquals("Fanart", art[1].provider)
         assertEquals("", art[1].details())
     }
+
+    @Test
+    fun `shared library sorts are read page by page, skipping odd values`() {
+        val sorts = parseLibrarySorts(JSONObject("""{"sorts":{"MOVIES":"YEAR","collection:abc":"TITLE:reverse","odd":5}}"""))
+        assertEquals(mapOf("MOVIES" to "YEAR", "collection:abc" to "TITLE:reverse"), sorts)
+        assertEquals(emptyMap<String, String>(), parseLibrarySorts(JSONObject("{}")))
+    }
 }

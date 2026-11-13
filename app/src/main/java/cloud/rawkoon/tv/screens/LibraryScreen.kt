@@ -20,6 +20,7 @@ import cloud.rawkoon.tv.jellyfin.savedSort
 import cloud.rawkoon.tv.jellyfin.sortKey
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
+import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -35,6 +36,8 @@ import cloud.rawkoon.tv.ui.dp
 import cloud.rawkoon.tv.ui.isWithin
 import cloud.rawkoon.tv.ui.label
 import cloud.rawkoon.tv.ui.noClip
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 /**
@@ -129,8 +132,14 @@ class LibraryScreen(
     /** Where this page's sort is remembered: one key per library, and one per collection. */
     private val sortPage = parentId?.let { "collection:$it" } ?: kind.name
 
+    /** Sorts are shared by every TV and profile on a server; this one's local copy is keyed by its Jellyfin address. */
+    private val sortServer = session.profile.jellyfinUrl
+
+    /** Set once someone picks a sort here: the shared one, arriving late, then no longer replaces it. */
+    private var sortPicked = false
+
     private val loader: LibraryLoader = LibraryLoader(scope, session, paged, types, parentId, host).also { loader ->
-        savedSort(Prefs.librarySort(context, session.profile.id, sortPage))?.let { loader.query = it }
+        savedSort(Prefs.librarySort(context, sortServer, sortPage))?.let { loader.query = it }
     }
 
     init {
@@ -175,6 +184,30 @@ class LibraryScreen(
         filterButton.setOnClickListener { showFilterChoices() }
         paintButtons()
         loader.reload()
+        scope.launch { followSharedSort() }
+    }
+
+    private fun rawkoon() = (app.profiles.get(session.profile.id) ?: session.profile).rawkoonDiscover(context)
+
+    /**
+     * Reads the sorts the server keeps for every TV, refreshes the local copy, and re-sorts this page
+     * if another TV changed it since. No Rawkoon, or one too old to keep sorts: the local copy stands.
+     */
+    private suspend fun followSharedSort() {
+        val api = rawkoon() ?: return
+        val shared = try {
+            api.librarySorts()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return
+        }
+        shared.forEach { (page, value) -> Prefs.setLibrarySort(context, sortServer, page, value) }
+        val wanted = savedSort(shared[sortPage]) ?: return
+        if (sortPicked || (wanted.sort == loader.query.sort && wanted.reverse == loader.query.reverse)) return
+        loader.query = loader.query.copy(sort = wanted.sort, reverse = wanted.reverse)
+        paintButtons()
+        loader.reload()
     }
 
     private fun paintButtons() {
@@ -196,7 +229,18 @@ class LibraryScreen(
         if (next == loader.query) return
         // Only the sort is remembered for this page; the A to Z jump changes it without coming here
         if (next.sort != loader.query.sort || next.reverse != loader.query.reverse) {
-            Prefs.setLibrarySort(context, session.profile.id, sortPage, next.sortKey())
+            sortPicked = true
+            val key = next.sortKey()
+            Prefs.setLibrarySort(context, sortServer, sortPage, key)
+            scope.launch {
+                try {
+                    rawkoon()?.setLibrarySort(sortPage, key)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // The local copy keeps it on this TV; the next pick here shares it again
+                }
+            }
         }
         loader.query = next
         paintButtons()

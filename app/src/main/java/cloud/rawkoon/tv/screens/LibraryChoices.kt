@@ -5,6 +5,7 @@ import cloud.rawkoon.tv.R
 import cloud.rawkoon.tv.jellyfin.LibraryFilter
 import cloud.rawkoon.tv.jellyfin.LibraryQuery
 import cloud.rawkoon.tv.jellyfin.LibrarySort
+import cloud.rawkoon.tv.jellyfin.withSort
 import cloud.rawkoon.tv.ui.ChoiceDialog
 
 fun sortLabel(sort: LibrarySort) = when (sort) {
@@ -22,7 +23,7 @@ fun filterLabel(filter: LibraryFilter) = when (filter) {
 
 /** The sort choices: each order, and reversing it. [apply] takes the query a choice leads to. */
 fun sortDialog(context: Context, query: LibraryQuery, apply: (LibraryQuery) -> Unit): ChoiceDialog {
-    val choices = LibrarySort.entries.map { sort -> context.getString(sortLabel(sort)) to { apply(query.copy(sort = sort)) } } +
+    val choices = LibrarySort.entries.map { sort -> context.getString(sortLabel(sort)) to { apply(query.withSort(sort)) } } +
         (context.getString(if (query.reverse) R.string.library_reverse_on else R.string.library_reverse_off) to { apply(query.copy(reverse = !query.reverse)) })
     return ChoiceDialog(context, context.getString(R.string.library_sort_dialog), choices)
 }

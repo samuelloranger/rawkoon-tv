@@ -35,6 +35,9 @@ data class LibraryQuery(val sort: LibrarySort = LibrarySort.ADDED, val reverse: 
         get() = sort.keys.indices.map { if (it == 0 && descending) SortOrder.DESCENDING else SortOrder.ASCENDING }
 }
 
+/** [sort] in its natural direction (newest first, or A to Z): picking a sort never inherits the last one's Reverse. */
+fun LibraryQuery.withSort(sort: LibrarySort): LibraryQuery = copy(sort = sort, reverse = false)
+
 /** How a picked sort is saved: "TITLE" or "YEAR:reverse". */
 fun LibraryQuery.sortKey(): String = if (reverse) "${sort.name}:reverse" else sort.name
 

@@ -152,7 +152,7 @@ object Prefs {
     const val AUTO_UPDATE_CHECK = "update:auto_check"
     private const val HOME_ORDER = "home:order:"
     private const val HOME_HIDDEN = "home:hidden:"
-    private const val LIBRARY_SORT = "library:sort:"
+    private const val LIBRARY_SORT = "library:sort:v2:"
     private const val NEXT_UP_HIDDEN = "home:next_up_hidden:"
 
     const val DEFAULT_SKIP_BACK_S = 10
@@ -261,11 +261,14 @@ object Prefs {
     fun setHomeHidden(context: Context, profileId: String, ids: Set<String>) =
         of(context).edit().putString(HOME_HIDDEN + profileId, JSONArray(ids.toList()).toString()).apply()
 
-    /** The sort a profile last picked on one library page, as [cloud.rawkoon.tv.jellyfin.savedSort] reads it; null until one is picked. */
-    fun librarySort(context: Context, profileId: String, page: String): String? = of(context).getString(LIBRARY_SORT + profileId + ":" + page, null)
+    /**
+     * The sort one library page opens in on a server, as [cloud.rawkoon.tv.jellyfin.savedSort] reads it:
+     * a local copy of what the server keeps for every TV, so the page opens sorted before it answers.
+     */
+    fun librarySort(context: Context, server: String, page: String): String? = of(context).getString(LIBRARY_SORT + server + "|" + page, null)
 
-    fun setLibrarySort(context: Context, profileId: String, page: String, value: String) =
-        of(context).edit().putString(LIBRARY_SORT + profileId + ":" + page, value).apply()
+    fun setLibrarySort(context: Context, server: String, page: String, value: String) =
+        of(context).edit().putString(LIBRARY_SORT + server + "|" + page, value).apply()
 
     /** The ids of the series a profile removed from Next up; playing one of them again brings it back. */
     fun nextUpHidden(context: Context, profileId: String): Set<String> = readIds(of(context).getString(NEXT_UP_HIDDEN + profileId, null)).toSet()
