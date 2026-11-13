@@ -21,6 +21,9 @@ class MessagePanel(context: Context) : LinearLayout(context) {
         orientation = VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         visibility = GONE
+        // Room for the focused button's ring, which draws outside the button and would be cut at the panel's edge
+        val ring = context.dp(RING_ROOM)
+        setPadding(ring, ring, ring, ring)
     }
 
     /**
@@ -70,6 +73,7 @@ class MessagePanel(context: Context) : LinearLayout(context) {
         private const val NOTICE_HINT_SP = 15f
         private const val NOTICE_HINT_GAP = 8
         private const val NOTICE_BUTTON_GAP = 16
+        private const val RING_ROOM = 8
 
         /** Where a page puts its panel: centered. */
         fun params() = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
