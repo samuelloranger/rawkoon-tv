@@ -89,10 +89,12 @@ class ArtworkScreen(
         status.text = string(R.string.art_loading)
         val current = if (poster) item.posterUrl else item.backdropUrl
         launchLoading(onError = { status.text = string(R.string.art_error) }) {
-            rawkoon = findInRawkoon()
-            // Rawkoon's choices when it has the title; Jellyfin's when it doesn't or offers none
-            val offered = rawkoon?.let { (api, id) -> runCatching { api.artwork(id, kind) }.getOrNull()?.takeIf { it.isNotEmpty() } }
-                ?: session.remoteArt(item.id, type).also { rawkoon = null }
+            // Rawkoon's choices when it has the title; Jellyfin's when it doesn't, offers none, or is slow
+            val fromRawkoon = withTimeoutOrNull(RAWKOON_TIMEOUT_MS) {
+                findInRawkoon()?.let { found -> rawkoonArt(found)?.let { found to it } }
+            }
+            rawkoon = fromRawkoon?.first
+            val offered = fromRawkoon?.second ?: session.remoteArt(item.id, type)
             status.text = if (offered.isEmpty()) string(R.string.art_none) else string(R.string.art_hint)
             val all = listOfNotNull(current?.let { null to it }) + offered.map { it to it.previewUrl(if (poster) "w342" else "w780") }
             all.chunked(if (poster) POSTERS_PER_ROW else BACKDROPS_PER_ROW).forEach { chunk ->
@@ -156,6 +158,14 @@ class ArtworkScreen(
         return id?.let { api to it }
     }
 
+    private suspend fun rawkoonArt(found: Pair<RawkoonDiscover, Int>): List<RemoteArt>? = try {
+        found.first.artwork(found.second, kind).takeIf { it.isNotEmpty() }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     /** Through Rawkoon, which sets Jellyfin too, when the choices came from it; Jellyfin directly otherwise, or when Rawkoon couldn't. */
     private suspend fun save(art: RemoteArt) {
         val (api, id) = rawkoon ?: return session.setArt(item.id, type, art.url)
@@ -202,5 +212,8 @@ class ArtworkScreen(
         const val POSTERS_PER_ROW = 7
         const val BACKDROPS_PER_ROW = 4
         const val SAVE_TIMEOUT_MS = 30_000L
+
+        /** How long the Rawkoon lookup may hold the page before Jellyfin's choices are shown instead. */
+        const val RAWKOON_TIMEOUT_MS = 4_000L
     }
 }

@@ -146,6 +146,7 @@ class RawkoonClient(baseUrl: String) {
             .build()
         try {
             okHttp.newCall(request).execute().use { response ->
+                if (redirectsToHttps(url.scheme, response.code, response.header("Location"))) throw RawkoonException.UseHttps()
                 Response(response.code, response.body.string(), response.headers.toMultimap().mapValues { it.value.firstOrNull().orEmpty() })
             }
         } catch (e: IOException) {
@@ -154,10 +155,17 @@ class RawkoonClient(baseUrl: String) {
     }
 
     companion object {
+        /**
+         * Redirects are not followed, like HttpURLConnection across protocols: a 301 would turn the
+         * PATCH into a GET without its body. The longer read covers a save that waits on Jellyfin.
+         */
         private val okHttp by lazy {
             OkHttpClient.Builder()
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .connectTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
-                .readTimeout(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+                .readTimeout(PATCH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .callTimeout(PATCH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .build()
         }
 
@@ -202,5 +210,8 @@ class RawkoonClient(baseUrl: String) {
         const val CLIENT_ID = "rawkoon-tv"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         private const val TIMEOUT_MS = 10_000
+
+        /** Under the artwork picker's 30 s wait, so a slow save still leaves it time to fall back. */
+        private const val PATCH_TIMEOUT_MS = 20_000L
     }
 }
