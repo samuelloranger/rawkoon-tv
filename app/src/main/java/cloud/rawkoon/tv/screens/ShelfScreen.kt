@@ -244,6 +244,14 @@ class ShelfScreen(
         }
     }
 
+    /**
+     * The card menu added the title to a shelf or took it off one (possibly this one): read the shelf
+     * again so the page agrees with the server instead of showing a card that is no longer on it.
+     */
+    override fun onCardChanged(rawkoon: Boolean) {
+        if (rawkoon) load()
+    }
+
     /** A page above Shelves: the rail highlights Shelves, and another destination must replace both. */
     override val isRailPage get() = true
 
