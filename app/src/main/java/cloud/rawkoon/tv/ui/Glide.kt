@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.ui
 
+import android.animation.ValueAnimator
 import android.view.View
 import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.FloatPropertyCompat
@@ -10,7 +11,7 @@ import androidx.dynamicanimation.animation.SpringForce
  * Moves one render property of [view] (a strip's translation) to wherever it is asked to go, as a
  * critically damped spring: a new target while it is moving carries the velocity it has, so a held
  * D-pad is one continuous motion instead of a curve restarted on every key repeat, and a single
- * step settles without a jump at its start. [stiffness] sets the pace: 900 settles in about 220 ms.
+ * step settles without a jump at its start. [stiffness] sets the pace: 900 settles in about 250 ms.
  */
 class Glide(private val view: View, private val property: FloatPropertyCompat<View>, stiffness: Float = ROW_STIFFNESS) {
     private val spring = SpringAnimation(view, property).setSpring(
@@ -23,6 +24,8 @@ class Glide(private val view: View, private val property: FloatPropertyCompat<Vi
 
     fun to(value: Float) {
         if (target == value) return
+        // Animations turned off in the system settings: the other animators jump, so this does too
+        if (!ValueAnimator.areAnimatorsEnabled()) return snap(value)
         target = value
         spring.animateToFinalPosition(value)
     }
