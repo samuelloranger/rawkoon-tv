@@ -134,7 +134,7 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
         lastPosition = position
         val cell = (card.parent as? View) ?: return
         val dy = cell.top - paddingTop
-        if (dy != 0) smoothScrollBy(0, dy, Tokens.ease, Tokens.GLIDE_MS.toInt())
+        if (dy != 0) smoothScrollBy(0, dy, Tokens.settle, Tokens.GLIDE_MS.toInt())
         onFocused(card.shelf)
     }
 

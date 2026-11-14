@@ -69,8 +69,6 @@ class Rows(context: Context) : ScrollView(context) {
     /** Up and Down land on the card in the same column, as in a grid, instead of the card each row remembers. */
     var keepsColumn = false
 
-    /** Where the column is gliding to, to tell a repeat of the same move from a new one. */
-    private var glideTarget = 0f
     private var lastSection: Section? = null
 
     val column: LinearLayout = object : LinearLayout(context) {
@@ -84,6 +82,8 @@ class Rows(context: Context) : ScrollView(context) {
         clipChildren = false
         clipToPadding = false
     }
+
+    private val glide = Glide(column, Glide.Y)
 
     init {
         isVerticalScrollBarEnabled = false
@@ -101,10 +101,7 @@ class Rows(context: Context) : ScrollView(context) {
     /** Glides so [section] (a row, or any block in the column) sits at the top of this view. */
     fun reveal(section: View) {
         val maxShift = (column.height - height).coerceAtLeast(0)
-        val target = -(section.top - column.paddingTop - anchor).coerceIn(0, maxShift).toFloat()
-        if (glideTarget == target) return
-        glideTarget = target
-        column.animate().translationY(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
+        glide.to(-(section.top - column.paddingTop - anchor).coerceIn(0, maxShift).toFloat())
     }
 
     /** The section holding focus, or the one left for the rail. */
@@ -117,9 +114,7 @@ class Rows(context: Context) : ScrollView(context) {
     }
 
     fun reset() {
-        column.animate().cancel()
-        column.translationY = 0f
-        glideTarget = 0f
+        glide.snap(0f)
         lastSection = null
     }
 

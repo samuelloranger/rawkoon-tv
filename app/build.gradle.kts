@@ -144,6 +144,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
     implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
+    // Spring glides for rows and columns (Glide.kt)
+    implementation("androidx.dynamicanimation:dynamicanimation:1.1.0")
 
     // The player: the Media3 and ffmpeg decoder versions used by Jellyfin Android TV.
     implementation("androidx.media3:media3-exoplayer:1.11.1")
