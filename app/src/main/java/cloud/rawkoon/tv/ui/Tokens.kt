@@ -136,10 +136,27 @@ object Tokens {
     const val DRAWER_MS = 220L
     const val SCREEN_FADE_MS = 160L
 
-    /** A page opened slides in from the right this far while it fades in; going back, from the left. */
+    /**
+     * A page opened slides in from the right this far while it fades in; going back, from the left.
+     * The page it replaces fades out first, moving [SCREEN_OUT_SHIFT] dp the other way, and the new
+     * one starts [SCREEN_IN_DELAY_MS] into that fade, so the two overlap instead of cutting through
+     * the page colour.
+     */
     const val SCREEN_SHIFT = 24f
-    const val SCREEN_SLIDE_MS = 240L
+    const val SCREEN_SLIDE_MS = 260L
+    const val SCREEN_OUT_SHIFT = 8f
+    const val SCREEN_OUT_MS = 90L
+    const val SCREEN_IN_DELAY_MS = 40L
 
-    /** Expo-out: fast start, long soft landing. */
+    /** Expo-out: fast start, long soft landing. For things that enter the screen. */
     val ease = PathInterpolator(0.16f, 1f, 0.3f, 1f)
+
+    /** Material's emphasized decelerate: a page entrance. */
+    val enter = PathInterpolator(0.05f, 0.7f, 0.1f, 1f)
+
+    /** Material's standard accelerate: something leaving the screen. */
+    val exit = PathInterpolator(0.3f, 0f, 1f, 1f)
+
+    /** Material's standard decelerate: motion that settles in place (focus, headers, fades). */
+    val settle = PathInterpolator(0f, 0f, 0.2f, 1f)
 }

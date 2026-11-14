@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -111,7 +112,7 @@ class MainActivity : Activity() {
     }
 
     fun push(screen: Screen) {
-        stack.lastOrNull()?.let { it.onHidden(); hide(it) }
+        stack.lastOrNull()?.let { it.onHidden(); hide(it, back = false) }
         stack += screen
         show(screen, back = false)
         screen.onShown(first = true)
@@ -120,7 +121,7 @@ class MainActivity : Activity() {
 
     /** Replaces the top screen, e.g. sign-in once it succeeded. */
     fun replace(screen: Screen) {
-        stack.removeLastOrNull()?.let { remove(it) }
+        stack.removeLastOrNull()?.let { hide(it, back = false) { remove(it) } }
         push(screen)
     }
 
@@ -153,7 +154,9 @@ class MainActivity : Activity() {
         while (stack.last() !== target) dropped += stack.removeAt(stack.lastIndex)
         show(target, back = true)
         target.onShown(first = false)
+        val top = dropped.removeAt(0)
         dropped.forEach { remove(it) }
+        hide(top, back = true) { remove(top) }
         syncLive()
     }
 
@@ -169,7 +172,7 @@ class MainActivity : Activity() {
         // would hand focus to whatever Android finds, and that can start things (a season tab loads)
         show(below, back = true)
         below.onShown(first = false)
-        remove(top)
+        hide(top, back = true) { remove(top) }
         syncLive()
     }
 
@@ -229,17 +232,20 @@ class MainActivity : Activity() {
 
     /**
      * Brings [screen] in: it fades in while sliding a little from the side it comes from, the right
-     * for a page opened, the left for one gone back to. Coming from a page with the same chrome
-     * (one rail page to another), only its [Screen.stage] moves and the rail stays still. What
-     * moves is one layer, drawn once and then only moved and blended.
+     * for a page opened, the left for one gone back to, starting a moment into the fade of the page
+     * it replaces ([hide]), so the two overlap. Coming from a page with the same chrome (one rail
+     * page to another), only its [Screen.stage] moves and the rail stays still. What moves is one
+     * layer, drawn once and then only moved and blended.
      */
     private fun show(screen: Screen, back: Boolean) {
         hideKeyboard()
         val view = screen.view
         if (view.parent == null) root.addView(view, fill())
+        // A page coming back while it was still leaving takes keys again
+        leaving.remove(screen)?.let { (view as ViewGroup).descendantFocusability = it }
         view.visibility = View.VISIBLE
         val stage = screen.stage
-        // Either part may have been left halfway by an entrance cut short
+        // Either part may have been left halfway by an entrance or an exit cut short
         listOfNotNull(view, stage).forEach {
             it.animate().cancel()
             it.alpha = 1f
@@ -248,20 +254,48 @@ class MainActivity : Activity() {
         val moving = stage?.takeIf { lastHadStage } ?: view
         lastHadStage = stage != null
         moving.alpha = 0f
-        val motion = moving.animate().alpha(1f).setInterpolator(Tokens.ease)
+        val motion = moving.animate().alpha(1f).setStartDelay(Tokens.SCREEN_IN_DELAY_MS)
         if (screen.slides) {
             moving.translationX = dpf(Tokens.SCREEN_SHIFT) * if (back) -1 else 1
-            motion.translationX(0f).setDuration(Tokens.SCREEN_SLIDE_MS).withLayer()
+            motion.translationX(0f).setDuration(Tokens.SCREEN_SLIDE_MS).setInterpolator(Tokens.enter).withLayer()
         } else {
-            motion.setDuration(Tokens.SCREEN_FADE_MS)
+            motion.setDuration(Tokens.SCREEN_FADE_MS).setInterpolator(Tokens.ease)
         }
         motion.start()
+        // The delay only belongs to this entrance, not to the view's next animation
+        moving.animate().startDelay = 0
     }
 
-    private fun hide(screen: Screen) {
-        screen.view.animate().cancel()
-        screen.stage?.animate()?.cancel()
-        screen.view.visibility = View.GONE
+    /** Pages fading out, with the focusability each had; destroyed with the activity if that comes first. */
+    private val leaving = LinkedHashMap<Screen, Int>()
+
+    /**
+     * Takes [screen] off the top: it fades out while moving a little the way it leaves (left when
+     * a page opens over it, right when going back), then goes, and [then] runs. The player cuts
+     * instead: its video surface should not move. A page without the next one's chrome moves whole;
+     * between two rail pages only the stage moves, under a rail that stays.
+     */
+    private fun hide(screen: Screen, back: Boolean, then: () -> Unit = {}) {
+        val view = screen.view
+        val moving = screen.stage?.takeIf { lastHadStage } ?: view
+        val done = {
+            leaving.remove(screen)?.let { (view as ViewGroup).descendantFocusability = it }
+            view.visibility = View.GONE
+            listOfNotNull(view, screen.stage).forEach {
+                it.animate().cancel()
+                it.alpha = 1f
+                it.translationX = 0f
+            }
+            then()
+        }
+        if (!screen.slides || view.visibility != View.VISIBLE) return done()
+        // Keys during the fade go to the page coming in, not to this one
+        leaving[screen] = (view as ViewGroup).descendantFocusability
+        view.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        moving.animate().cancel()
+        moving.animate().alpha(0f).translationX(dpf(Tokens.SCREEN_OUT_SHIFT) * if (back) 1 else -1)
+            .setStartDelay(0).setDuration(Tokens.SCREEN_OUT_MS).setInterpolator(Tokens.exit).withLayer()
+            .withEndAction { if (screen in leaving) done() }.start()
     }
 
     private fun remove(screen: Screen) {
@@ -343,7 +377,7 @@ class MainActivity : Activity() {
         live.disconnect()
         rawkoonLive.disconnect()
         liveScope.cancel()
-        stack.forEach { it.destroy() }
+        (stack + leaving.keys).forEach { it.destroy() }
         super.onDestroy()
     }
 
