@@ -72,7 +72,8 @@ object RawkoonHome {
     var watchlistEdits = 0
         private set
 
-    fun isRawkoonRow(row: HomeRow) = row.id == UPCOMING_ID || row.id == REQUESTS_ID || row.id == WATCHLIST_ID || shelfIdOf(row.id) != null
+    fun isRawkoonRow(row: HomeRow) =
+        row.id == UPCOMING_ID || row.id == REQUESTS_ID || row.id == WATCHLIST_ID || row.id == ShelfRows.HOME_ROW_ID || shelfIdOf(row.id) != null
 
     /** Rows kept from before (cached or on screen) with their dates worded for [today] again. */
     fun refreshed(rows: List<HomeRow>, text: RawkoonText, today: LocalDate, locale: Locale): List<HomeRow> =

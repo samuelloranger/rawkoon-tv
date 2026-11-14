@@ -216,13 +216,16 @@ abstract class RowsPage(
     protected open fun card(item: MediaItem, landscape: Boolean, rowId: String) =
         Card(context, item, landscape, app.images, ::onFocused, { openItem(it.item) }, cardCaption(item)).withMenu()
 
+    /** The cards of [row]; a page with rows of something other than titles builds those itself. */
+    protected open fun cards(row: HomeRow): List<View> = row.items.map { card(it, row.landscape, row.id) }
+
     private fun section(row: HomeRow) = Section(context, row.id, row.title).apply {
         signature = row.signature
-        this.row.setCards(row.items.map { card(it, row.landscape, row.id) })
+        this.row.setCards(cards(row))
         this.row.onLeftEdge = { rail.activeItem() }
     }
 
-    private fun preview(item: MediaItem) {
+    protected fun preview(item: MediaItem) {
         header.show(item)
         previewClip(item)
         backdropUrl = backdropRequest(item.backdropUrl)
