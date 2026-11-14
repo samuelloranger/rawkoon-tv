@@ -46,6 +46,9 @@ abstract class RowsPage(
     private val parking = FocusParking(context)
     private var backdropUrl: String? = null
 
+    /** Set by a long absence: the next rows shown start at the first card of the first row instead of carrying on. */
+    private var startOver = false
+
     /** The focused card, whose neighbours are prefetched once focus rests. */
     private var prefetchFrom: Card? = null
     private val settleBackdrop = Runnable {
@@ -86,6 +89,8 @@ abstract class RowsPage(
         hideMessage()
         header.visibility = View.VISIBLE
         val current = rows.sections()
+        val fresh = startOver
+        startOver = false
         if (current.map { it.id to it.signature } == list.map { it.id to it.signature }) return
         val hadFocus = rows.hasFocus()
         // Rows landing on an empty page arrive; rows refreshed in place stay still
@@ -97,21 +102,37 @@ abstract class RowsPage(
         // A rebuilt row would start at its first card: it carries on from where the old one was, and
         // shows what changed on its cards too, when the page is there to see it
         val showChanges = isFullyShown
-        next.forEach { section -> keep[section.id]?.takeIf { it !== section }?.let { section.row.takeOver(it.row, showChanges) } }
+        if (!fresh) next.forEach { section -> keep[section.id]?.takeIf { it !== section }?.let { section.row.takeOver(it.row, showChanges) } }
         val restore = {
-            val section = next.firstOrNull { it.id == focusedRow } ?: next.first()
-            focusedKey?.let { section.row.remember(it) }
-            section.row.restoreFocus()
+            if (fresh) {
+                focusDefault()
+            } else {
+                val section = next.firstOrNull { it.id == focusedRow } ?: next.first()
+                focusedKey?.let { section.row.remember(it) }
+                section.row.restoreFocus()
+            }
         }
         parking.around(hadFocus, rebuild = {
             replaceRows(next)
-            rows.remember(next.firstOrNull { it.id == focusedRow } ?: next.first())
+            if (fresh) rows.reset()
+            rows.remember(next.firstOrNull { !fresh && it.id == focusedRow } ?: next.first())
         }, restore = { restore() })
         if (!hadFocus && view.findFocus() == null) restore()
         if (arriving) next.arrive()
         rewireUp(current.firstOrNull(), next.first())
         if (previewsFirstItem && !hadFocus && view.findFocus() !is Card) list.first().items.firstOrNull()?.let(::preview)
         rows.post { rows.focusedSection()?.let(rows::reveal) }
+    }
+
+    /**
+     * Back after a long time away: like the big TV apps, the page starts over at the top, every row
+     * at its first card, and the next refresh of the rows does too instead of carrying on.
+     */
+    override fun onLongAbsence() {
+        startOver = true
+        rows.sections().forEach { it.row.startOver() }
+        rows.reset()
+        if (hasRows()) focusDefault()
     }
 
     /** Called when the rows are about to be replaced or removed: a page that looks things up for the focused card drops them here. */

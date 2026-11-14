@@ -98,6 +98,9 @@ abstract class Screen(val activity: MainActivity) {
     /** The app is no longer visible: Home pressed, another app in front, or the TV gone to sleep. Follows [onPause]. */
     open fun onStop() {}
 
+    /** The app is back after a long time away ([LONG_ABSENCE_MS]): a page that keeps your place while you browse starts over. */
+    open fun onLongAbsence() {}
+
     /** Which live events reload this page while it is on top; [LivePage.OTHER] opens no socket for it. */
     open val livePage: LivePage get() = LivePage.OTHER
 

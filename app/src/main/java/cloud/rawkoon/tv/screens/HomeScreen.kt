@@ -406,6 +406,12 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
         }
     }
 
+    /** A new visit gets a fresh home, so titles added meanwhile are there. */
+    override fun onLongAbsence() {
+        super.onLongAbsence()
+        load()
+    }
+
     override val livePage get() = LivePage.HOME
 
     /**

@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -52,6 +53,9 @@ class MainActivity : Activity() {
     private val live = LiveUpdates(liveScope, ::deliverLive)
     private val rawkoonLive = RawkoonLive(liveScope, ::deliverLive, ::toastLive)
     private var foreground = false
+
+    /** When the app last left the screen, on the clock that keeps counting while the TV sleeps; 0 before the first time. */
+    private var stoppedAt = 0L
 
     /** Whether the screen brought in last had a [Screen.stage]: the next one with one shares its chrome. */
     private var lastHadStage = false
@@ -306,6 +310,7 @@ class MainActivity : Activity() {
         super.onStart()
         liveScope.launch { (application as App).let { it.clips.refresh(it.profiles.all()) } }
         if (Prefs.autoUpdateCheck(this)) UpdateCheck(this, Fetcher(this)).refreshAsync { if (!isDestroyed) stack.lastOrNull()?.onUpdateChecked() }
+        if (isLongAbsence(stoppedAt, SystemClock.elapsedRealtime())) stack.lastOrNull()?.onLongAbsence()
     }
 
     override fun onPause() {
@@ -319,6 +324,7 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        stoppedAt = SystemClock.elapsedRealtime()
         (application as App).clips.release()
         stack.lastOrNull()?.onStop()
         super.onStop()
@@ -349,3 +355,9 @@ class MainActivity : Activity() {
         )
     }
 }
+
+/** How long the app stays away before its pages start over, as a new visit would. */
+const val LONG_ABSENCE_MS = 30 * 60 * 1000L
+
+/** True when the app left the screen at [stoppedAt] (0: never) at least [LONG_ABSENCE_MS] before [now]. */
+internal fun isLongAbsence(stoppedAt: Long, now: Long): Boolean = stoppedAt > 0 && now - stoppedAt >= LONG_ABSENCE_MS
