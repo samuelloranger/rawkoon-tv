@@ -52,6 +52,8 @@ open class BitmapView(context: Context, private val mode: Mode = Mode.FIT_XY) : 
      * that arrived after the view was already on screen. Art that was in memory shows at once.
      */
     fun show(value: Bitmap, fading: Boolean) {
+        // The same art again (two waiters on one load): a fade in progress carries on
+        if (value === bitmap) return
         bitmap = value
         if (!fading || !isShown) return
         paint.alpha = 0
