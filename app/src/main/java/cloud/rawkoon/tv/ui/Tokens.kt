@@ -76,7 +76,7 @@ object Tokens {
     const val GLIDE_MS = 260L
 
     /**
-     * The header and the backdrop change together, once focus has rested for the same moment; the
+     * Once focus rests, the header and the backdrop change together, after the same moment; the
      * header's old text fades out, the new rises in, and the backdrop crossfades under it. While
      * focus keeps moving (a grid, where moves outrun the settle), the backdrop changes at most
      * every [BACKDROP_MIN_INTERVAL_MS], landing on the latest title.

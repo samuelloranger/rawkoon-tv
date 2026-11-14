@@ -18,7 +18,8 @@ class LogoView(context: Context) : BitmapView(context, Mode.CONTAIN_BOTTOM_START
 /**
  * The top-left of the home screen: the focused item's logo (its title in Bricolage Grotesque when there is
  * none), its meta line and overview. It switches only once focus has rested, fading the old one
- * out and the new one in with a short rise, at the moment the backdrop under it changes. Every child has a fixed size, so new text never
+ * out and the new one in with a short rise, when the backdrop under it changes (while focus keeps
+ * moving, the backdrop changes less often than the header). Every child has a fixed size, so new text never
  * triggers a layout pass.
  */
 @SuppressLint("ViewConstructor")

@@ -81,11 +81,16 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
 
     /** How much of the image shows: 1 on home, lower behind denser pages. Part of the cache key. */
     var strength = 1f
+        set(value) {
+            field = value
+            dropPending()
+        }
 
     /** The width of the backdrop's 16:9 frame as a fraction of the screen; 1 (the default) draws it full screen. */
     var frameFraction = 1f
         set(value) {
             field = value
+            dropPending()
             applyFrame()
         }
 
@@ -210,7 +215,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     override fun onDetachedFromWindow() {
         clips?.stop(this)
         main.removeCallbacks(rest)
-        main.removeCallbacks(showLatest)
+        dropPending()
         drift?.cancel()
         drift = null
         scaleX = 1f
@@ -254,6 +259,15 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private var requestedUrl: String? = null
     private val showLatest = Runnable { load(requested, requestedUrl) }
 
+    /**
+     * Forgets a change still waiting for its turn: its key was made with the old strength or frame,
+     * and the next [show] asks again with the new ones.
+     */
+    private fun dropPending() {
+        main.removeCallbacks(showLatest)
+        requested = null
+    }
+
     /** Shows [url] (an image URL, or null for the plain page colour) once it is composed. */
     fun show(url: String?) {
         val strength = strength
@@ -280,6 +294,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         val w = f.w
         val h = f.h
         val framed = BackdropFrame.isFramed(frameFraction)
+        // Read here, with the key: the worker must compose what the key says
+        val strength = strength
         worker.execute {
             if (requested != key) return@execute
             val bitmap = try {
