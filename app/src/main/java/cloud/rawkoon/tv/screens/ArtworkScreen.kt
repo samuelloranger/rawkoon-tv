@@ -201,7 +201,9 @@ class ArtworkScreen(
             addView(frame, frame.frameParams())
             addView(CaptionColumn(context, caption.first, caption.second), LayoutParams(artW, captionH, Gravity.BOTTOM).apply { leftMargin = context.dp(Tokens.RING_INSET) })
             listenForFocus()
-            images.load(url, artW, artH, context.dpf(Tokens.CARD_RADIUS), isCurrent = isCurrent) { frame.art.bitmap = it }
+            var waited = false
+            images.load(url, artW, artH, context.dpf(Tokens.CARD_RADIUS), isCurrent = isCurrent) { frame.art.show(it, fading = waited) }
+            waited = true
         }
     }
 

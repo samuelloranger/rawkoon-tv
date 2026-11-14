@@ -110,9 +110,11 @@ class Header(context: Context, private val images: Images, private val compact: 
         }
         // The title stays empty while the logo loads, so the two never show together
         title.text = ""
+        var waited = false
         images.load(logoRequest(url), logoW, logoH, 0f, contain = true, isCurrent = { wantedLogo == url }) {
-            logo.bitmap = it
+            logo.show(it, fading = waited)
         }
+        waited = true
     }
 
     /** Loads [item]'s logo into the memory cache ahead of time, exactly as [fill] will ask for it, behind visible loads. */

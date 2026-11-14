@@ -126,6 +126,9 @@ object Tokens {
     const val ARRIVE_ROW_MS = 70L
     const val ARRIVE_RISE = 10f
 
+    /** Art that arrives after its view is on screen fades in over the placeholder; art in memory shows at once. */
+    const val ART_FADE_MS = 150L
+
     /** The player's skip and up-next buttons rise this far into place as they appear. */
     const val RISE = 12f
     const val RISE_MS = 220L

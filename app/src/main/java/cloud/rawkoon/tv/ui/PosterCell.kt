@@ -77,10 +77,13 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
         val url = item?.posterUrl ?: return
         if (keepArt || loadingId == item.id) return
         loadingId = item.id
+        // Art in memory comes back before load returns and shows at once; art fetched later fades in
+        var waited = false
         images.load("$url&fillWidth=$posterW", posterW, posterH, radius, opaque = false, isCurrent = { boundId == item.id }) {
             loadingId = null
-            art.bitmap = it
+            art.show(it, fading = waited)
         }
+        waited = true
     }
 
     companion object {
