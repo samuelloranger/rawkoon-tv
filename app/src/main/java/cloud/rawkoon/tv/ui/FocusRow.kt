@@ -131,7 +131,8 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     /**
      * Carries on from [old], the row this one replaces: the same card is remembered (or, when it
      * is gone, the one now at its position) and shown where [old] showed it. A row sharing no card
-     * with [old] (new search results) is a new list, and starts at its first card. With
+     * with [old] (new search results) is a new list, and a row you're not in with new cards ahead of
+     * that card (titles added since) would hide them past the left edge: both start at their first card. With
      * [showChanges], cards that changed since (progress, watched) show it.
      */
     fun takeOver(old: FocusRow, showChanges: Boolean = false) {
@@ -142,6 +143,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         val key = (card as? RowItem)?.key
         val index = cards().indexOfFirst { key != null && (it as? RowItem)?.key == key }
             .takeIf { it >= 0 } ?: old.strip.indexOfChild(card)
+        if (!old.hasFocus() && hasNewAhead(cards().map { (it as? RowItem)?.key }, oldKeys, index)) return
         if (strip.childCount == 0) return
         lastIndex = index.coerceIn(0, strip.childCount - 1)
         lastKey = (strip.getChildAt(lastIndex) as? RowItem)?.key
@@ -235,3 +237,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         const val ARRIVING = 9
     }
 }
+
+/** True when a card before [index] in [keys] wasn't in the row before ([oldKeys]). Cards without a key don't count. */
+internal fun hasNewAhead(keys: List<String?>, oldKeys: Set<String>, index: Int): Boolean =
+    keys.take(index).any { it != null && it !in oldKeys }
