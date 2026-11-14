@@ -46,6 +46,7 @@ suspend fun onboard(context: Context, rawkoonUrl: String, token: String, onStep:
         rawkoonUrl = rawkoonUrl,
         rawkoonToken = token,
         rawkoonUserId = bootstrap.userId.ifBlank { null },
+        rawkoonAdmin = bootstrap.isAdmin,
         lastUsed = System.currentTimeMillis(),
     )
 }

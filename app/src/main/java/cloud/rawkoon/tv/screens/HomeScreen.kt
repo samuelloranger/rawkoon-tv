@@ -18,6 +18,7 @@ import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.JellyfinSession
 import cloud.rawkoon.tv.jellyfin.JellyfinTooOldException
 import cloud.rawkoon.tv.jellyfin.MediaItem
+import cloud.rawkoon.tv.jellyfin.itemsByIds
 import cloud.rawkoon.tv.jellyfin.arrangeRows
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
@@ -25,8 +26,12 @@ import cloud.rawkoon.tv.jellyfin.playsRightAway
 import cloud.rawkoon.tv.jellyfin.isSessionEnded
 import cloud.rawkoon.tv.rawkoon.RawkoonException
 import cloud.rawkoon.tv.rawkoon.RawkoonHome
+import cloud.rawkoon.tv.rawkoon.RawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.RawkoonOutcome
 import cloud.rawkoon.tv.rawkoon.ResourceText
+import cloud.rawkoon.tv.rawkoon.ShelfCache
+import cloud.rawkoon.tv.rawkoon.ShelfRows
+import cloud.rawkoon.tv.rawkoon.ShelfSource
 import cloud.rawkoon.tv.rawkoon.hasRawkoonSession
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
 import cloud.rawkoon.tv.rawkoon.tmdbBackdrop
@@ -146,7 +151,7 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 session.requireSupportedServer()
                 val jellyfin = session.homeRows(Prefs.homeFetch(context))
                 app.launcher.syncAfterHome(profile(), jellyfin)
-                val previous = rawkoonRowsOnScreen(cached)
+                val previous = freshShelfMarks(rawkoonRowsOnScreen(cached))
                 showHome(RawkoonHome.merge(jellyfin, previous))
                 val outcome = rawkoon?.await()
                 if (outcome is RawkoonOutcome.Loaded) {
@@ -199,6 +204,38 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
     /** Read again each time: linking the account from Discover changes the saved profile, not this screen's copy. */
     private fun profile() = app.profiles.get(session.profile.id) ?: session.profile
 
+    /**
+     * The shelves that asked for a Home row (at most two), each with the titles this profile can
+     * see. A shelf whose entries all belong to other profiles has no row to show.
+     */
+    private suspend fun shelfRows(api: RawkoonDiscover): List<HomeRow> {
+        val source = ShelfSource(api, ShelfCache(context, profile().id))
+        val home = ShelfRows.homeShelves(source.shelves())
+        if (home.isEmpty()) return emptyList()
+        val details = home.mapNotNull { source.shelf(it.id) }
+        if (details.isEmpty()) return emptyList()
+        // No index yet (a failed first build): no shelf rows, quietly, rather than rows of nothing
+        val index = app.tmdbIndex.index(session) ?: return emptyList()
+        val items = session.itemsByIds(details.flatMap { ShelfRows.libraryIds(it.entries, index) })
+        return withContext(Dispatchers.Default) { ShelfRows.rows(details, index, items, text) }
+    }
+
+    /**
+     * Shelf rows reused from the screen or the cache (Rawkoon's rows are not asked again within a
+     * minute) still carry the watched marks they were saved with; their library cards are read again.
+     */
+    private suspend fun freshShelfMarks(rows: List<HomeRow>): List<HomeRow> {
+        val ids = ShelfRows.libraryIds(rows)
+        if (ids.isEmpty()) return rows
+        return try {
+            ShelfRows.refreshed(rows, session.itemsByIds(ids))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            rows
+        }
+    }
+
     /** The Rawkoon rows: Coming soon, My requests and My list, capped so a slow Rawkoon can't hold the home refresh. */
     private suspend fun rawkoonOutcome(): RawkoonOutcome {
         val profile = profile()
@@ -208,7 +245,9 @@ class HomeScreen(activity: MainActivity, profile: Profile) :
                 val userId = suspend {
                     profile.rawkoonUserId ?: api.userId().ifBlank { null }?.also { id -> app.profiles.get(profile.id)?.let { app.profiles.save(it.copy(rawkoonUserId = id)) } }
                 }
-                RawkoonOutcome.Loaded(RawkoonHome.load(api, userId, text, LocalDate.now(), Instant.now(), Locale.getDefault()))
+                RawkoonOutcome.Loaded(
+                    RawkoonHome.load(api, userId, text, LocalDate.now(), Instant.now(), Locale.getDefault(), shelves = { shelfRows(api) }),
+                )
             } ?: RawkoonOutcome.Unavailable
         } catch (e: CancellationException) {
             throw e

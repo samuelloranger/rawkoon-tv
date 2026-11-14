@@ -19,6 +19,8 @@ data class Profile(
     val rawkoonUrl: String? = null,
     val rawkoonToken: String? = null,
     val rawkoonUserId: String? = null,
+    /** Whether the Rawkoon account administers shelves; null until a bootstrap says. */
+    val rawkoonAdmin: Boolean? = null,
     val pinHash: String? = null,
     val lastUsed: Long = 0L,
 ) {
@@ -42,6 +44,7 @@ data class Profile(
         .putOpt("rawkoonUrl", rawkoonUrl)
         .putOpt("rawkoonToken", rawkoonToken)
         .putOpt("rawkoonUserId", rawkoonUserId)
+        .putOpt("rawkoonAdmin", rawkoonAdmin)
         .putOpt("pinHash", pinHash)
         .put("lastUsed", lastUsed)
 
@@ -58,6 +61,7 @@ data class Profile(
             rawkoonUrl = json.optStringOrNull("rawkoonUrl"),
             rawkoonToken = json.optStringOrNull("rawkoonToken"),
             rawkoonUserId = json.optStringOrNull("rawkoonUserId"),
+            rawkoonAdmin = if (json.has("rawkoonAdmin")) json.optBoolean("rawkoonAdmin") else null,
             pinHash = json.optStringOrNull("pinHash"),
             lastUsed = json.optLong("lastUsed"),
         )

@@ -84,9 +84,10 @@ class RawkoonLinkScreen(activity: MainActivity, private val profileId: String) :
 
     /** Puts the session on the existing profile, read again in case it changed while the code was out. */
     private suspend fun link(client: RawkoonClient, url: String, token: String) {
-        val userId = client.bootstrap(token).userId.ifBlank { null }
+        val bootstrap = client.bootstrap(token)
+        val userId = bootstrap.userId.ifBlank { null }
         val profile = app.profiles.get(profileId) ?: return activity.pop()
-        app.profiles.save(profile.copy(rawkoonUrl = url, rawkoonToken = token, rawkoonUserId = userId))
+        app.profiles.save(profile.copy(rawkoonUrl = url, rawkoonToken = token, rawkoonUserId = userId, rawkoonAdmin = bootstrap.isAdmin))
         Toast.makeText(context, R.string.rk_linked, Toast.LENGTH_SHORT).show()
         activity.pop()
     }

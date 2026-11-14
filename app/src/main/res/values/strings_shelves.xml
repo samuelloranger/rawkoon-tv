@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shelves: named, ordered lists of titles, each a page of its own under the rail's Shelves entry. -->
+    <string name="rk_shelves">Shelves</string>
+    <string name="rk_shelf_request">Request</string>
+    <string name="rk_shelf_season">Season %1$d</string>
+    <string name="rk_shelf_empty">Nothing here you can watch on this profile.</string>
+    <string name="rk_shelf_error">Couldn\'t load this shelf.</string>
+    <string name="rk_shelf_add">Add to shelf</string>
+    <string name="rk_shelf_none">No shelves take titles by hand yet.</string>
+    <string name="rk_shelf_added">Added to %1$s</string>
+    <string name="rk_shelf_removed">Removed from %1$s</string>
+
+    <string name="rk_shelves_empty">No shelves yet.</string>
+    <string name="rk_shelves_error">Couldn\'t load the shelves.</string>
+
+    <plurals name="rk_shelf_count">
+        <item quantity="one">%d shelf</item>
+        <item quantity="other">%d shelves</item>
+    </plurals>
+
+    <plurals name="rk_shelf_titles">
+        <item quantity="one">%d title</item>
+        <item quantity="other">%d titles</item>
+    </plurals>
+</resources>

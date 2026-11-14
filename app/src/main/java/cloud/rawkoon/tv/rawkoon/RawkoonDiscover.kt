@@ -13,6 +13,9 @@ class AlreadyRequested : RawkoonException()
 /** Rawkoon refused a request: the title is already in the library (400). */
 class AlreadyInLibrary : RawkoonException()
 
+/** Rawkoon refused a shelf change: the account may not edit shelves (403). */
+class ShelfForbidden : RawkoonException()
+
 /**
  * The TMDB side of Rawkoon: discovery rows, search, a title's details, its request state and the
  * requests themselves. Rawkoon proxies TMDB (it holds the key), caches it, and adds what is in its
@@ -104,6 +107,38 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
     /** The Rawkoon user id of the token, to tell the account's own requests apart. */
     suspend fun userId(): String = client.bootstrap(token).userId
 
+    /** The account's setup again, for what only a fresh answer knows (whether it may edit shelves). */
+    suspend fun bootstrap(): Bootstrap = client.bootstrap(token)
+
+    /**
+     * The shelves in their window right now, in the server's order; null when the server has no
+     * shelves route (it predates them), which the TV reads as "no shelves" rather than an error.
+     */
+    suspend fun shelves(): List<ShelfSummary>? = absentOn404 { get("api/shelves", parse = ::parseShelves) }
+
+    /** One shelf with its entries, or null when it is gone or the server has no shelves route. */
+    suspend fun shelf(id: Int): ShelfDetail? = absentOn404 { get("api/shelves/$id", parse = ::parseShelf) }
+
+    /** Which shelves hold a title, for the Add to shelf menu; a server without shelves or without the right to see them has none. */
+    suspend fun shelvesForTitle(tmdbId: Int, isMovie: Boolean): List<ShelfMembership> =
+        absentOn404 { get("api/shelves/for-title", "tmdb_id" to tmdbId.toString(), "type" to requestType(isMovie), parse = ::parseShelfMemberships) }
+            ?: emptyList()
+
+    /** Adds the whole title (or one of a show's seasons) to a shelf; returns the new entry's id when the server says. */
+    suspend fun addToShelf(shelfId: Int, tmdbId: Int, isMovie: Boolean, season: Int? = null): Int? {
+        val body = JSONObject().put("tmdb_id", tmdbId).put("type", requestType(isMovie)).put("season", season ?: JSONObject.NULL)
+        val response = client.send("POST", "api/shelves/$shelfId/entries", body, token)
+        if (response.code == 403) throw ShelfForbidden()
+        return withContext(Dispatchers.Default) { response.okJson().optJSONObject("entry")?.optInt("id") }
+    }
+
+    /** Takes an entry off a shelf; one already gone counts as removed. */
+    suspend fun removeFromShelf(shelfId: Int, entryId: Int) {
+        val response = client.send("DELETE", "api/shelves/$shelfId/entries/$entryId", token = token)
+        if (response.code == 403) throw ShelfForbidden()
+        if (response.code != 404 && response.code !in 200..299) response.okJson()
+    }
+
     suspend fun upcoming(): List<UpcomingEntry> = get("api/dashboard/upcoming", parse = ::parseUpcoming)
 
     /** The requests of this account; `mine` makes the server filter before its cap, which older servers ignore. */
@@ -114,6 +149,13 @@ class RawkoonDiscover(private val client: RawkoonClient, private val token: Stri
         val query = (params.toList() + ("language" to language)).joinToString("&") { (k, v) -> "$k=${URLEncoder.encode(v, "UTF-8")}" }
         val response = client.send("GET", "$path?$query", token = token)
         return withContext(Dispatchers.Default) { parse(response.okJson()) }
+    }
+
+    /** Null for a 404: the route is missing on an older server, or the thing asked for is gone. */
+    private suspend fun <T> absentOn404(block: suspend () -> T): T? = try {
+        block()
+    } catch (e: RawkoonException.Http) {
+        if (e.code == 404) null else throw e
     }
 
     private companion object {

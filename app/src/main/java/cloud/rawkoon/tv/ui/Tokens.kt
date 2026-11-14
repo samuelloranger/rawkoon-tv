@@ -51,6 +51,10 @@ object Tokens {
     const val LAND_H = 108
     const val CARD_GAP = 16
 
+    /** A shelf's cover card: 16:9, a little smaller than a landscape card so the grid under it keeps its height. */
+    const val SHELF_W = 168
+    const val SHELF_H = 94
+
     /** Library grid posters: small enough for 8 per row beside the A-Z column. */
     const val GRID_POSTER_W = 90
     const val GRID_POSTER_H = 135

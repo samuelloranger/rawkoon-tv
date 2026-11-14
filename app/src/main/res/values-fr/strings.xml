@@ -55,6 +55,7 @@
     <string name="nav_discover">Découvrir</string>
     <string name="nav_movies">Films</string>
     <string name="nav_shows">Séries</string>
+    <string name="nav_shelves">Étagères</string>
     <string name="nav_collections">Collections</string>
     <string name="nav_settings">Paramètres</string>
     <string name="coming_soon">Bientôt</string>

@@ -22,3 +22,8 @@ fun rounded(color: Int, radius: Float) = GradientDrawable().apply {
     setColor(color)
     cornerRadius = radius
 }
+
+/** A dark fade from the bottom edge up, so a cover's name reads over any art. */
+fun bottomScrim(radius: Float) = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(0xE6000000.toInt(), 0x00000000)).apply {
+    cornerRadius = radius
+}

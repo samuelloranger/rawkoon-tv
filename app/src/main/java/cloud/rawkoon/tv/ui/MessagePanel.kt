@@ -21,6 +21,9 @@ class MessagePanel(context: Context) : LinearLayout(context) {
         orientation = VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         visibility = GONE
+        // Room for the focused button's ring, which draws outside the button and would be cut at the panel's edge
+        val ring = context.dp(RING_ROOM)
+        setPadding(ring, ring, ring, ring)
     }
 
     /**
@@ -30,7 +33,8 @@ class MessagePanel(context: Context) : LinearLayout(context) {
     fun show(text: String, action: Pair<String, () -> Unit>? = null, takeFocus: Boolean = false, upId: Int = View.NO_ID) {
         removeAllViews()
         button = null
-        addView(label(context, TEXT_SP, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text })
+        // Explicit params: a vertical LinearLayout's default is match-parent width, which squeezed the text to the button's width
+        addView(label(context, TEXT_SP, Tokens.textSoft, Fonts.medium(context)).apply { this.text = text }, spaced(0))
         if (action != null) addButton(action, upId, gap = BUTTON_GAP)
         showFading()
         if (takeFocus) button?.requestFocus()
@@ -40,7 +44,7 @@ class MessagePanel(context: Context) : LinearLayout(context) {
     fun showNotice(title: String, hint: String?, action: Pair<String, () -> Unit>) {
         removeAllViews()
         button = null
-        addView(label(context, NOTICE_TITLE_SP, Tokens.textPrimary, Fonts.title(context)).apply { text = title })
+        addView(label(context, NOTICE_TITLE_SP, Tokens.textPrimary, Fonts.title(context)).apply { text = title }, spaced(0))
         hint?.let { addView(label(context, NOTICE_HINT_SP, Tokens.textSoft, Fonts.medium(context)).apply { text = it }, spaced(NOTICE_HINT_GAP)) }
         addButton(action, View.NO_ID, gap = NOTICE_BUTTON_GAP)
         showFading()
@@ -69,6 +73,7 @@ class MessagePanel(context: Context) : LinearLayout(context) {
         private const val NOTICE_HINT_SP = 15f
         private const val NOTICE_HINT_GAP = 8
         private const val NOTICE_BUTTON_GAP = 16
+        private const val RING_ROOM = 8
 
         /** Where a page puts its panel: centered. */
         fun params() = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)

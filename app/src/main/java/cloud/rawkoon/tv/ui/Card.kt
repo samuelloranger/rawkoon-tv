@@ -28,6 +28,8 @@ class Card(
     private val onFocused: (Card) -> Unit,
     private val onClick: (Card) -> Unit,
     caption: Pair<String, String?>? = null,
+    /** Darkens the art: a title the library doesn't have, shown in its place on a shelf. */
+    dim: Boolean = false,
 ) : Focusable(context), RowItem {
     /** The item shown; [update] changes it when the page changes it before the server confirms. */
     var item: MediaItem = item
@@ -51,6 +53,7 @@ class Card(
         val captionH = if (caption != null) context.dp(Tokens.CAPTION_H) else 0
         val captionGap = if (caption != null) context.dp(Tokens.CAPTION_GAP) else 0
         layoutParams = LinearLayout.LayoutParams(frame.outerW, frame.outerH + captionGap + captionH)
+        if (dim) frame.addOverlay(FlatView(context).apply { background = rounded(DIM, 0f) })
         showMarks(item, animate = false)
         item.tmdb?.badge?.let {
             frame.addOverlay(badgeLabel(it, artW - context.dp(12)), FrameLayout.LayoutParams(
@@ -126,6 +129,11 @@ class Card(
 
     /** The art last asked for: a different URL means the image itself changed. */
     private var shownArt: String? = null
+
+    private companion object {
+        /** How much a title the library doesn't have is darkened. */
+        const val DIM = 0x8C000000.toInt()
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()

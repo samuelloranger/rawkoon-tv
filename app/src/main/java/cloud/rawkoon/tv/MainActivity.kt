@@ -212,6 +212,8 @@ class MainActivity : Activity() {
     }
 
     private fun deliverLive(kinds: Set<LiveKind>) {
+        // Shelves resolve against the library, so a library event drops every profile's index
+        if (LiveKind.LIBRARY in kinds) (application as App).tmdbIndex.invalidate()
         val top = stack.lastOrNull() ?: return
         if (foreground && top.livePage.reactsToAny(kinds)) top.onLive(kinds)
     }

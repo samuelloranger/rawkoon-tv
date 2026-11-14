@@ -11,6 +11,7 @@ enum class Destination(val glyph: String, val label: Int) {
     DISCOVER(Icon.DISCOVER, R.string.nav_discover),
     MOVIES(Icon.FILM, R.string.nav_movies),
     SHOWS(Icon.TV, R.string.nav_shows),
+    SHELVES(Icon.EPISODES, R.string.nav_shelves),
     COLLECTIONS(Icon.FOLDER, R.string.nav_collections),
     SETTINGS(Icon.GEAR, R.string.nav_settings),
 }

@@ -80,9 +80,16 @@ class LiveEventsTest {
     }
 
     @Test
+    fun `the shelves page follows the library, not watched state or rawkoon news`() {
+        assertTrue(LivePage.SHELVES.reactsTo(LiveKind.LIBRARY))
+        assertFalse(LivePage.SHELVES.reactsTo(LiveKind.USER_DATA))
+        assertFalse(LivePage.SHELVES.reactsTo(LiveKind.RAWKOON_LANDED))
+    }
+
+    @Test
     fun `each page opens only the connections it follows`() {
         val jellyfin = LivePage.entries.filter { it.followsJellyfin }.toSet()
-        assertEquals(setOf(LivePage.HOME, LivePage.DETAILS, LivePage.SEASON, LivePage.FAVORITES, LivePage.LIBRARY, LivePage.DISCOVER_DETAILS), jellyfin)
+        assertEquals(setOf(LivePage.HOME, LivePage.DETAILS, LivePage.SEASON, LivePage.FAVORITES, LivePage.LIBRARY, LivePage.DISCOVER_DETAILS, LivePage.SHELVES), jellyfin)
         // Discover keeps Rawkoon's streams for toasts without a Jellyfin socket; the player has neither
         assertFalse(LivePage.DISCOVER.followsJellyfin)
         assertTrue(LivePage.DISCOVER.followsRawkoon)

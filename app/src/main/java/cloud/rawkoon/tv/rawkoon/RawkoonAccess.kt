@@ -22,6 +22,10 @@ fun Profile.hasRawkoonSession(context: Context): Boolean = rawkoonAccess(context
 fun Profile.rawkoonDiscover(context: Context): RawkoonDiscover? =
     rawkoonAccess(context)?.let { (token, url) -> RawkoonDiscover(RawkoonClient(url), token, Locale.getDefault().toLanguageTag()) }
 
+/** The profile's shelves, read through Rawkoon with its saved copy as the fallback; null without a session. */
+fun Profile.shelfSource(context: Context): ShelfSource? =
+    rawkoonDiscover(context)?.let { ShelfSource(it, ShelfCache(context, id)) }
+
 /** Where a profile's Rawkoon streams are read from: its server and the token that session holds. */
 data class RawkoonEndpoint(val profileId: String, val baseUrl: String, val token: String)
 

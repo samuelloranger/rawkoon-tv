@@ -18,6 +18,15 @@ interface RawkoonText {
     fun inLibrary(): String
     fun inProgress(): String
 
+    /** The label on a shelf title this profile doesn't have. */
+    fun request(): String
+
+    /** "Season 3": how a show's season placed on its own reads under a card. */
+    fun season(number: Int): String
+
+    /** "12 titles": a shelf's size, on its cover. */
+    fun titles(count: Int): String
+
     /** What a state is called: "Pending", "Downloading 40 %"; null when there is nothing to say yet. */
     fun stateLabel(state: TitleState): String?
 
@@ -41,6 +50,9 @@ class ResourceText(private val context: Context) : RawkoonText {
     override fun episodes(count: Int) = context.resources.getQuantityString(R.plurals.episodes_count, count, count)
     override fun inLibrary() = context.getString(R.string.rk_in_library)
     override fun inProgress() = context.getString(R.string.rk_in_progress)
+    override fun request() = context.getString(R.string.rk_shelf_request)
+    override fun season(number: Int) = context.getString(R.string.rk_shelf_season, number)
+    override fun titles(count: Int) = context.resources.getQuantityString(R.plurals.rk_shelf_titles, count, count)
 
     override fun stateLabel(state: TitleState): String? = when (state) {
         TitleState.Requestable -> null

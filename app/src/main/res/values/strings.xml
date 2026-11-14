@@ -59,6 +59,7 @@
     <string name="nav_discover">Discover</string>
     <string name="nav_movies">Movies</string>
     <string name="nav_shows">Shows</string>
+    <string name="nav_shelves">Shelves</string>
     <string name="nav_collections">Collections</string>
     <string name="nav_settings">Settings</string>
     <string name="coming_soon">Coming soon</string>
