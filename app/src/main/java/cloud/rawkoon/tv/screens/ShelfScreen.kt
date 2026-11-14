@@ -37,20 +37,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * One shelf: its name and description, then its titles in display order, one row per group header
- * and numbered when the order is by hand. A title the library has opens like any library card; one
- * it lacks stays in its place, dimmed and marked Request, and opens the page where it can be asked
- * for. Back returns to the Shelves page's cover card.
+ * One shelf: its name and description, then its titles in display order as a grid, one block per
+ * group header, numbered when the order is by hand. A title the library has opens like any library
+ * card; one it lacks stays in its place, dimmed and marked Request, and opens the page where it can
+ * be asked for. Back returns to the cover card it was opened from: on the Shelves page or, when
+ * [underShelves] is false, on Home.
  */
 class ShelfScreen(
     activity: MainActivity,
     session: JellyfinSession,
     private val shelfId: Int,
     private val start: ShelfSummary? = null,
+    private val underShelves: Boolean = true,
 ) : RailScreen(activity, session, Destination.SHELVES) {
     private val name = label(context, 32f, Tokens.textPrimary, Fonts.title(context))
     private val description = label(context, 13f, Tokens.textBody, Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
-    private val rows = Rows(context)
+    private val rows = Rows(context).apply { keepsColumn = true }
     private val message = MessagePanel(context)
     private val text = ResourceText(context)
     private var loadJob: Job? = null
@@ -135,20 +137,24 @@ class ShelfScreen(
         message.hide()
         val numbered = loaded.summary.order == ShelfOrder.MANUAL
         val numbers = cards.withIndex().associate { (i, resolved) -> resolved.entry.id to i + 1 }
-        val sections = ShelfRows.groups(cards).mapIndexed { i, (label, entries) ->
-            Section(context, "${loaded.summary.id}-$i", label).apply {
-                // Groups read as separate bands: more air under a row than the default
-                setPadding(0, 0, 0, context.dp(SECTION_GAP))
-                signature = entries.joinToString("|") { it.entry.id.toString() }
-                row.setCards(entries.map { card(it, numbers.getValue(it.entry.id), numbered) })
-                row.onLeftEdge = { rail.activeItem() }
+        // Each group is a grid: its titles wrap onto lines that fit the screen, the header over the first
+        val sections = ShelfRows.groups(cards).flatMapIndexed { i, (label, entries) ->
+            val lines = entries.chunked(PER_LINE)
+            lines.mapIndexed { line, lineEntries ->
+                Section(context, "${loaded.summary.id}-$i-$line", if (line == 0) label else null).apply {
+                    // Groups read as separate bands: more air under a group's last line than between its lines
+                    setPadding(0, 0, 0, context.dp(if (line == lines.lastIndex) SECTION_GAP else LINE_GAP))
+                    signature = lineEntries.joinToString("|") { it.entry.id.toString() }
+                    row.setCards(lineEntries.map { card(it, numbers.getValue(it.entry.id), numbered) })
+                    row.onLeftEdge = { rail.activeItem() }
+                }
             }
         }
-        val focusedRow = rows.focusedSection()?.id
         val focusedKey = (view.findFocus() as? Card)?.key
         rows.column.removeAllViews()
         sections.forEach { rows.column.addView(it) }
-        val section = sections.firstOrNull { it.id == focusedRow } ?: sections.first()
+        // The line holding the card focused before; lines may have shifted when titles came or went
+        val section = sections.firstOrNull { s -> s.row.cards().any { (it as? Card)?.key == focusedKey } } ?: sections.first()
         focusedKey?.let(section.row::remember)
         if (view.findFocus() == null) section.row.restoreFocus()
         if (sections.isNotEmpty()) sections.arrive()
@@ -256,13 +262,14 @@ class ShelfScreen(
     override val isRailPage get() = true
 
     /**
-     * Shelves sits under this page, so leaving for another rail page drops back to it first and
-     * lets the replace take its place; replacing only this page would leave Shelves under the new one.
+     * Opened from Shelves, which sits under this page, leaving for another rail page drops back to it
+     * first and lets the replace take its place; replacing only this page would leave Shelves under
+     * the new one. Opened from Home, there is nothing under it to drop back to.
      */
     override fun navigate(destination: Destination) {
         when (destination) {
-            Destination.SHELVES -> activity.popTo { it is ShelvesScreen }
-            Destination.SEARCH, Destination.FAVORITES, Destination.DISCOVER, Destination.MOVIES, Destination.SHOWS, Destination.COLLECTIONS -> {
+            Destination.SHELVES -> if (underShelves) activity.popTo { it is ShelvesScreen } else activity.replace(ShelvesScreen(activity, session))
+            Destination.SEARCH, Destination.FAVORITES, Destination.DISCOVER, Destination.MOVIES, Destination.SHOWS, Destination.COLLECTIONS -> if (!underShelves) super.navigate(destination) else {
                 activity.popTo { it is ShelvesScreen }
                 super.navigate(destination)
             }
@@ -288,7 +295,13 @@ class ShelfScreen(
         const val DESCRIPTION_W = 620
         const val ROWS_TOP = 108
 
-        /** Room between a group's row and the next group's title. */
+        /** Room between a group's last line and the next group's title. */
         const val SECTION_GAP = 24
+
+        /** Room between two lines of the same group. */
+        const val LINE_GAP = 4
+
+        /** Posters per line: as many as fit between the rail and the screen's safe edge. */
+        const val PER_LINE = 7
     }
 }

@@ -118,6 +118,13 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
     fun cards(): List<View> = (0 until strip.childCount).map { strip.getChildAt(it) }
 
+    /** The position of the card holding [view], or null when [view] isn't in this row. */
+    fun indexOfCard(view: View): Int? {
+        var card = view
+        while (card.parent !== strip) card = card.parent as? View ?: return null
+        return strip.indexOfChild(card)
+    }
+
     fun restoreFocus(): Boolean = remembered()?.requestFocus() == true
 
     /** The card focused last time, or the one now at its position if it's gone. */

@@ -5,6 +5,7 @@ import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.TmdbIndex
 import cloud.rawkoon.tv.jellyfin.TmdbRef
+import org.json.JSONArray
 
 /**
  * One shelf entry as this profile can see it: a library title to open and play, or a TMDB title
@@ -30,22 +31,47 @@ data class ResolvedShelfEntry(val entry: ShelfEntry, val card: ShelfCard)
  * stay, dimmed, so a shelf reads as the whole list and not only what happens to be downloaded.
  */
 object ShelfRows {
-    /** How many shelves may add a Home row, however many ask for one. */
-    const val MAX_HOME_ROWS = 2
-
-    /** The shelves that get a Home row now, in the server's order. */
-    fun homeShelves(shelves: List<ShelfSummary>): List<ShelfSummary> =
-        shelves.filter { it.homeRow && it.visibleNow }.take(MAX_HOME_ROWS)
+    /** The id of Home's one row of shelves. */
+    const val HOME_ROW_ID = "rawkoon:shelves"
 
     /**
-     * One row per shelf with something to show; a shelf with nothing visible on this profile is left
-     * out, and so is every row when there is no [index] (see [resolve]).
+     * Home's row of shelves: a cover card per shelf showing now, in the server's order, as on the
+     * Shelves page; null when there is none. Each item stands for its shelf (name, description and
+     * a backdrop to preview); the shelves themselves ride in [HomeRow.extra] for the cover cards.
      */
-    fun rows(details: List<ShelfDetail>, index: TmdbIndex?, items: Map<String, MediaItem>, text: RawkoonText, max: Int = RawkoonHome.MAX_ITEMS): List<HomeRow> =
-        details.mapNotNull { detail ->
-            val cards = resolve(detail.entries, index, items, text).orEmpty().take(max)
-            if (cards.isEmpty()) null else HomeRow(homeRowId(detail.summary.id), detail.summary.name, cards.map { it.card.item }, landscape = false)
-        }
+    fun homeRow(shelves: List<ShelfSummary>, title: String): HomeRow? {
+        val shown = shelves.filter { it.visibleNow }
+        if (shown.isEmpty()) return null
+        val extra = JSONArray().apply { shown.forEach { put(it.toJson()) } }.toString()
+        return HomeRow(HOME_ROW_ID, title, shown.map(::asItem), landscape = true, extra = extra)
+    }
+
+    /** The shelves of Home's shelves [row]; empty for any other row or a payload that doesn't read. */
+    fun shelvesOf(row: HomeRow): List<ShelfSummary> {
+        if (row.id != HOME_ROW_ID) return emptyList()
+        val array = runCatching { JSONArray(row.extra) }.getOrNull() ?: return emptyList()
+        return (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(::parseShelfSummary) }
+    }
+
+    /** A shelf as the item its card previews: its name and description, and its backdrop when it has one. */
+    private fun asItem(shelf: ShelfSummary) = MediaItem(
+        id = "shelf-${shelf.id}",
+        kind = MediaItem.Kind.OTHER,
+        title = shelf.name,
+        seriesName = null,
+        episodeLabel = null,
+        overview = shelf.description.orEmpty(),
+        year = null,
+        runtimeMinutes = null,
+        officialRating = null,
+        communityRating = null,
+        posterUrl = null,
+        thumbUrl = null,
+        backdropUrl = (shelf.cover as? ShelfCover.Backdrop)?.url,
+        logoUrl = null,
+        progress = null,
+        played = false,
+    )
 
     /** The library item ids [entries] point at, for one batched read of their current state. */
     fun libraryIds(entries: List<ShelfEntry>, index: TmdbIndex?): List<String> =
@@ -68,14 +94,6 @@ object ShelfRows {
             }
         }
     }
-
-    /** Home shelf rows kept from before, with their library cards swapped for [items]' current state. */
-    fun refreshed(rows: List<HomeRow>, items: Map<String, MediaItem>): List<HomeRow> =
-        rows.map { row -> if (shelfIdOf(row.id) == null) row else row.copy(items = row.items.map { items[it.id] ?: it }) }
-
-    /** The ids of the library cards on the shelf rows of [rows]. */
-    fun libraryIds(rows: List<HomeRow>): List<String> =
-        rows.filter { shelfIdOf(it.id) != null }.flatMap { row -> row.items.filter { it.tmdb == null }.map { it.id } }
 
     /**
      * The shelf's cards by header, in display order: one group per header, in the order the headers

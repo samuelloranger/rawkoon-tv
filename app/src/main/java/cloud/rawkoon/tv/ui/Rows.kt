@@ -66,6 +66,9 @@ class Rows(context: Context) : ScrollView(context) {
     /** Room kept above the focused row once it glides up, e.g. for its title under the screen edge. */
     var anchor = 0
 
+    /** Up and Down land on the card in the same column, as in a grid, instead of the card each row remembers. */
+    var keepsColumn = false
+
     /** Where the column is gliding to, to tell a repeat of the same move from a new one. */
     private var glideTarget = 0f
     private var lastSection: Section? = null
@@ -130,7 +133,7 @@ class Rows(context: Context) : ScrollView(context) {
         while (index in 0 until column.childCount) {
             val target = column.getChildAt(index)
             if (target.isShown) {
-                if (target is Section) target.row.remembered()?.let { return it }
+                if (target is Section) (if (keepsColumn) sameColumn(focused, block, target) else target.row.remembered())?.let { return it }
                 val candidates = ArrayList<View>()
                 target.addFocusables(candidates, direction, FOCUSABLES_ALL)
                 candidates.firstOrNull { it.isEnabled }?.let { return it }
@@ -140,6 +143,13 @@ class Rows(context: Context) : ScrollView(context) {
         // At the top, a search field may live outside this scroll area. Never wrap into another row.
         val next = super.focusSearch(focused, direction)
         return if (direction == FOCUS_UP && next != null && !next.isWithin(this)) next else focused
+    }
+
+    /** The card of [target] in [focused]'s column, or its last card when its line is shorter. */
+    private fun sameColumn(focused: View, from: View, target: Section): View? {
+        val column = (from as? Section)?.row?.indexOfCard(focused) ?: return target.row.remembered()
+        val cards = target.row.cards()
+        return cards.getOrNull(column.coerceAtMost(cards.size - 1))
     }
 
     override fun executeKeyEvent(event: KeyEvent) = false

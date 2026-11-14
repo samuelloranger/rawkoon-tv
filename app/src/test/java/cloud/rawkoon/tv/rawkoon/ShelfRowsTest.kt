@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.rawkoon
 
 import cloud.rawkoon.tv.jellyfin.Badge
+import cloud.rawkoon.tv.jellyfin.HomeRow
 import cloud.rawkoon.tv.jellyfin.IndexedTitle
 import cloud.rawkoon.tv.jellyfin.MediaItem
 import cloud.rawkoon.tv.jellyfin.TmdbIndex
@@ -106,41 +107,34 @@ class ShelfRowsTest {
     }
 
     @Test
-    fun `only shelves in their window and asking for a row get one, at most two`() {
-        val shelves = listOf(
-            summary(1, homeRow = true),
-            summary(2, homeRow = false),
-            summary(3, homeRow = true, visibleNow = false),
-            summary(4, homeRow = true),
-            summary(5, homeRow = true),
-        )
-        assertEquals(listOf(1, 4), ShelfRows.homeShelves(shelves).map { it.id })
+    fun `home lists every shelf showing now, in order, as one row`() {
+        val shelves = listOf(summary(1, name = "Horror"), summary(2, visibleNow = false), summary(3, name = "Disney"))
+        val row = ShelfRows.homeRow(shelves, "Shelves")!!
+        assertEquals(ShelfRows.HOME_ROW_ID, row.id)
+        assertEquals("Shelves", row.title)
+        assertTrue(row.landscape)
+        assertEquals(listOf("Horror", "Disney"), row.items.map { it.title })
+        assertEquals(listOf(1, 3), ShelfRows.shelvesOf(row).map { it.id })
     }
 
     @Test
-    fun `a home row is named after its shelf, keeps the order and drops what it cannot show`() {
-        val detail = ShelfDetail(
-            summary(7, name = "Featured"),
-            listOf(entry(10, 101, inLibrary = true), entry(11, 999, inLibrary = true), entry(12, 303)),
-        )
-        val row = ShelfRows.rows(listOf(detail), index, items, FakeText).single()
-        assertEquals("rawkoon:shelf:7", row.id)
-        assertEquals("Featured", row.title)
-        assertEquals(false, row.landscape)
-        assertEquals(listOf("movie-1", "shelf-12"), row.items.map { it.id })
+    fun `no shelf showing now makes no row`() {
+        assertNull(ShelfRows.homeRow(listOf(summary(1, visibleNow = false)), "Shelves"))
+        assertNull(ShelfRows.homeRow(emptyList(), "Shelves"))
     }
 
     @Test
-    fun `a shelf with nothing this profile can see makes no row`() {
-        val detail = ShelfDetail(summary(8), listOf(entry(13, 999, inLibrary = true)))
-        assertTrue(ShelfRows.rows(listOf(detail), index, items, FakeText).isEmpty())
+    fun `the shelves survive the home cache and a change rebuilds the row`() {
+        val row = ShelfRows.homeRow(listOf(summary(1, name = "Horror")), "Shelves")!!
+        val cached = HomeRow.listFromJson(HomeRow.listToJson(listOf(row))).single()
+        assertEquals(ShelfRows.shelvesOf(row), ShelfRows.shelvesOf(cached))
+        val renamed = ShelfRows.homeRow(listOf(summary(1, name = "Real horror")), "Shelves")!!
+        assertTrue(row.signature != renamed.signature)
     }
 
     @Test
-    fun `a home row keeps at most the row cap`() {
-        val entries = (1..40).map { entry(100 + it, 5000 + it) }
-        val row = ShelfRows.rows(listOf(ShelfDetail(summary(9), entries)), index, items, FakeText).single()
-        assertEquals(RawkoonHome.MAX_ITEMS, row.items.size)
+    fun `another row carries no shelves`() {
+        assertTrue(ShelfRows.shelvesOf(HomeRow("resume", "Continue", emptyList(), false)).isEmpty())
     }
 
     @Test
@@ -186,7 +180,6 @@ class ShelfRowsTest {
         val entries = listOf(entry(1, 101, inLibrary = true), entry(2, 303))
         assertNull(ShelfRows.resolve(entries, null, emptyMap(), FakeText))
         assertTrue(ShelfRows.libraryIds(entries, null).isEmpty())
-        assertTrue(ShelfRows.rows(listOf(ShelfDetail(summary(1), entries)), null, emptyMap(), FakeText).isEmpty())
     }
 
     @Test
@@ -194,13 +187,5 @@ class ShelfRowsTest {
         val empty = TmdbIndex.of(emptyList())
         val cards = ShelfRows.resolve(listOf(entry(1, 101, inLibrary = true), entry(2, 303)), empty, emptyMap(), FakeText)!!
         assertEquals(listOf(2), cards.map { it.entry.id })
-    }
-
-    @Test
-    fun `home rows kept from before take the current state of their library cards`() {
-        val row = ShelfRows.rows(listOf(ShelfDetail(summary(7), listOf(entry(10, 101, inLibrary = true), entry(12, 303)))), index, items, FakeText)
-        assertEquals(listOf("movie-1"), ShelfRows.libraryIds(row))
-        val refreshed = ShelfRows.refreshed(row, mapOf("movie-1" to libraryItem("movie-1", 101).copy(played = true)))
-        assertEquals(listOf(true, false), refreshed.single().items.map { it.played })
     }
 }
