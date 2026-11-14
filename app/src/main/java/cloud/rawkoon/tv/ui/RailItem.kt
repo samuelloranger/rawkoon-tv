@@ -134,6 +134,6 @@ class RailItem(
     /** Animates [view] to [to] only when that is a change; before the first frame it just sets it. */
     private fun fade(view: View, to: Float, from: Float) {
         if (to == from) return
-        if (isAttachedToWindow) view.animate().alpha(to).setDuration(Tokens.FOCUS_IN_MS).start() else view.alpha = to
+        if (isAttachedToWindow) view.animate().alpha(to).setDuration(Tokens.FOCUS_IN_MS).setInterpolator(Tokens.settle).start() else view.alpha = to
     }
 }

@@ -91,7 +91,7 @@ class EpisodePanel(
         describe(episode, settle = false)
         root.addView(view, fill())
         view.alpha = 0f
-        view.animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).start()
+        view.animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).setInterpolator(Tokens.settle).start()
         // Focus waits inside the panel until the episodes are in, so the keys don't reach the player
         park()
         loadJob?.cancel()

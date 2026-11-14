@@ -18,7 +18,7 @@ class LogoView(context: Context) : BitmapView(context, Mode.CONTAIN_BOTTOM_START
 /**
  * The top-left of the home screen: the focused item's logo (its title in Bricolage Grotesque when there is
  * none), its meta line and overview. It switches only once focus has rested, fading the old one
- * out and the new one in with a short rise. Every child has a fixed size, so new text never
+ * out and the new one in with a short rise, at the moment the backdrop under it changes. Every child has a fixed size, so new text never
  * triggers a layout pass.
  */
 @SuppressLint("ViewConstructor")
@@ -90,10 +90,10 @@ class Header(context: Context, private val images: Images, private val compact: 
             fill(item)
             return
         }
-        animate().alpha(0f).setDuration(Tokens.HEADER_OUT_MS).withEndAction {
+        animate().alpha(0f).setDuration(Tokens.HEADER_OUT_MS).setInterpolator(Tokens.settle).withEndAction {
             fill(item)
             translationY = context.dpf(4f)
-            animate().alpha(1f).translationY(0f).setStartDelay(40).setDuration(Tokens.HEADER_IN_MS).setInterpolator(Tokens.ease).start()
+            animate().alpha(1f).translationY(0f).setDuration(Tokens.HEADER_IN_MS).setInterpolator(Tokens.settle).start()
         }.start()
     }
 

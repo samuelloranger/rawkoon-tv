@@ -75,12 +75,18 @@ object Tokens {
     /** A grid's scroll per step; rows and columns glide on a spring instead ([Glide]). */
     const val GLIDE_MS = 260L
 
-    /** The header only changes once focus has rested, the backdrop a little later. */
-    const val HEADER_SETTLE_MS = 120L
-    const val HEADER_OUT_MS = 120L
-    const val HEADER_IN_MS = 260L
-    const val BACKDROP_SETTLE_MS = 300L
-    const val BACKDROP_FADE_MS = 600L
+    /**
+     * The header and the backdrop change together, once focus has rested for the same moment; the
+     * header's old text fades out, the new rises in, and the backdrop crossfades under it. While
+     * focus keeps moving (a grid, where moves outrun the settle), the backdrop changes at most
+     * every [BACKDROP_MIN_INTERVAL_MS], landing on the latest title.
+     */
+    const val HEADER_SETTLE_MS = 240L
+    const val HEADER_OUT_MS = 80L
+    const val HEADER_IN_MS = 180L
+    const val BACKDROP_SETTLE_MS = HEADER_SETTLE_MS
+    const val BACKDROP_FADE_MS = 400L
+    const val BACKDROP_MIN_INTERVAL_MS = 500L
 
     /** The width a backdrop is requested at, in px. */
     const val BACKDROP_W = 1920

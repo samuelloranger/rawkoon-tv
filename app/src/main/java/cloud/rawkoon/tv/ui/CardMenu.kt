@@ -136,8 +136,8 @@ class CardMenu(context: Context, title: String, subtitle: String?, entries: List
         descendantFocusability = FOCUS_BLOCK_DESCENDANTS
         // Focus goes back before the rows leave, so Android doesn't pick the page's first row meanwhile
         (anchor?.takeIf { it.isAttachedToWindow } ?: fallbackFocus())?.requestFocus()
-        caret.animate().alpha(0f).setDuration(CLOSE_MS).start()
-        panel.animate().alpha(0f).setDuration(CLOSE_MS).withEndAction {
+        caret.animate().alpha(0f).setDuration(CLOSE_MS).setInterpolator(Tokens.settle).start()
+        panel.animate().alpha(0f).setDuration(CLOSE_MS).setInterpolator(Tokens.settle).withEndAction {
             (parent as? ViewGroup)?.removeView(this)
             onClosed()
         }.start()
@@ -207,7 +207,7 @@ class CardMenu(context: Context, title: String, subtitle: String?, entries: List
             }
             addView(line, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
             setOnFocusChangeListener { _, focused ->
-                fill.animate().alpha(if (focused) 1f else 0f).setDuration(if (focused) Tokens.FOCUS_IN_MS else Tokens.FOCUS_OUT_MS).start()
+                fill.animate().alpha(if (focused) 1f else 0f).setDuration(if (focused) Tokens.FOCUS_IN_MS else Tokens.FOCUS_OUT_MS).setInterpolator(Tokens.settle).start()
                 glyph.setTextColor(if (focused) Tokens.background else Tokens.textMuted)
                 text.setTextColor(if (focused) Tokens.background else Tokens.textSoft)
             }
@@ -215,7 +215,7 @@ class CardMenu(context: Context, title: String, subtitle: String?, entries: List
 
         fun fadeIn() {
             alpha = 0f
-            animate().alpha(1f).setDuration(OPEN_MS).start()
+            animate().alpha(1f).setDuration(OPEN_MS).setInterpolator(Tokens.settle).start()
         }
     }
 
