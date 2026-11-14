@@ -40,6 +40,25 @@ fun View.slideIn(direction: Int) {
     animate().alpha(1f).translationX(0f).setDuration(Tokens.SCREEN_SLIDE_MS).setInterpolator(Tokens.ease).withLayer().start()
 }
 
+/**
+ * Nudges the view a few dp toward [direction] (a View.FOCUS_* direction) and back: a key that had
+ * nowhere to go was heard. Nothing while the key repeats, so holding into a wall stays still.
+ */
+fun View.nudge(direction: Int) {
+    if (KeyHold.held) return
+    val d = context.dpf(Tokens.NUDGE)
+    val (dx, dy) = when (direction) {
+        View.FOCUS_LEFT -> -d to 0f
+        View.FOCUS_RIGHT -> d to 0f
+        View.FOCUS_UP -> 0f to -d
+        View.FOCUS_DOWN -> 0f to d
+        else -> return
+    }
+    animate().translationX(dx).translationY(dy).setStartDelay(0).setDuration(Tokens.NUDGE_OUT_MS).setInterpolator(Tokens.settle)
+        .withEndAction { animate().translationX(0f).translationY(0f).setDuration(Tokens.NUDGE_BACK_MS).setInterpolator(Tokens.settle).start() }
+        .start()
+}
+
 /** Grows the view from a little smaller as it fades in, after [delay]: a badge that just appeared. */
 fun View.popIn(delay: Long = Tokens.CHANGE_DELAY_MS) {
     alpha = 0f

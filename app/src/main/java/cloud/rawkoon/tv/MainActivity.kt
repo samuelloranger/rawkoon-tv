@@ -30,6 +30,7 @@ import cloud.rawkoon.tv.screens.PinScreen
 import cloud.rawkoon.tv.screens.ProfilesScreen
 import cloud.rawkoon.tv.screens.RailScreen
 import cloud.rawkoon.tv.screens.linkPage
+import cloud.rawkoon.tv.ui.KeyHold
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dpf
 import cloud.rawkoon.tv.ui.fill
@@ -323,6 +324,7 @@ class MainActivity : Activity() {
      */
     @SuppressLint("GestureBackNavigation")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        KeyHold.track(event)
         if (event.action != KeyEvent.ACTION_DOWN || event.keyCode !in CLIP_STOP_KEYS) return dispatchScreenKey(event)
         // A key that may move focus ends a preview clip at once; the card that takes focus starts its own.
         // When focus did not move (a row's end, a key that did nothing) the same card asks again.

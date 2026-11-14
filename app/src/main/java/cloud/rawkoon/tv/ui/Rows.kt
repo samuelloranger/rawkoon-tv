@@ -137,8 +137,13 @@ class Rows(context: Context) : ScrollView(context) {
         }
         // At the top, a search field may live outside this scroll area. Never wrap into another row.
         val next = super.focusSearch(focused, direction)
-        return if (direction == FOCUS_UP && next != null && !next.isWithin(this)) next else focused
+        if (direction == FOCUS_UP && next != null && !next.isWithin(this)) return next
+        // Nowhere to go: the focused card (not the row, whose strip glides on its own) nudges that way
+        if (block is Section) cardOf(focused, block)?.nudge(direction)
+        return focused
     }
+
+    private fun cardOf(focused: View, section: Section): View? = section.row.indexOfCard(focused)?.let { section.row.cards().getOrNull(it) }
 
     /** The card of [target] in [focused]'s column, or its last card when its line is shorter. */
     private fun sameColumn(focused: View, from: View, target: Section): View? {

@@ -215,7 +215,8 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
             if (candidate.isShown && candidate.isFocusable && candidate.isEnabled) return candidate
             next += step
         }
-        return if (direction == FOCUS_LEFT) onLeftEdge?.invoke() ?: focused else focused
+        val edge = if (direction == FOCUS_LEFT) onLeftEdge?.invoke() else null
+        return edge ?: focused.also { card.nudge(direction) }
     }
 
     /** Coming from another row, only the card last focused here is a candidate. */
