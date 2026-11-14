@@ -16,19 +16,87 @@ class FocusMotion(
     private val scale: Float = Tokens.FOCUS_SCALE,
     private val raise: Boolean = true,
 ) {
+    private var focused = false
+
+    /**
+     * Lifts the view as it takes focus and lets the one leaving trail back. While an arrow key is
+     * held ([KeyHold]) the ring jumps from card to card with no lift, as twenty cards a second
+     * pulsing reads as flicker; the card focus rests on lifts when the key is released.
+     */
     fun focus(focused: Boolean) {
-        val duration = if (focused) Tokens.FOCUS_IN_MS else Tokens.FOCUS_OUT_MS
-        val to = if (focused) scale else 1f
-        target.animate().scaleX(to).scaleY(to).setDuration(duration).setInterpolator(Tokens.ease).start()
-        ring?.animate()?.alpha(if (focused) 1f else 0f)?.setDuration(duration)?.setInterpolator(Tokens.ease)?.start()
+        this.focused = focused
         // The focused view draws above its neighbours (no outline, so no shadow)
         if (raise) target.translationZ = if (focused) 1f else 0f
+        if (KeyHold.held) {
+            target.animate().cancel()
+            ring?.animate()?.cancel()
+            ring?.alpha = if (focused) 1f else 0f
+            if (focused) KeyHold.liftOnRelease(this) else setScale(1f)
+            return
+        }
+        lift(focused)
     }
 
+    private fun lift(focused: Boolean) {
+        val duration = if (focused) Tokens.FOCUS_IN_MS else Tokens.FOCUS_OUT_MS
+        val to = if (focused) scale else 1f
+        target.animate().scaleX(to).scaleY(to).setDuration(duration).setInterpolator(Tokens.settle).start()
+        ring?.animate()?.alpha(if (focused) 1f else 0f)?.setDuration(duration)?.setInterpolator(Tokens.settle)?.start()
+    }
+
+    /** The key that held the lift back was released: the view lifts if focus is still on it. */
+    internal fun released() {
+        if (focused) lift(true)
+    }
+
+    private fun setScale(value: Float) {
+        target.scaleX = value
+        target.scaleY = value
+    }
+
+    /** OK pressed: the view sinks back to its resting size; released, it lifts again. */
     fun press(down: Boolean) {
         val to = if (down) Tokens.PRESS_SCALE else scale
-        target.animate().scaleX(to).scaleY(to).setDuration(if (down) Tokens.PRESS_MS else Tokens.FOCUS_IN_MS)
-            .setInterpolator(Tokens.ease).start()
+        target.animate().scaleX(to).scaleY(to).setDuration(if (down) Tokens.PRESS_MS else Tokens.RELEASE_MS)
+            .setInterpolator(if (down) Tokens.exit else Tokens.settle).start()
+    }
+}
+
+/**
+ * Whether an arrow key is being held (Android is sending its repeats), fed by the activity before
+ * each key is dispatched, and the one view waiting to lift once it is released.
+ */
+object KeyHold {
+    var held = false
+        private set
+
+    /** The arrow pressed last: only its release ends the hold, not that of one pressed before it. */
+    private var key = 0
+    private var waiting: FocusMotion? = null
+
+    fun track(event: KeyEvent) = track(event.keyCode, event.action, event.repeatCount)
+
+    internal fun track(keyCode: Int, action: Int, repeatCount: Int) {
+        if (keyCode !in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_RIGHT) return
+        when (action) {
+            KeyEvent.ACTION_DOWN -> {
+                key = keyCode
+                held = repeatCount > 0
+            }
+            KeyEvent.ACTION_UP -> if (keyCode == key) reset()
+        }
+    }
+
+    /** Ends the hold: the key was released, or its release went to another window (the app left). */
+    fun reset() {
+        held = false
+        key = 0
+        waiting?.released()
+        waiting = null
+    }
+
+    internal fun liftOnRelease(motion: FocusMotion) {
+        waiting = motion
     }
 }
 
@@ -37,7 +105,7 @@ fun isConfirmKey(keyCode: Int) =
 
 /**
  * A focusable frame with the shared focus behaviour: it grows, its ring fades in, and OK presses
- * it down a little. [motionTarget] is what scales (the art, for cards with a caption under it).
+ * it back to rest. [motionTarget] is what scales (the art, for cards with a caption under it).
  */
 abstract class Focusable(context: Context) : FrameLayout(context) {
     protected abstract val motion: FocusMotion

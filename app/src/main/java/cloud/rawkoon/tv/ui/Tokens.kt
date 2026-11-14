@@ -66,11 +66,18 @@ object Tokens {
     /** Space around a card's art for the ring: a gap in the page colour, then the stroke. */
     const val RING_INSET = 4
 
+    /** The focused card lifts; the card focus left trails back a little slower. OK sinks it back to rest. */
     const val FOCUS_SCALE = 1.06f
-    const val FOCUS_IN_MS = 150L
-    const val FOCUS_OUT_MS = 90L
-    const val PRESS_SCALE = 1.02f
-    const val PRESS_MS = 80L
+    const val FOCUS_IN_MS = 180L
+    const val FOCUS_OUT_MS = 260L
+    const val PRESS_SCALE = 1f
+    const val PRESS_MS = 100L
+    const val RELEASE_MS = 220L
+
+    /** A key pressed toward nothing (a row's end) nudges the focused card this far and back. */
+    const val NUDGE = 6f
+    const val NUDGE_OUT_MS = 90L
+    const val NUDGE_BACK_MS = 180L
 
     /** A grid's scroll per step; rows and columns glide on a spring instead ([Glide]). */
     const val GLIDE_MS = 260L
