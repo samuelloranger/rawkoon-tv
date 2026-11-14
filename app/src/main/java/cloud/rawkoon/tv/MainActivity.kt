@@ -364,6 +364,8 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        // A key held as the app leaves sends its release elsewhere
+        KeyHold.reset()
         foreground = false
         (application as App).clips.foreground = false
         Installer.appInFront = false

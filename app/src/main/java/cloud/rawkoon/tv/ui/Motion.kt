@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.ui
 
 import android.view.View
+import android.view.animation.Interpolator
 
 /*
  * The small entrances views make on their own. Each moves only render properties (alpha, scale,
@@ -47,16 +48,22 @@ fun View.slideIn(direction: Int) {
 fun View.nudge(direction: Int) {
     if (KeyHold.held) return
     val d = context.dpf(Tokens.NUDGE)
-    val (dx, dy) = when (direction) {
-        View.FOCUS_LEFT -> -d to 0f
-        View.FOCUS_RIGHT -> d to 0f
-        View.FOCUS_UP -> 0f to -d
-        View.FOCUS_DOWN -> 0f to d
+    // One animation on one axis that goes out and comes back: no end action that a cancel could skip
+    val motion = animate().setStartDelay(0).setDuration(Tokens.NUDGE_OUT_MS + Tokens.NUDGE_BACK_MS).setInterpolator(outAndBack)
+    when (direction) {
+        View.FOCUS_LEFT -> motion.translationX(-d)
+        View.FOCUS_RIGHT -> motion.translationX(d)
+        View.FOCUS_UP -> motion.translationY(-d)
+        View.FOCUS_DOWN -> motion.translationY(d)
         else -> return
     }
-    animate().translationX(dx).translationY(dy).setStartDelay(0).setDuration(Tokens.NUDGE_OUT_MS).setInterpolator(Tokens.settle)
-        .withEndAction { animate().translationX(0f).translationY(0f).setDuration(Tokens.NUDGE_BACK_MS).setInterpolator(Tokens.settle).start() }
-        .start()
+    motion.start()
+}
+
+/** 0 → 1 over the first third (the nudge out), back to 0 over the rest; both legs settle. */
+private val outAndBack = Interpolator { t ->
+    val out = Tokens.NUDGE_OUT_MS.toFloat() / (Tokens.NUDGE_OUT_MS + Tokens.NUDGE_BACK_MS)
+    if (t < out) Tokens.settle.getInterpolation(t / out) else 1f - Tokens.settle.getInterpolation((t - out) / (1f - out))
 }
 
 /** Grows the view from a little smaller as it fades in, after [delay]: a badge that just appeared. */

@@ -69,6 +69,9 @@ class FocusMotion(
 object KeyHold {
     var held = false
         private set
+
+    /** The arrow pressed last: only its release ends the hold, not that of one pressed before it. */
+    private var key = 0
     private var waiting: FocusMotion? = null
 
     fun track(event: KeyEvent) = track(event.keyCode, event.action, event.repeatCount)
@@ -76,13 +79,20 @@ object KeyHold {
     internal fun track(keyCode: Int, action: Int, repeatCount: Int) {
         if (keyCode !in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_RIGHT) return
         when (action) {
-            KeyEvent.ACTION_DOWN -> held = repeatCount > 0
-            KeyEvent.ACTION_UP -> {
-                held = false
-                waiting?.released()
-                waiting = null
+            KeyEvent.ACTION_DOWN -> {
+                key = keyCode
+                held = repeatCount > 0
             }
+            KeyEvent.ACTION_UP -> if (keyCode == key) reset()
         }
+    }
+
+    /** Ends the hold: the key was released, or its release went to another window (the app left). */
+    fun reset() {
+        held = false
+        key = 0
+        waiting?.released()
+        waiting = null
     }
 
     internal fun liftOnRelease(motion: FocusMotion) {
