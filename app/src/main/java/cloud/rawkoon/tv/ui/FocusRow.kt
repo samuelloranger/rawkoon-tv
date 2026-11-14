@@ -84,10 +84,16 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
             (card.layoutParams as LinearLayout.LayoutParams).marginStart = if (i == 0) 0 else gap
             strip.addView(card)
         }
+        focusedIndex = -1
+        startOver()
+    }
+
+    /** Forgets the card focused last and shows the row from its first card, as on a new visit. */
+    fun startOver() {
+        dropPendingSnap()
         strip.animate().cancel()
         strip.translationX = 0f
         glideTarget = 0f
-        focusedIndex = -1
         lastIndex = 0
         lastKey = null
     }
