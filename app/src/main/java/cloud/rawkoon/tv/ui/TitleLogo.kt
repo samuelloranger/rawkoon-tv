@@ -39,6 +39,8 @@ class TitleLogo(
         }
         // The name stays empty while the logo loads, so the two never show together
         title.text = ""
-        images.load("$logoUrl&maxWidth=$logoW", logoW, logoH, 0f, contain = true, isCurrent = isCurrent) { logo.bitmap = it }
+        var waited = false
+        images.load("$logoUrl&maxWidth=$logoW", logoW, logoH, 0f, contain = true, isCurrent = isCurrent) { logo.show(it, fading = waited) }
+        waited = true
     }
 }

@@ -230,7 +230,7 @@ class PlayerChrome(
             surface.subtitleView?.setBottomPaddingFraction(if (show) 0.27f else 0.08f)
             overlay.animate().cancel()
             // A layer during the fade: the alpha then applies to one texture, not to a buffer drawn every frame
-            overlay.animate().alpha(if (show) 1f else 0f).setDuration(if (show) 160 else 260).withLayer().start()
+            overlay.animate().alpha(if (show) 1f else 0f).setDuration(if (show) 160 else 260).setInterpolator(Tokens.settle).withLayer().start()
             overlay.descendantFocusability = if (show) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
         }
         if (show) {

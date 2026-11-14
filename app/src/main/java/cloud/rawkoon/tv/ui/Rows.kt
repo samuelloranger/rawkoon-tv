@@ -69,8 +69,6 @@ class Rows(context: Context) : ScrollView(context) {
     /** Up and Down land on the card in the same column, as in a grid, instead of the card each row remembers. */
     var keepsColumn = false
 
-    /** Where the column is gliding to, to tell a repeat of the same move from a new one. */
-    private var glideTarget = 0f
     private var lastSection: Section? = null
 
     val column: LinearLayout = object : LinearLayout(context) {
@@ -84,6 +82,8 @@ class Rows(context: Context) : ScrollView(context) {
         clipChildren = false
         clipToPadding = false
     }
+
+    private val glide = Glide(column, Glide.Y)
 
     init {
         isVerticalScrollBarEnabled = false
@@ -101,10 +101,7 @@ class Rows(context: Context) : ScrollView(context) {
     /** Glides so [section] (a row, or any block in the column) sits at the top of this view. */
     fun reveal(section: View) {
         val maxShift = (column.height - height).coerceAtLeast(0)
-        val target = -(section.top - column.paddingTop - anchor).coerceIn(0, maxShift).toFloat()
-        if (glideTarget == target) return
-        glideTarget = target
-        column.animate().translationY(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
+        glide.to(-(section.top - column.paddingTop - anchor).coerceIn(0, maxShift).toFloat())
     }
 
     /** The section holding focus, or the one left for the rail. */
@@ -117,9 +114,7 @@ class Rows(context: Context) : ScrollView(context) {
     }
 
     fun reset() {
-        column.animate().cancel()
-        column.translationY = 0f
-        glideTarget = 0f
+        glide.snap(0f)
         lastSection = null
     }
 
@@ -142,8 +137,13 @@ class Rows(context: Context) : ScrollView(context) {
         }
         // At the top, a search field may live outside this scroll area. Never wrap into another row.
         val next = super.focusSearch(focused, direction)
-        return if (direction == FOCUS_UP && next != null && !next.isWithin(this)) next else focused
+        if (direction == FOCUS_UP && next != null && !next.isWithin(this)) return next
+        // Nowhere to go: the focused card (not the row, whose strip glides on its own) nudges that way
+        if (block is Section) cardOf(focused, block)?.nudge(direction)
+        return focused
     }
+
+    private fun cardOf(focused: View, section: Section): View? = section.row.indexOfCard(focused)?.let { section.row.cards().getOrNull(it) }
 
     /** The card of [target] in [focused]'s column, or its last card when its line is shorter. */
     private fun sameColumn(focused: View, from: View, target: Section): View? {

@@ -21,6 +21,7 @@ import cloud.rawkoon.tv.jellyfin.sortKey
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.rawkoon.rawkoonDiscover
+import cloud.rawkoon.tv.ui.riseIn
 import cloud.rawkoon.tv.ui.ChoiceDialog
 import cloud.rawkoon.tv.ui.Destination
 import cloud.rawkoon.tv.ui.Fonts
@@ -107,6 +108,7 @@ class LibraryScreen(
         override fun firstPageLoaded(total: Int, jumpIndex: Int?) {
             grid.pageLoaded(0, firstLoad = true, arriving = isFullyShown && total > 0)
             count.text = context.resources.getQuantityString(R.plurals.library_count, total, total)
+            if (isFullyShown) count.riseIn(rise = 4f, duration = Tokens.HEADER_IN_MS)
             if (total == 0) {
                 showMessage(string(if (loader.query.filter == LibraryFilter.ALL) R.string.library_empty else R.string.library_empty_filtered), retry = true)
                 return

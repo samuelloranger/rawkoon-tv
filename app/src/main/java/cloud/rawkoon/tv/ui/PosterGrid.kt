@@ -211,7 +211,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     private fun focused(cell: PosterCell) {
         lastPosition = cell.position
         val dy = cell.top - paddingTop
-        if (dy != 0) smoothScrollBy(0, dy, Tokens.ease, Tokens.GLIDE_MS.toInt())
+        if (dy != 0) smoothScrollBy(0, dy, Tokens.settle, Tokens.GLIDE_MS.toInt())
         onPages(paged.claimAround(cell.position, PREFETCH))
         onFocused(cell.position)
     }
@@ -224,11 +224,13 @@ class PosterGrid(context: Context, private val images: Images, private val paged
         val position = findContainingViewHolder(focused)?.bindingAdapterPosition ?: return super.focusSearch(focused, direction)
         val last = paged.total - 1
         val column = position % SPAN
+        // Nowhere to go: the poster nudges that way, so the key reads as heard
+        val wall = { focused.also { it.nudge(direction) } }
         val target = when (direction) {
-            FOCUS_LEFT -> if (column == 0) return onLeftEdge() ?: focused else position - 1
-            FOCUS_RIGHT -> if (column == SPAN - 1 || position == last) return onRightEdge() ?: focused else position + 1
-            FOCUS_UP -> if (position < SPAN) return onTopEdge() ?: focused else position - SPAN
-            FOCUS_DOWN -> if (position / SPAN == last / SPAN) return focused else minOf(position + SPAN, last)
+            FOCUS_LEFT -> if (column == 0) return onLeftEdge() ?: wall() else position - 1
+            FOCUS_RIGHT -> if (column == SPAN - 1 || position == last) return onRightEdge() ?: wall() else position + 1
+            FOCUS_UP -> if (position < SPAN) return onTopEdge() ?: wall() else position - SPAN
+            FOCUS_DOWN -> if (position / SPAN == last / SPAN) return wall() else minOf(position + SPAN, last)
             else -> return super.focusSearch(focused, direction)
         }
         // The target poster when it is bound; a row scrolled out of view is not, and the stock search then picks a neighbour

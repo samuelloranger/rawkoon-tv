@@ -66,21 +66,34 @@ object Tokens {
     /** Space around a card's art for the ring: a gap in the page colour, then the stroke. */
     const val RING_INSET = 4
 
+    /** The focused card lifts; the card focus left trails back a little slower. OK sinks it back to rest. */
     const val FOCUS_SCALE = 1.06f
-    const val FOCUS_IN_MS = 150L
-    const val FOCUS_OUT_MS = 90L
-    const val PRESS_SCALE = 1.02f
-    const val PRESS_MS = 80L
+    const val FOCUS_IN_MS = 180L
+    const val FOCUS_OUT_MS = 260L
+    const val PRESS_SCALE = 1f
+    const val PRESS_MS = 100L
+    const val RELEASE_MS = 220L
 
-    /** Row and column glides; long enough to read as motion, short enough to keep up with key repeat. */
+    /** A key pressed toward nothing (a row's end) nudges the focused card this far and back. */
+    const val NUDGE = 6f
+    const val NUDGE_OUT_MS = 90L
+    const val NUDGE_BACK_MS = 180L
+
+    /** A grid's scroll per step; rows and columns glide on a spring instead ([Glide]). */
     const val GLIDE_MS = 260L
 
-    /** The header only changes once focus has rested, the backdrop a little later. */
-    const val HEADER_SETTLE_MS = 120L
-    const val HEADER_OUT_MS = 120L
-    const val HEADER_IN_MS = 260L
-    const val BACKDROP_SETTLE_MS = 300L
-    const val BACKDROP_FADE_MS = 600L
+    /**
+     * Once focus rests, the header and the backdrop change together, after the same moment; the
+     * header's old text fades out, the new rises in, and the backdrop crossfades under it. While
+     * focus keeps moving (a grid, where moves outrun the settle), the backdrop changes at most
+     * every [BACKDROP_MIN_INTERVAL_MS], landing on the latest title.
+     */
+    const val HEADER_SETTLE_MS = 240L
+    const val HEADER_OUT_MS = 80L
+    const val HEADER_IN_MS = 180L
+    const val BACKDROP_SETTLE_MS = HEADER_SETTLE_MS
+    const val BACKDROP_FADE_MS = 400L
+    const val BACKDROP_MIN_INTERVAL_MS = 500L
 
     /** The width a backdrop is requested at, in px. */
     const val BACKDROP_W = 1920
@@ -120,6 +133,9 @@ object Tokens {
     const val ARRIVE_ROW_MS = 70L
     const val ARRIVE_RISE = 10f
 
+    /** Art that arrives after its view is on screen fades in over the placeholder; art in memory shows at once. */
+    const val ART_FADE_MS = 150L
+
     /** The player's skip and up-next buttons rise this far into place as they appear. */
     const val RISE = 12f
     const val RISE_MS = 220L
@@ -136,10 +152,27 @@ object Tokens {
     const val DRAWER_MS = 220L
     const val SCREEN_FADE_MS = 160L
 
-    /** A page opened slides in from the right this far while it fades in; going back, from the left. */
+    /**
+     * A page opened slides in from the right this far while it fades in; going back, from the left.
+     * The page it replaces fades out first, moving [SCREEN_OUT_SHIFT] dp the other way, and the new
+     * one starts [SCREEN_IN_DELAY_MS] into that fade, so the two overlap instead of cutting through
+     * the page colour.
+     */
     const val SCREEN_SHIFT = 24f
-    const val SCREEN_SLIDE_MS = 240L
+    const val SCREEN_SLIDE_MS = 260L
+    const val SCREEN_OUT_SHIFT = 8f
+    const val SCREEN_OUT_MS = 90L
+    const val SCREEN_IN_DELAY_MS = 40L
 
-    /** Expo-out: fast start, long soft landing. */
+    /** Expo-out: fast start, long soft landing. For things that enter the screen. */
     val ease = PathInterpolator(0.16f, 1f, 0.3f, 1f)
+
+    /** Material's emphasized decelerate: a page entrance. */
+    val enter = PathInterpolator(0.05f, 0.7f, 0.1f, 1f)
+
+    /** Material's standard accelerate: something leaving the screen. */
+    val exit = PathInterpolator(0.3f, 0f, 1f, 1f)
+
+    /** Material's standard decelerate: motion that settles in place (focus, headers, fades). */
+    val settle = PathInterpolator(0f, 0f, 0.2f, 1f)
 }

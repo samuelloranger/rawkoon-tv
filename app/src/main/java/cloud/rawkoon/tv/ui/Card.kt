@@ -121,8 +121,11 @@ class Card(
         val url = artUrl() ?: return
         if (frame.art.bitmap != null && url == shownArt) return
         shownArt = url
-        // A TMDB image's URL is final; a library image is asked at the card's width
-        images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive && shownArt == url }) { frame.art.bitmap = it }
+        // A TMDB image's URL is final; a library image is asked at the card's width. Art in memory
+        // comes back before load returns and shows at once; art fetched later fades in.
+        var waited = false
+        images.load(if (item.tmdb != null) url else "$url&fillWidth=$artW", artW, artH, artRadius, opaque = false, isCurrent = { alive && shownArt == url }) { frame.art.show(it, fading = waited) }
+        waited = true
     }
 
     private fun artUrl() = if (landscape) item.thumbUrl else item.posterUrl ?: item.thumbUrl

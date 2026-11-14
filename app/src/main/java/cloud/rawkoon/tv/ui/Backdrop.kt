@@ -17,6 +17,7 @@ import android.graphics.Rect
 import android.graphics.Shader
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.LruCache
 import android.view.Gravity
 import android.view.TextureView
@@ -80,11 +81,16 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
 
     /** How much of the image shows: 1 on home, lower behind denser pages. Part of the cache key. */
     var strength = 1f
+        set(value) {
+            field = value
+            dropPending()
+        }
 
     /** The width of the backdrop's 16:9 frame as a fraction of the screen; 1 (the default) draws it full screen. */
     var frameFraction = 1f
         set(value) {
             field = value
+            dropPending()
             applyFrame()
         }
 
@@ -150,7 +156,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
 
     fun setClipVisible(visible: Boolean) {
         clipLayer.animate().cancel()
-        clipLayer.animate().alpha(if (visible) 1f else 0f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.ease).start()
+        clipLayer.animate().alpha(if (visible) 1f else 0f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.settle).start()
     }
 
     /** Crops the clip to fill the frame instead of stretching it, whatever its aspect ratio. */
@@ -209,6 +215,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     override fun onDetachedFromWindow() {
         clips?.stop(this)
         main.removeCallbacks(rest)
+        dropPending()
         drift?.cancel()
         drift = null
         scaleX = 1f
@@ -247,12 +254,33 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
 
     private fun layer() = BitmapView(context)
 
+    /** When the image last changed, so a run of changes (focus outrunning the settle) lands at most every [Tokens.BACKDROP_MIN_INTERVAL_MS]. */
+    private var changedAt = 0L
+    private var requestedUrl: String? = null
+    private val showLatest = Runnable { load(requested, requestedUrl) }
+
+    /**
+     * Forgets a change still waiting for its turn: its key was made with the old strength or frame,
+     * and the next [show] asks again with the new ones.
+     */
+    private fun dropPending() {
+        main.removeCallbacks(showLatest)
+        requested = null
+    }
+
     /** Shows [url] (an image URL, or null for the plain page colour) once it is composed. */
     fun show(url: String?) {
         val strength = strength
         val key = url?.let { "$it|$strength|$frameFraction" }
         if (key == requested) return
         requested = key
+        requestedUrl = url
+        main.removeCallbacks(showLatest)
+        val wait = changedAt + Tokens.BACKDROP_MIN_INTERVAL_MS - SystemClock.uptimeMillis()
+        if (wait > 0) main.postDelayed(showLatest, wait) else load(key, url)
+    }
+
+    private fun load(key: String?, url: String?) {
         if (key == shown) return
         if (url == null) {
             crossfade(null, null)
@@ -266,6 +294,8 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         val w = f.w
         val h = f.h
         val framed = BackdropFrame.isFramed(frameFraction)
+        // Read here, with the key: the worker must compose what the key says
+        val strength = strength
         worker.execute {
             if (requested != key) return@execute
             val bitmap = try {
@@ -290,6 +320,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private fun crossfade(key: String?, bitmap: Bitmap?) {
         if (key == shown) return
         shown = key
+        changedAt = SystemClock.uptimeMillis()
         syncDrift()
         val id = ++fadeId
         top.animate().cancel()
@@ -302,7 +333,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
             fading = false
         }
         if (bitmap == null) {
-            bottom.animate().alpha(0f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.ease).withEndAction {
+            bottom.animate().alpha(0f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.settle).withEndAction {
                 if (id != fadeId) return@withEndAction
                 bottom.bitmap = null
                 bottom.alpha = 1f
@@ -312,7 +343,7 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         fading = true
         top.bitmap = bitmap
         top.alpha = 0f
-        top.animate().alpha(1f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.ease).withEndAction {
+        top.animate().alpha(1f).setDuration(Tokens.BACKDROP_FADE_MS).setInterpolator(Tokens.settle).withEndAction {
             if (id != fadeId) return@withEndAction
             // The top layer is opaque and covers the bottom one, so resetting it is not visible
             bottom.bitmap = bitmap

@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.ui
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -11,7 +12,7 @@ import android.view.View
 /**
  * A view that draws one bitmap. Unlike ImageView, setting the bitmap only invalidates: it never
  * requests a layout, so a burst of images arriving costs draws, not layout passes. The
- * [placeholder] is drawn until a bitmap is set (and never under it).
+ * [placeholder] is drawn until a bitmap is set, and under one still fading in ([show]).
  */
 open class BitmapView(context: Context, private val mode: Mode = Mode.FIT_XY) : View(context) {
     enum class Mode {
@@ -39,19 +40,50 @@ open class BitmapView(context: Context, private val mode: Mode = Mode.FIT_XY) : 
         set(value) {
             if (field === value) return
             field = value
+            fade?.cancel()
+            paint.alpha = 255
             invalidate()
         }
+
+    private var fade: ValueAnimator? = null
+
+    /**
+     * Sets [value]; with [fading] it comes in over the placeholder instead of popping, for art
+     * that arrived after the view was already on screen. Art that was in memory shows at once.
+     */
+    fun show(value: Bitmap, fading: Boolean) {
+        // The same art again (two waiters on one load): a fade in progress carries on
+        if (value === bitmap) return
+        bitmap = value
+        if (!fading || !isShown) return
+        paint.alpha = 0
+        fade = ValueAnimator.ofInt(0, 255).apply {
+            duration = Tokens.ART_FADE_MS
+            interpolator = Tokens.settle
+            addUpdateListener {
+                paint.alpha = it.animatedValue as Int
+                invalidate()
+            }
+            start()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        fade?.cancel()
+        paint.alpha = 255
+        super.onDetachedFromWindow()
+    }
 
     override fun hasOverlappingRendering() = false
 
     override fun onDraw(canvas: Canvas) {
         val b = bitmap
-        if (b == null) {
+        if (b == null || paint.alpha < 255) {
             placeholder?.apply {
                 setBounds(0, 0, width, height)
                 draw(canvas)
             }
-            return
+            if (b == null) return
         }
         when (mode) {
             Mode.FIT_XY -> {
