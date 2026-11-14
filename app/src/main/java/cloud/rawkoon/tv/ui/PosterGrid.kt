@@ -211,7 +211,7 @@ class PosterGrid(context: Context, private val images: Images, private val paged
     private fun focused(cell: PosterCell) {
         lastPosition = cell.position
         val dy = cell.top - paddingTop
-        if (dy != 0) smoothScrollBy(0, dy, Tokens.ease, Tokens.GLIDE_MS.toInt())
+        if (dy != 0) smoothScrollBy(0, dy, Tokens.settle, Tokens.GLIDE_MS.toInt())
         onPages(paged.claimAround(cell.position, PREFETCH))
         onFocused(cell.position)
     }

@@ -72,7 +72,7 @@ object Tokens {
     const val PRESS_SCALE = 1.02f
     const val PRESS_MS = 80L
 
-    /** Row and column glides; long enough to read as motion, short enough to keep up with key repeat. */
+    /** A grid's scroll per step; rows and columns glide on a spring instead ([Glide]). */
     const val GLIDE_MS = 260L
 
     /** The header only changes once focus has rested, the backdrop a little later. */

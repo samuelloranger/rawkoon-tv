@@ -13,9 +13,9 @@ import android.widget.LinearLayout
  * content under it, and that hands focus back to the card you left when you come back from
  * another row.
  *
- * It never actually scrolls: the strip is translated with a ViewPropertyAnimator. Each move
- * retargets the running animation from wherever it is, so holding the D-pad glides instead of
- * jump-cutting, and translation is a render property, so moving costs no redraw.
+ * It never actually scrolls: the strip is translated by a spring ([Glide]). Each move retargets
+ * the spring with the velocity it has, so holding the D-pad glides instead of jump-cutting, and
+ * translation is a render property, so moving costs no redraw.
  */
 class FocusRow(context: Context) : HorizontalScrollView(context) {
     private var lastKey: String? = null
@@ -23,9 +23,6 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
 
     /** Where the row last drew a focused card, so drawing order needs no search. */
     private var focusedIndex = -1
-
-    /** Where the strip is gliding to, to tell a repeat of the same move from a new one. */
-    private var glideTarget = 0f
 
     /** Asked when Left is pressed on the first card; returns the view that takes focus, or null to stay. */
     var onLeftEdge: (() -> View?)? = null
@@ -61,6 +58,8 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
         }
     }
 
+    private val glide = Glide(strip, Glide.X)
+
     init {
         isHorizontalScrollBarEnabled = false
         isHorizontalFadingEdgeEnabled = false
@@ -91,9 +90,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     /** Forgets the card focused last and shows the row from its first card, as on a new visit. */
     fun startOver() {
         dropPendingSnap()
-        strip.animate().cancel()
-        strip.translationX = 0f
-        glideTarget = 0f
+        glide.snap(0f)
         lastIndex = 0
         lastKey = null
     }
@@ -164,12 +161,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
     }
 
     /** Glides so [card] sits at the row's start, or as far as the row allows. */
-    fun reveal(card: View) {
-        val target = targetFor(card)
-        if (glideTarget == target) return
-        glideTarget = target
-        strip.animate().translationX(target).setDuration(Tokens.GLIDE_MS).setInterpolator(Tokens.ease).start()
-    }
+    fun reveal(card: View) = glide.to(targetFor(card))
 
     /**
      * Puts [card] at the row's start at once, before the next frame: a row rebuilt in place of
@@ -178,12 +170,7 @@ class FocusRow(context: Context) : HorizontalScrollView(context) {
      */
     fun snapTo(card: View) {
         dropPendingSnap()
-        val place = {
-            val target = targetFor(card)
-            strip.animate().cancel()
-            strip.translationX = target
-            glideTarget = target
-        }
+        val place = { glide.snap(targetFor(card)) }
         if (strip.isLaidOut && card.isLaidOut) return place()
         pendingSnap = object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
