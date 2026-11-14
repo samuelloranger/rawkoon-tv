@@ -73,7 +73,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         })
         rail.onExit = { contentFocus() }
         content.whileAttachedOnFocusChange { now -> if (now != null && now.isWithin(content)) lastContent = now }
-        rail.onOpenChanged = { open -> dim.animate().alpha(if (open) 1f else 0f).setDuration(Tokens.DRAWER_MS).start() }
+        rail.onOpenChanged = { open -> dim.animate().alpha(if (open) 1f else 0f).setDuration(Tokens.DRAWER_MS).setInterpolator(Tokens.settle).start() }
     }
 
     /**

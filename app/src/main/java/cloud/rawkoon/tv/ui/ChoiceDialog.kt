@@ -67,7 +67,7 @@ class ChoiceDialog(context: Context, title: String, choices: List<Pair<String, (
         returnFocus = parent.findFocus()
         parent.addView(this, fill())
         alpha = 0f
-        animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).start()
+        animate().alpha(1f).setDuration(Tokens.SCREEN_FADE_MS).setInterpolator(Tokens.settle).start()
         (buttons.getOrNull(selected) ?: buttons.firstOrNull())?.requestFocus()
     }
 
