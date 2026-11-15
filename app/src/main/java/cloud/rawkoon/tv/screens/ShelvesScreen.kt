@@ -13,6 +13,7 @@ import cloud.rawkoon.tv.rawkoon.ShelfSummary
 import cloud.rawkoon.tv.rawkoon.shelfSource
 import cloud.rawkoon.tv.rawkoon.tmdbImage
 import cloud.rawkoon.tv.ui.Destination
+import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.MessagePanel
 import cloud.rawkoon.tv.ui.ShelfGrid
@@ -36,6 +37,8 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
     private val count = label(context, 12f, Tokens.textMuted, Fonts.medium(context))
     private val grid = ShelfGrid(context, app.images)
     private val message = MessagePanel(context)
+    private val skeleton = grid.skeleton()
+    private val parking = FocusParking(context)
     private var loadJob: Job? = null
 
     /** The shelf whose page was opened last: Back comes back to its cover. */
@@ -57,7 +60,11 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
         content.addView(grid, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
             topMargin = context.dp(GRID_TOP)
         })
+        content.addView(skeleton, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
+            topMargin = context.dp(GRID_TOP)
+        })
         content.addView(message, MessagePanel.params())
+        content.addView(parking, FrameLayout.LayoutParams(1, 1))
         content.clipChildren = true
         grid.onOpen = { shelf ->
             returningTo = shelf.id
@@ -87,13 +94,14 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
 
     private fun show(shelves: List<ShelfSummary>) {
         message.hide()
+        skeleton.visibility = View.GONE
         count.text = if (shelves.isEmpty()) "" else context.resources.getQuantityString(R.plurals.rk_shelf_count, shelves.size, shelves.size)
         grid.setShelves(shelves)
         if (shelves.isEmpty()) {
             showMessage(string(R.string.rk_shelves_empty), retry = false)
             return
         }
-        if (view.findFocus() == null) grid.post { grid.focusTarget()?.requestFocus() }
+        if (view.findFocus() == null || parking.isFocused) grid.focusWhenLaidOut(grid.lastPosition)
     }
 
     /** The focused shelf's backdrop, or its first poster, fills the page's art once focus rests. */
@@ -112,13 +120,18 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
     /** A centered message; a [retry] reads the shelves again. */
     private fun showMessage(text: String, retry: Boolean) {
         count.text = ""
-        message.show(text, messageAction(if (retry) ::load else null), takeFocus = view.findFocus() == null)
+        skeleton.visibility = View.GONE
+        message.show(text, messageAction(if (retry) ::load else null), takeFocus = view.findFocus() == null || parking.isFocused)
     }
 
     override fun contentFocus(): View? = super.contentFocus() ?: grid.focusTarget()
 
+    /** Still loading, focus waits on the page instead of falling to the rail and opening it. */
     override fun focusDefault() {
-        grid.focusTarget()?.requestFocus() ?: grid.post { grid.focusTarget()?.requestFocus() }
+        if (grid.focusTarget()?.requestFocus() == true) return
+        parking.hold()
+        // Shelves already in but not laid out yet take it on their first frame
+        grid.focusWhenLaidOut(grid.lastPosition)
     }
 
     /** The rail's own page: another rail destination replaces it instead of piling up. */

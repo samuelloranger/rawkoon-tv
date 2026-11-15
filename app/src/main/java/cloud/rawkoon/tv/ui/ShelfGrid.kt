@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.ui
 
 import android.content.Context
+import android.graphics.RectF
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -35,15 +36,12 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
         override fun getItemCount() = shelves.size
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-            Holder(FrameLayout(context).apply {
-                // Room between cards: a grid of covers needs more air than a row of posters
+            Holder(FrameLayout(context).noClip().apply {
+                // Room under each cover before the next row; the cells split the width between them
                 layoutParams = RecyclerView.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply {
-                    bottomMargin = context.dp(ROW_GAP)
-                    marginEnd = context.dp(COLUMN_GAP)
-                }
+                ).apply { bottomMargin = context.dp(ROW_GAP) }
             })
 
         override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(shelves[position], position)
@@ -53,7 +51,7 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
     inner class Holder(private val box: FrameLayout) : ViewHolder(box) {
         fun bind(shelf: ShelfSummary, position: Int) {
             box.removeAllViews()
-            val card = ShelfCoverCard(context, shelf, images, { focused(it, position) }, { onOpen(it.shelf) })
+            val card = ShelfCoverCard(context, shelf, images, { focused(it, position) }, { onOpen(it.shelf) }, large = true)
             box.addView(card, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
     }
@@ -68,7 +66,25 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
         isFocusable = false
         clipChildren = false
         clipToPadding = false
-        setPadding(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET), context.dp(PAD_TOP), 0, context.dp(PAD_BOTTOM))
+        setPadding(context.dp(START), context.dp(PAD_TOP), context.dp(Tokens.OVERSCAN_H), context.dp(PAD_BOTTOM))
+    }
+
+    /** The grid's shape while the shelves load: two rows of covers where the first two will land. */
+    fun skeleton(): Skeleton {
+        val metrics = resources.displayMetrics
+        val cellW = (metrics.widthPixels / metrics.density - START - Tokens.OVERSCAN_H) / SPAN
+        val inset = Tokens.RING_INSET.toFloat()
+        val artW = Tokens.SHELF_PAGE_W.toFloat()
+        val captionTop = inset * 2 + Tokens.SHELF_PAGE_H + Tokens.CAPTION_GAP
+        val blocks = listOf(
+            RectF(inset, inset, inset + artW, inset + Tokens.SHELF_PAGE_H),
+            RectF(inset, captionTop + 2, inset + artW * 0.55f, captionTop + 14),
+            RectF(inset, captionTop + 22, inset + artW * 0.25f, captionTop + 31),
+        )
+        val stepY = captionTop + Tokens.CAPTION_H + ROW_GAP
+        return Skeleton(context, SPAN, 2, cellW, stepY, blocks).apply {
+            setPadding(context.dp(START), context.dp(PAD_TOP), 0, 0)
+        }
     }
 
     /** Shows [list]; the cover focused last keeps focus, and the grid stays where it was. */
@@ -101,7 +117,7 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
     }
 
     /** Gives the cover at [position] focus on the next frame, once any pending rebind has laid it out. */
-    private fun focusWhenLaidOut(position: Int) {
+    fun focusWhenLaidOut(position: Int) {
         val observer = viewTreeObserver
         observer.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
@@ -155,15 +171,18 @@ class ShelfGrid(context: Context, private val images: Images) : RecyclerView(con
     }
 
     private companion object {
-        /** Four covers across: 16:9 cards wide enough to read a shelf's name under its art. */
-        const val SPAN = 4
+        /** Three covers across: art large enough to recognise from the couch, the name under it. */
+        const val SPAN = 3
+
+        /** The covers' rings line up with the page title. */
+        const val START = Tokens.CONTENT_START - Tokens.RING_INSET
+
 
         /** Room above the anchored row for the focus ring. */
         const val PAD_TOP = 8
 
-        /** Between the covers: the grid reads as separate cards, not a tiled sheet. */
-        const val ROW_GAP = 20
-        const val COLUMN_GAP = 12
+        /** Between a cover's caption and the art of the one below. */
+        const val ROW_GAP = 14
 
         /** Lets the last row glide up to the anchor. */
         const val PAD_BOTTOM = 200
