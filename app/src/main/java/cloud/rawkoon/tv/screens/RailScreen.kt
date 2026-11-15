@@ -84,7 +84,7 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
         if (focused.isWithin(rail)) contentFocus() ?: focused else focused
 
     /** Where focus goes when it leaves the rail: what the page had focused last. */
-    open fun contentFocus(): View? = lastContent?.takeIf { it.isAttachedToWindow && it.isShown }
+    open fun contentFocus(): View? = lastContent?.takeIf { it.isAttachedToWindow && it.isShown && it.isFocusable }
 
     protected open fun navigate(destination: Destination) {
         when (destination) {

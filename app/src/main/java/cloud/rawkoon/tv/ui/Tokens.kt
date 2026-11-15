@@ -55,6 +55,10 @@ object Tokens {
     const val SHELF_W = 168
     const val SHELF_H = 94
 
+    /** A cover on the Shelves page: three across, filling the page between the rail and the safe edge. */
+    const val SHELF_PAGE_W = 248
+    const val SHELF_PAGE_H = 140
+
     /** Library grid posters: small enough for 8 per row beside the A-Z column. */
     const val GRID_POSTER_W = 90
     const val GRID_POSTER_H = 135

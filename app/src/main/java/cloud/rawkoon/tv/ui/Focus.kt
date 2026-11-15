@@ -1,6 +1,7 @@
 package cloud.rawkoon.tv.ui
 
 import android.content.Context
+import android.graphics.Rect
 import android.view.View
 import android.view.ViewTreeObserver
 
@@ -52,5 +53,27 @@ class FocusParking(context: Context) : View(context) {
             restore()
             isFocusable = false
         }
+    }
+
+    /**
+     * Holds focus while a page loads with nothing to focus yet, so it doesn't fall to the rail and
+     * open it. Gives it up for good as soon as anything else takes it, e.g. the first card in.
+     */
+    fun hold() {
+        isFocusable = true
+        requestFocus()
+    }
+
+    /** Takes focus again when asked, e.g. coming back from the rail while the page still loads. */
+    fun reclaim(): View = apply { isFocusable = true }
+
+    /** The page's content is in: lets go unless it still holds focus, so the D-pad never lands here. */
+    fun release() {
+        if (!isFocused) isFocusable = false
+    }
+
+    override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
+        super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
+        if (!gainFocus) isFocusable = false
     }
 }

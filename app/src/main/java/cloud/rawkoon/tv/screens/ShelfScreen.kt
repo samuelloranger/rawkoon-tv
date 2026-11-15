@@ -1,5 +1,6 @@
 package cloud.rawkoon.tv.screens
 
+import android.graphics.RectF
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -21,10 +22,12 @@ import cloud.rawkoon.tv.rawkoon.shelfSource
 import cloud.rawkoon.tv.rawkoon.tmdbImage
 import cloud.rawkoon.tv.ui.Card
 import cloud.rawkoon.tv.ui.Destination
+import cloud.rawkoon.tv.ui.FocusParking
 import cloud.rawkoon.tv.ui.Fonts
 import cloud.rawkoon.tv.ui.MessagePanel
 import cloud.rawkoon.tv.ui.Rows
 import cloud.rawkoon.tv.ui.Section
+import cloud.rawkoon.tv.ui.Skeleton
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.arrive
 import cloud.rawkoon.tv.ui.backdropRequest
@@ -54,6 +57,8 @@ class ShelfScreen(
     private val description = label(context, 13f, Tokens.textBody, Fonts.body(context), lines = 2).apply { setLineSpacing(0f, 1.2f) }
     private val rows = Rows(context).apply { keepsColumn = true }
     private val message = MessagePanel(context)
+    private val skeleton = skeleton()
+    private val parking = FocusParking(context)
     private val text = ResourceText(context)
     private var loadJob: Job? = null
     private var marksJob: Job? = null
@@ -75,7 +80,11 @@ class ShelfScreen(
         content.addView(rows, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
             topMargin = context.dp(ROWS_TOP)
         })
+        content.addView(skeleton, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
+            topMargin = context.dp(ROWS_TOP)
+        })
         content.addView(message, MessagePanel.params())
+        content.addView(parking, FrameLayout.LayoutParams(1, 1))
         content.clipChildren = true
         start?.let {
             name.text = it.name
@@ -135,6 +144,7 @@ class ShelfScreen(
             return
         }
         message.hide()
+        skeleton.visibility = View.GONE
         val numbered = loaded.summary.order == ShelfOrder.MANUAL
         val numbers = cards.withIndex().associate { (i, resolved) -> resolved.entry.id to i + 1 }
         // Each group is a grid: its titles wrap onto lines that fit the screen, the header over the first
@@ -156,7 +166,8 @@ class ShelfScreen(
         // The line holding the card focused before; lines may have shifted when titles came or went
         val section = sections.firstOrNull { s -> s.row.cards().any { (it as? Card)?.key == focusedKey } } ?: sections.first()
         focusedKey?.let(section.row::remember)
-        if (view.findFocus() == null) section.row.restoreFocus()
+        if (view.findFocus() == null || parking.isFocused) section.row.restoreFocus()
+        parking.release()
         if (sections.isNotEmpty()) sections.arrive()
     }
 
@@ -215,13 +226,36 @@ class ShelfScreen(
     /** Replaces the page with [text]; a [retry] offers to read the shelf again. */
     private fun showEmpty(text: String, retry: Boolean) {
         rows.column.removeAllViews()
-        message.show(text, messageAction(if (retry) ::load else null), takeFocus = view.findFocus() == null)
+        skeleton.visibility = View.GONE
+        message.show(text, messageAction(if (retry) ::load else null), takeFocus = view.findFocus() == null || parking.isFocused)
+        parking.release()
     }
 
-    override fun contentFocus(): View? = super.contentFocus() ?: rows.focusedSection()?.row?.remembered()
+    override fun contentFocus(): View? =
+        super.contentFocus() ?: rows.focusedSection()?.row?.remembered() ?: parking.takeIf { loading }?.reclaim()
 
+    private val loading get() = skeleton.visibility == View.VISIBLE
+
+    /** Still loading, focus waits on the page instead of falling to the rail and opening it. */
     override fun focusDefault() {
-        rows.sections().firstOrNull()?.row?.restoreFocus()
+        if (rows.sections().firstOrNull()?.row?.restoreFocus() != true && loading) parking.hold()
+    }
+
+    /** Two lines of posters where the shelf's first titles will land. */
+    private fun skeleton(): Skeleton {
+        val inset = Tokens.RING_INSET.toFloat()
+        val artW = Tokens.POSTER_W.toFloat()
+        val artTop = ROW_PAD + inset
+        val captionTop = artTop + Tokens.POSTER_H + inset + Tokens.CAPTION_GAP
+        val blocks = listOf(
+            RectF(inset, artTop, inset + artW, artTop + Tokens.POSTER_H),
+            RectF(inset, captionTop + 2, inset + artW * 0.8f, captionTop + 12),
+            RectF(inset, captionTop + 18, inset + artW * 0.35f, captionTop + 26),
+        )
+        val stepY = ROW_PAD * 2 + inset * 2 + Tokens.POSTER_H + Tokens.CAPTION_GAP + Tokens.CAPTION_H + LINE_GAP
+        return Skeleton(context, PER_LINE, 2, (Tokens.POSTER_W + Tokens.CARD_GAP).toFloat(), stepY, blocks).apply {
+            setPadding(context.dp(Tokens.CONTENT_START - Tokens.RING_INSET), 0, 0, 0)
+        }
     }
 
     override val livePage get() = LivePage.LIBRARY
@@ -303,5 +337,8 @@ class ShelfScreen(
 
         /** Posters per line: as many as fit between the rail and the screen's safe edge. */
         const val PER_LINE = 7
+
+        /** A row's room above and below its cards, as [cloud.rawkoon.tv.ui.FocusRow] pads them. */
+        const val ROW_PAD = 8
     }
 }

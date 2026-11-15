@@ -23,7 +23,7 @@ enum class ShelfOrder {
 
 /** What the Collections row and the Home rows draw on a shelf's cover. */
 sealed interface ShelfCover {
-    /** Up to four posters, drawn as a 2×2 mosaic. */
+    /** Up to four posters, drawn standing side by side. */
     data class Mosaic(val posters: List<String>) : ShelfCover
 
     /** A chosen title's backdrop; null when the server could not find one. */
