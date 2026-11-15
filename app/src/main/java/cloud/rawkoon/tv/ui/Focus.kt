@@ -64,6 +64,14 @@ class FocusParking(context: Context) : View(context) {
         requestFocus()
     }
 
+    /** Takes focus again when asked, e.g. coming back from the rail while the page still loads. */
+    fun reclaim(): View = apply { isFocusable = true }
+
+    /** The page's content is in: lets go unless it still holds focus, so the D-pad never lands here. */
+    fun release() {
+        if (!isFocused) isFocusable = false
+    }
+
     override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
         super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
         if (!gainFocus) isFocusable = false

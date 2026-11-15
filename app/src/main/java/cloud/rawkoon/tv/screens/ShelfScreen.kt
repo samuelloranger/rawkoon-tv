@@ -167,6 +167,7 @@ class ShelfScreen(
         val section = sections.firstOrNull { s -> s.row.cards().any { (it as? Card)?.key == focusedKey } } ?: sections.first()
         focusedKey?.let(section.row::remember)
         if (view.findFocus() == null || parking.isFocused) section.row.restoreFocus()
+        parking.release()
         if (sections.isNotEmpty()) sections.arrive()
     }
 
@@ -227,13 +228,17 @@ class ShelfScreen(
         rows.column.removeAllViews()
         skeleton.visibility = View.GONE
         message.show(text, messageAction(if (retry) ::load else null), takeFocus = view.findFocus() == null || parking.isFocused)
+        parking.release()
     }
 
-    override fun contentFocus(): View? = super.contentFocus() ?: rows.focusedSection()?.row?.remembered()
+    override fun contentFocus(): View? =
+        super.contentFocus() ?: rows.focusedSection()?.row?.remembered() ?: parking.takeIf { loading }?.reclaim()
+
+    private val loading get() = skeleton.visibility == View.VISIBLE
 
     /** Still loading, focus waits on the page instead of falling to the rail and opening it. */
     override fun focusDefault() {
-        if (rows.sections().firstOrNull()?.row?.restoreFocus() != true) parking.hold()
+        if (rows.sections().firstOrNull()?.row?.restoreFocus() != true && loading) parking.hold()
     }
 
     /** Two lines of posters where the shelf's first titles will land. */

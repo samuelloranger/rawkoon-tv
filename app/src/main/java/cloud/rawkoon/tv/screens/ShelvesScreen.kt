@@ -102,6 +102,7 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
             return
         }
         if (view.findFocus() == null || parking.isFocused) grid.focusWhenLaidOut(grid.lastPosition)
+        parking.release()
     }
 
     /** The focused shelf's backdrop, or its first poster, fills the page's art once focus rests. */
@@ -122,13 +123,16 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
         count.text = ""
         skeleton.visibility = View.GONE
         message.show(text, messageAction(if (retry) ::load else null), takeFocus = view.findFocus() == null || parking.isFocused)
+        parking.release()
     }
 
-    override fun contentFocus(): View? = super.contentFocus() ?: grid.focusTarget()
+    override fun contentFocus(): View? = super.contentFocus() ?: grid.focusTarget() ?: parking.takeIf { loading }?.reclaim()
+
+    private val loading get() = skeleton.visibility == View.VISIBLE
 
     /** Still loading, focus waits on the page instead of falling to the rail and opening it. */
     override fun focusDefault() {
-        if (grid.focusTarget()?.requestFocus() == true) return
+        if (grid.focusTarget()?.requestFocus() == true || !loading) return
         parking.hold()
         // Shelves already in but not laid out yet take it on their first frame
         grid.focusWhenLaidOut(grid.lastPosition)

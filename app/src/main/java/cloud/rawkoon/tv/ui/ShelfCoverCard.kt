@@ -100,8 +100,10 @@ class ShelfCoverCard(
         val gap = context.dp(SPINE_GAP)
         val tileW = (artW - gap * (count - 1)) / count
         repeat(count) { i ->
-            val tile = Tile(context, tileW, artH).also { tiles += it }
-            strip.addView(tile.view, LinearLayout.LayoutParams(tileW, artH).apply { if (i > 0) marginStart = gap })
+            // The last strip takes the rounding left over, so the art reaches the card's right edge
+            val w = if (i == count - 1) artW - (tileW + gap) * (count - 1) else tileW
+            val tile = Tile(context, w, artH).also { tiles += it }
+            strip.addView(tile.view, LinearLayout.LayoutParams(w, artH).apply { if (i > 0) marginStart = gap })
         }
         return strip
     }
