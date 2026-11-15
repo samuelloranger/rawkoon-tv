@@ -132,8 +132,8 @@ class ShelvesScreen(activity: MainActivity, session: JellyfinSession) :
 
     /** Still loading, focus waits on the page instead of falling to the rail and opening it. */
     override fun focusDefault() {
-        if (grid.focusTarget()?.requestFocus() == true || !loading) return
-        parking.hold()
+        if (grid.focusTarget()?.requestFocus() == true) return
+        if (loading) parking.hold()
         // Shelves already in but not laid out yet take it on their first frame
         grid.focusWhenLaidOut(grid.lastPosition)
     }
