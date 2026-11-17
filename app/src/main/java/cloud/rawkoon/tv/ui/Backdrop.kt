@@ -145,6 +145,12 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     init {
         // Released in the background: compose the current image again. The top layer only holds a fade, so it needs nothing.
         bottom.reload = {
+            // A fade cut short by the release would otherwise commit its emptied top layer
+            top.animate().cancel()
+            bottom.animate().cancel()
+            fading = false
+            top.alpha = 0f
+            bottom.alpha = 1f
             shown = null
             load(requested, requestedUrl)
         }

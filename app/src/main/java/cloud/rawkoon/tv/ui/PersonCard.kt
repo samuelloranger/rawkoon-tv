@@ -24,7 +24,11 @@ class PersonCard(context: Context, val person: Person, private val images: Image
     private var alive = false
 
     init {
-        image.reload = ::requestPhoto
+        image.reload = {
+            // The initials hold the circle: they show again until the photo is back
+            initials.visibility = View.VISIBLE
+            requestPhoto()
+        }
         contentDescription = person.name
         val gap = context.dp(4)
         layoutParams = LinearLayout.LayoutParams(context.dp(W), size + context.dp(48))
