@@ -45,9 +45,12 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
     private val dates = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(context.resources.configuration.locales[0])
     private var firstSection: Section? = null
 
-    /** Set once Jellyfin's photo is asked for: the card's, still loading, must not land over it. */
+    /** Set once Jellyfin's photo is on screen: the card's, still loading, must not land over it. */
     @Volatile
     private var infoPhoto = false
+
+    /** The load ended: with titles, without, or failed. Focus no longer waits on the page. */
+    private var loaded = false
 
     init {
         page.column.setPadding(0, 0, 0, context.dp(200))
@@ -62,7 +65,7 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
         content.addView(parking, FrameLayout.LayoutParams(1, 1))
         page.column.addView(block, TitleBlock.params(context, actions = false))
         // The card's photo and name until Jellyfin's details arrive; a TMDB photo is used as it is
-        block.setPoster(person.imageUrl, fillWidth = byId) { !infoPhoto }
+        block.setPoster(person.imageUrl, fillWidth = byId, wanted = { !infoPhoto })
         block.bind(person.name, null, emptyList(), emptyList(), "")
         load()
     }
@@ -95,10 +98,8 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
     }
 
     private fun showInfo(info: PersonInfo) {
-        info.imageUrl?.let {
-            infoPhoto = true
-            block.setPoster(it, fillWidth = true)
-        }
+        // If Jellyfin's photo fails, the card's stays
+        info.imageUrl?.let { block.setPoster(it, fillWidth = true, onShown = { infoPhoto = true }) }
         block.bind(info.name, null, facts(info), emptyList(), info.bio)
     }
 
@@ -121,6 +122,7 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
         page.column.addView(section)
         if (firstSection == null) {
             firstSection = section
+            loaded = true
             if (isFullyShown) section.row.arrive()
             // Focus waited on the page while it loaded: the first card takes it
             if (view.findFocus() == null || parking.isFocused) section.row.restoreFocus()
@@ -130,6 +132,7 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
 
     /** Nothing to focus on the page after all: focus held while it loaded goes to the rail. */
     private fun leaveParking() {
+        loaded = true
         if (parking.isFocused) rail.activeItem()?.requestFocus()
         parking.release()
     }
@@ -138,7 +141,8 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
 
     /** Still loading, focus waits on the page instead of falling to the rail and opening it. */
     override fun focusDefault() {
-        if (firstSection?.row?.restoreFocus() != true && note.visibility != View.VISIBLE) parking.hold()
+        if (firstSection?.row?.restoreFocus() == true) return
+        if (loaded) rail.activeItem()?.requestFocus() else parking.hold()
     }
 
     private companion object {
