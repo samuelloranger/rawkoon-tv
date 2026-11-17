@@ -24,6 +24,7 @@ class PersonCard(context: Context, val person: Person, private val images: Image
     private var alive = false
 
     init {
+        image.reload = ::requestPhoto
         contentDescription = person.name
         val gap = context.dp(4)
         layoutParams = LinearLayout.LayoutParams(context.dp(W), size + context.dp(48))

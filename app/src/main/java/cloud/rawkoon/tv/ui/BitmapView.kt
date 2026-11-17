@@ -48,6 +48,22 @@ open class BitmapView(context: Context, private val mode: Mode = Mode.FIT_XY) : 
     private var fade: ValueAnimator? = null
 
     /**
+     * How the owner fetches this art again, set by art that can come back from the disk cache.
+     * Only such art is dropped by [release]; a view without one keeps its bitmap.
+     */
+    var reload: (() -> Unit)? = null
+
+    /** Drops the bitmap while the app is in the background, if [reload] can bring it back. */
+    fun release() {
+        if (reload != null) bitmap = null
+    }
+
+    /** Asks again for art [release] dropped. */
+    fun restore() {
+        if (bitmap == null) reload?.invoke()
+    }
+
+    /**
      * Sets [value]; with [fading] it comes in over the placeholder instead of popping, for art
      * that arrived after the view was already on screen. Art that was in memory shows at once.
      */

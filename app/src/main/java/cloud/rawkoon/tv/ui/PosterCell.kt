@@ -40,6 +40,7 @@ class PosterCell(context: Context, private val images: Images) : Focusable(conte
     private var loadingId: String? = null
 
     init {
+        art.reload = { loadingId = null; bind(item, position) }
         val inset = context.dp(Tokens.RING_INSET)
         layoutParams = RecyclerView.LayoutParams(context.dp(CELL_W), context.dp(CELL_H))
         badge.visibility = View.GONE
