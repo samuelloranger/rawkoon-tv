@@ -459,7 +459,10 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
             updateCheck.failed -> string(R.string.update_check_failed, checkedAtText())
             else -> string(R.string.update_up_to_date, checkedAtText())
         }
-        install.visibility = if (pending != null && !Installer.running && state !is InstallState.Ready) View.VISIBLE else View.GONE
+        val showInstall = pending != null && !Installer.running && state !is InstallState.Ready
+        // Hiding a focused button hands focus to the first category tab, which switches to the Home pane
+        if (!showInstall && install.hasFocus()) checkNow.requestFocus()
+        install.visibility = if (showInstall) View.VISIBLE else View.GONE
         pending?.let { install.label.text = string(R.string.update_install, it.version) }
     }
 
@@ -496,9 +499,6 @@ class SettingsScreen(activity: MainActivity, private val profileId: String? = nu
 
     private fun installUpdate() {
         val release = updateCheck.pending() ?: return
-        install.visibility = View.GONE
-        // Focus would otherwise fall to whatever Android finds once the button is gone.
-        checkNow.requestFocus()
         installer.install(release)
         showUpdate()
     }
