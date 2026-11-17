@@ -84,8 +84,9 @@ class TitleBlock(context: Context, private val images: Images, private val isCur
         /** Room under the poster for the action row. */
         private const val ACTIONS_H = 56
 
-        /** The block's height, poster and actions included: what a page gives it in its column. */
-        fun params(context: Context) = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(TOP + POSTER_H + ACTIONS_GAP + ACTIONS_H))
+        /** The block's height, poster and actions included (unless the page has no [actions]): what a page gives it in its column. */
+        fun params(context: Context, actions: Boolean = true) =
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(TOP + POSTER_H + if (actions) ACTIONS_GAP + ACTIONS_H else ACTIONS_GAP))
     }
 }
 

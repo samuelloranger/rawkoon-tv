@@ -1,14 +1,23 @@
 package cloud.rawkoon.tv.jellyfin
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
+import org.jellyfin.sdk.api.client.extensions.personApi
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 /**
  * The kinds of result the search and favorites pages show, in the order their rows appear.
@@ -48,6 +57,35 @@ suspend fun JellyfinSession.favorites(): Map<FindGroup, List<MediaItem>> =
  */
 suspend fun JellyfinSession.personTitles(personId: String?, name: String): Map<FindGroup, List<MediaItem>> =
     Find.nonEmpty(fetch(term = null, favorite = false, person = Credited(personId, name), groups = listOf(FindGroup.MOVIES, FindGroup.SERIES)))
+
+/**
+ * What Jellyfin knows about a person: by [personId] when known, else by [name]. Null when Jellyfin
+ * has no one by that name (a TMDB cast member from a title outside the library).
+ */
+suspend fun JellyfinSession.personInfo(personId: String?, name: String): PersonInfo? = withContext(Dispatchers.Default) {
+    val dto = try {
+        if (personId != null) api.libraryApi.getItem(itemId = JellyfinSession.parseId(personId), userId = userId).content
+        else api.personApi.getPerson(name = name, userId = userId).content
+    } catch (e: InvalidStatusException) {
+        if (e.status == 404) return@withContext null else throw e
+    }
+    PersonInfo(
+        id = dto.id.toString(),
+        name = dto.name ?: name,
+        bio = dto.overview.orEmpty(),
+        born = dto.premiereDate?.let(::utcDate),
+        died = dto.endDate?.let(::utcDate),
+        birthplace = dto.productionLocations?.firstOrNull { it.isNotBlank() },
+        imageUrl = dto.imageTags?.get(ImageType.PRIMARY)?.let { images.item(dto.id, ImageType.PRIMARY, it) },
+    )
+}
+
+/**
+ * The calendar date Jellyfin stored. It keeps dates as midnight UTC and the SDK hands them over in
+ * the device's zone, which west of UTC is the evening before.
+ */
+internal fun utcDate(local: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): LocalDate =
+    local.atZone(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDate()
 
 private class Credited(val id: String?, val name: String)
 

@@ -11,5 +11,10 @@
     <string name="favorites_empty">No favorites yet. Mark a title as a favorite from its page.</string>
     <string name="favorites_error">Couldn\'t load your favorites.</string>
     <string name="person_empty">No titles with %1$s in your library.</string>
-    <string name="person_error">Couldn\'t load these titles.</string>
+    <string name="person_born">Born %1$s</string>
+    <string name="person_died">Died %1$s</string>
+    <plurals name="person_age">
+        <item quantity="one">%d year old</item>
+        <item quantity="other">%d years old</item>
+    </plurals>
 </resources>
