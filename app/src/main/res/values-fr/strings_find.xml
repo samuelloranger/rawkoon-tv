@@ -10,4 +10,6 @@
     <string name="search_error">Impossible de chercher pour l\'instant.</string>
     <string name="favorites_empty">Aucun favori pour l\'instant. Ajoute un titre à tes favoris depuis sa page.</string>
     <string name="favorites_error">Impossible de charger tes favoris.</string>
+    <string name="person_empty">Aucun titre avec %1$s dans ta bibliothèque.</string>
+    <string name="person_error">Impossible de charger ces titres.</string>
 </resources>

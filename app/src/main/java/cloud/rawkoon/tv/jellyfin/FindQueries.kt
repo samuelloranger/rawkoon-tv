@@ -7,6 +7,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 
 /**
@@ -41,8 +42,22 @@ suspend fun JellyfinSession.search(term: String): Map<FindGroup, List<MediaItem>
 suspend fun JellyfinSession.favorites(): Map<FindGroup, List<MediaItem>> =
     Find.nonEmpty(fetch(term = null, favorite = true))
 
-private suspend fun JellyfinSession.fetch(term: String?, favorite: Boolean): Map<FindGroup, List<MediaItem>> = coroutineScope {
-    FindGroup.entries.map { group ->
+/**
+ * The films and shows a person is credited on, newest first: by Jellyfin person [personId] when
+ * known, else by [name] (a cast member from TMDB has no Jellyfin id).
+ */
+suspend fun JellyfinSession.personTitles(personId: String?, name: String): Map<FindGroup, List<MediaItem>> =
+    Find.nonEmpty(fetch(term = null, favorite = false, person = Credited(personId, name), groups = listOf(FindGroup.MOVIES, FindGroup.SERIES)))
+
+private class Credited(val id: String?, val name: String)
+
+private suspend fun JellyfinSession.fetch(
+    term: String?,
+    favorite: Boolean,
+    person: Credited? = null,
+    groups: List<FindGroup> = FindGroup.entries,
+): Map<FindGroup, List<MediaItem>> = coroutineScope {
+    groups.map { group ->
         group to async {
             api.libraryApi.getItems(
                 GetItemsRequest(
@@ -50,12 +65,19 @@ private suspend fun JellyfinSession.fetch(term: String?, favorite: Boolean): Map
                     searchTerm = term,
                     includeItemTypes = listOf(group.kind),
                     recursive = true,
-                    // Search shows top hits; favorites is a page to browse, so it shows them all
-                    limit = if (favorite) null else RESULT_LIMIT,
+                    personIds = person?.id?.let { listOf(JellyfinSession.parseId(it)) },
+                    person = person?.name?.takeIf { person.id == null },
+                    // Search shows top hits; favorites and a person's titles are pages to browse, so they show them all
+                    limit = if (favorite || person != null) null else RESULT_LIMIT,
                     fields = listOf(ItemFields.OVERVIEW, ItemFields.PRIMARY_IMAGE_ASPECT_RATIO),
                     filters = if (favorite) listOf(ItemFilter.IS_FAVORITE) else null,
                     // A search keeps Jellyfin's relevance order
-                    sortBy = if (favorite) listOf(ItemSortBy.SORT_NAME) else null,
+                    sortBy = when {
+                        person != null -> listOf(ItemSortBy.PREMIERE_DATE, ItemSortBy.SORT_NAME)
+                        favorite -> listOf(ItemSortBy.SORT_NAME)
+                        else -> null
+                    },
+                    sortOrder = if (person != null) listOf(SortOrder.DESCENDING, SortOrder.ASCENDING) else null,
                     enableTotalRecordCount = false,
                 ),
             ).content.items.map { MediaItem.from(it, images) }

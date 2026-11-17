@@ -339,7 +339,7 @@ class DiscoverDetailsScreen(activity: MainActivity, session: JellyfinSession, pr
         while (page.column.childCount > 1) page.column.removeViewAt(1)
         if (cast.isNotEmpty()) {
             val section = Section(context, "cast", string(R.string.row_cast))
-            section.row.setCards(cast.map { PersonCard(context, it, app.images) })
+            section.row.setCards(cast.map { p -> PersonCard(context, p, app.images).apply { setOnClickListener { activity.push(PersonScreen(activity, session, p, byId = false, active)) } } })
             addSection(section)
         }
         if (similar.isNotEmpty()) {
