@@ -316,6 +316,7 @@ class MainActivity : Activity() {
         if (leaving.remove(screen) != null) listOfNotNull(screen.view, screen.stage).forEach { it.animate().cancel() }
         screen.destroy()
         root.removeView(screen.view)
+        watchRemoved(screen)
     }
 
     /**
