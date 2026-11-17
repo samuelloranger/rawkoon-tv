@@ -45,9 +45,14 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
     private val dates = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(context.resources.configuration.locales[0])
     private var firstSection: Section? = null
 
+    /** Set once Jellyfin's photo is asked for: the card's, still loading, must not land over it. */
+    @Volatile
+    private var infoPhoto = false
+
     init {
         page.column.setPadding(0, 0, 0, context.dp(200))
-        page.anchor = context.dp(34)
+        // The first row's anchor is under the block, so focusing it keeps the photo and biography on screen
+        page.anchor = TitleBlock.params(context, actions = false).height
         content.addView(page, fill())
         // Not in the page's column: that holds the block and rows only
         content.addView(note, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -57,13 +62,16 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
         content.addView(parking, FrameLayout.LayoutParams(1, 1))
         page.column.addView(block, TitleBlock.params(context, actions = false))
         // The card's photo and name until Jellyfin's details arrive; a TMDB photo is used as it is
-        block.setPoster(person.imageUrl, fillWidth = byId)
+        block.setPoster(person.imageUrl, fillWidth = byId) { !infoPhoto }
         block.bind(person.name, null, emptyList(), emptyList(), "")
         load()
     }
 
     private fun load() {
-        launchLoading {
+        launchLoading(onError = {
+            toastPageError()
+            leaveParking()
+        }) {
             val info = try {
                 session.personInfo(person.id.takeIf { byId }, person.name)
             } catch (e: CancellationException) {
@@ -78,7 +86,7 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
             if (found.isEmpty()) {
                 note.text = string(R.string.person_empty, person.name)
                 note.visibility = View.VISIBLE
-                parking.release()
+                leaveParking()
                 return@launchLoading
             }
             found[FindGroup.MOVIES]?.let { addSection("movies", R.string.find_row_movies, it) }
@@ -87,7 +95,10 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
     }
 
     private fun showInfo(info: PersonInfo) {
-        info.imageUrl?.let { block.setPoster(it, fillWidth = true) }
+        info.imageUrl?.let {
+            infoPhoto = true
+            block.setPoster(it, fillWidth = true)
+        }
         block.bind(info.name, null, facts(info), emptyList(), info.bio)
     }
 
@@ -115,6 +126,12 @@ class PersonScreen(activity: MainActivity, session: JellyfinSession, private val
             if (view.findFocus() == null || parking.isFocused) section.row.restoreFocus()
             parking.release()
         }
+    }
+
+    /** Nothing to focus on the page after all: focus held while it loaded goes to the rail. */
+    private fun leaveParking() {
+        if (parking.isFocused) rail.activeItem()?.requestFocus()
+        parking.release()
     }
 
     override fun contentFocus(): View? = super.contentFocus() ?: firstSection?.row?.remembered()

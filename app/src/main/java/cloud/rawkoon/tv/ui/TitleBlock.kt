@@ -33,12 +33,12 @@ class TitleBlock(context: Context, private val images: Images, private val isCur
         })
     }
 
-    /** Loads the poster; a library image is asked at the poster's width, a TMDB one is used as it is. */
-    fun setPoster(url: String?, fillWidth: Boolean) {
+    /** Loads the poster; a library image is asked at the poster's width, a TMDB one is used as it is. [wanted] drops a load overtaken by a better one. */
+    fun setPoster(url: String?, fillWidth: Boolean, wanted: () -> Boolean = { true }) {
         url ?: return
         val w = context.dp(POSTER_W)
         val h = context.dp(POSTER_H)
-        images.load(if (fillWidth) "$url&fillWidth=$w" else url, w, h, context.dpf(POSTER_RADIUS), isCurrent = isCurrent) { poster.setImageBitmap(it) }
+        images.load(if (fillWidth) "$url&fillWidth=$w" else url, w, h, context.dpf(POSTER_RADIUS), isCurrent = { isCurrent() && wanted() }) { poster.setImageBitmap(it) }
     }
 
     /** Puts [actions] under the poster. */
