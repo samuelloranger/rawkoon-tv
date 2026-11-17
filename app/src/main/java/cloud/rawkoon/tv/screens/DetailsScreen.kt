@@ -174,7 +174,7 @@ class DetailsScreen(activity: MainActivity, session: JellyfinSession, private va
         }
         if (details.people.isNotEmpty()) {
             val section = Section(context, "cast", string(R.string.row_cast))
-            section.row.setCards(details.people.map { PersonCard(context, it, app.images) })
+            section.row.setCards(details.people.map { p -> PersonCard(context, p, app.images).apply { setOnClickListener { activity.push(PersonScreen(activity, session, p, byId = true, active)) } } })
             addSection(section)
         }
         if (similar.isNotEmpty()) {

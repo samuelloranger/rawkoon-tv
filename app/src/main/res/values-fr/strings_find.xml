@@ -10,4 +10,11 @@
     <string name="search_error">Impossible de chercher pour l\'instant.</string>
     <string name="favorites_empty">Aucun favori pour l\'instant. Ajoute un titre à tes favoris depuis sa page.</string>
     <string name="favorites_error">Impossible de charger tes favoris.</string>
+    <string name="person_empty">Aucun titre avec %1$s dans ta bibliothèque.</string>
+    <string name="person_born">Naissance : %1$s</string>
+    <string name="person_died">Décès : %1$s</string>
+    <plurals name="person_age">
+        <item quantity="one">%d an</item>
+        <item quantity="other">%d ans</item>
+    </plurals>
 </resources>

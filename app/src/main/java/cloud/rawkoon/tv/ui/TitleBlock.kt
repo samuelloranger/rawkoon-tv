@@ -33,12 +33,15 @@ class TitleBlock(context: Context, private val images: Images, private val isCur
         })
     }
 
-    /** Loads the poster; a library image is asked at the poster's width, a TMDB one is used as it is. */
-    fun setPoster(url: String?, fillWidth: Boolean) {
+    /** Loads the poster; a library image is asked at the poster's width, a TMDB one is used as it is. [wanted] drops a load overtaken by a better one; [onShown] runs once this one is on screen. */
+    fun setPoster(url: String?, fillWidth: Boolean, wanted: () -> Boolean = { true }, onShown: () -> Unit = {}) {
         url ?: return
         val w = context.dp(POSTER_W)
         val h = context.dp(POSTER_H)
-        images.load(if (fillWidth) "$url&fillWidth=$w" else url, w, h, context.dpf(POSTER_RADIUS), isCurrent = isCurrent) { poster.setImageBitmap(it) }
+        images.load(if (fillWidth) "$url&fillWidth=$w" else url, w, h, context.dpf(POSTER_RADIUS), isCurrent = { isCurrent() && wanted() }) {
+            poster.setImageBitmap(it)
+            onShown()
+        }
     }
 
     /** Puts [actions] under the poster. */
@@ -84,8 +87,9 @@ class TitleBlock(context: Context, private val images: Images, private val isCur
         /** Room under the poster for the action row. */
         private const val ACTIONS_H = 56
 
-        /** The block's height, poster and actions included: what a page gives it in its column. */
-        fun params(context: Context) = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(TOP + POSTER_H + ACTIONS_GAP + ACTIONS_H))
+        /** The block's height, poster and actions included (unless the page has no [actions]): what a page gives it in its column. */
+        fun params(context: Context, actions: Boolean = true) =
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(TOP + POSTER_H + if (actions) ACTIONS_GAP + ACTIONS_H else ACTIONS_GAP))
     }
 }
 
