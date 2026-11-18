@@ -143,6 +143,18 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
     private val clips get() = (context.applicationContext as? App)?.clips
 
     init {
+        // Released in the background: compose the current image again. The top layer only holds a fade, so it needs nothing.
+        bottom.reload = {
+            // A fade cut short by the release would otherwise commit its emptied top layer
+            top.animate().cancel()
+            bottom.animate().cancel()
+            fading = false
+            top.alpha = 0f
+            bottom.alpha = 1f
+            shown = null
+            load(requested, requestedUrl)
+        }
+        top.reload = {}
         addView(bottom, fill())
         addView(top, fill())
         addView(clipLayer, fill())
@@ -210,6 +222,12 @@ class Backdrop(context: Context, private val disk: DiskCache) : FrameLayout(cont
         // Coming into view (a page opened over it, or the app back from the background) rests first,
         // so the zoom never runs under a page's entrance
         if (isVisible) holdDrift() else syncDrift()
+    }
+
+    /** The app in the background keeps only the backdrop on screen, not the ones it could go back to. */
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility != VISIBLE) composed.evictAll()
     }
 
     override fun onDetachedFromWindow() {

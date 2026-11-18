@@ -31,6 +31,7 @@ import cloud.rawkoon.tv.screens.ProfilesScreen
 import cloud.rawkoon.tv.screens.RailScreen
 import cloud.rawkoon.tv.screens.ShelfScreen
 import cloud.rawkoon.tv.screens.linkPage
+import cloud.rawkoon.tv.ui.BitmapView
 import cloud.rawkoon.tv.ui.KeyHold
 import cloud.rawkoon.tv.ui.Tokens
 import cloud.rawkoon.tv.ui.dpf
@@ -248,6 +249,7 @@ class MainActivity : Activity() {
         hideKeyboard()
         val view = screen.view
         if (view.parent == null) root.addView(view, fill())
+        forEachArt(view) { it.restore() }
         // A page coming back while it was still leaving takes keys again
         leaving.remove(screen)?.let { (view as ViewGroup).descendantFocusability = it }
         view.visibility = View.VISIBLE
@@ -315,6 +317,11 @@ class MainActivity : Activity() {
         moving.animate().alpha(0f).translationX(dpf(Tokens.SCREEN_OUT_SHIFT) * if (back) 1 else -1)
             .setStartDelay(0).setDuration(Tokens.SCREEN_OUT_MS).setInterpolator(Tokens.exit).withLayer()
             .withEndAction { if (screen in leaving) done() }.start()
+    }
+
+    private fun forEachArt(view: View, action: (BitmapView) -> Unit) {
+        if (view is BitmapView) action(view)
+        if (view is ViewGroup) for (i in 0 until view.childCount) forEachArt(view.getChildAt(i), action)
     }
 
     private fun remove(screen: Screen) {
@@ -386,6 +393,8 @@ class MainActivity : Activity() {
         stoppedAt = SystemClock.elapsedRealtime()
         (application as App).clips.release()
         stack.lastOrNull()?.onStop()
+        // Artwork comes back from the disk cache: the top page's on return, each page below when it is shown again
+        stack.forEach { forEachArt(it.view) { art -> art.release() } }
         super.onStop()
     }
 
@@ -395,6 +404,7 @@ class MainActivity : Activity() {
         (application as App).clips.foreground = true
         Installer.openPending(this)
         syncLive()
+        stack.lastOrNull()?.let { top -> forEachArt(top.view) { it.restore() } }
         stack.lastOrNull()?.onResume()
     }
 

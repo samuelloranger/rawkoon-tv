@@ -169,6 +169,9 @@ class Images(context: Context, fetcher: Fetcher) {
         }
     }
 
+    /** Drops the decoded bitmaps, e.g. while the app is in the background: the disk cache keeps the files. */
+    fun clearMemory() = memory.evictAll()
+
     /**
      * Empties the disk cache and the decoded bitmaps. Safe with loads in flight: they finish or
      * fail quietly, and everything asked for afterwards is fetched again.

@@ -64,6 +64,12 @@ class App : Application() {
         LauncherSyncJob.schedule(this)
     }
 
+    /** Hidden or short of memory: the decoded artwork goes, and comes back from the disk cache on return. */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_UI_HIDDEN) images.clearMemory()
+    }
+
     private companion object {
         /** The server waits a second or two for a transcode to die before it saves progress. */
         const val STOP_WAIT_MS = 3_000L

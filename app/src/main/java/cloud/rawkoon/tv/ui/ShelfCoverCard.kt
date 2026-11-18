@@ -45,6 +45,7 @@ class ShelfCoverCard(
     private var alive = false
 
     init {
+        frame.art.reload = ::reloadArt
         contentDescription = shelf.name
         if (shelf.cover is ShelfCover.Mosaic) frame.addOverlay(mosaic(), frame.artParams())
         if (large) {
@@ -103,6 +104,8 @@ class ShelfCoverCard(
             // The last strip takes the rounding left over, so the art reaches the card's right edge
             val w = if (i == count - 1) artW - (tileW + gap) * (count - 1) else tileW
             val tile = Tile(context, w, artH).also { tiles += it }
+            // Released with the cover; the frame's art asks for the whole cover again (reloadArt)
+            tile.view.reload = {}
             strip.addView(tile.view, LinearLayout.LayoutParams(w, artH).apply { if (i > 0) marginStart = gap })
         }
         return strip
@@ -135,6 +138,17 @@ class ShelfCoverCard(
                 }
             }
         }
+    }
+
+    /** Asks for the cover again when [BitmapView.release] dropped it. */
+    private fun reloadArt() {
+        val missing = when (shelf.cover) {
+            is ShelfCover.Mosaic -> tiles.any { it.view.bitmap == null }
+            is ShelfCover.Backdrop -> frame.art.bitmap == null
+        }
+        if (!missing) return
+        shown = null
+        requestArt()
     }
 
     override fun onAttachedToWindow() {

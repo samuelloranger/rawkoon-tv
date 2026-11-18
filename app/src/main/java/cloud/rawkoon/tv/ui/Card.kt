@@ -48,6 +48,7 @@ class Card(
     private var watchedBadge: WatchedBadge? = null
 
     init {
+        frame.art.reload = ::requestArt
         contentDescription = item.headerTitle
         val inset = context.dp(Tokens.RING_INSET)
         val captionH = if (caption != null) context.dp(Tokens.CAPTION_H) else 0
