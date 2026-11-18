@@ -5,6 +5,8 @@
 An Android TV client for [Rawkoon](https://github.com/samuelloranger/rawkoon) and Jellyfin, built
 for low-end TVs: plain Android Views, no Compose, so focus moves and backdrop changes hold 60 fps.
 
+Versions 1-2 were a [Wholphin](https://github.com/damontecres/Wholphin) fork; 3+ is a rewrite.
+
 - **Profiles.** "Who's watching?" on every launch, or straight to the only profile when it has no
   PIN and the setting is on. Each profile is a Rawkoon account signed in with a device code, and
   the Jellyfin account Rawkoon links to it, signed in through Quick Connect. Optional PIN per
