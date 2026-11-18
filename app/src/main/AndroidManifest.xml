@@ -42,6 +42,13 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- rawkoon:// links to a page, a shelf or a title; see DeepLink. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rawkoon" />
+            </intent-filter>
         </activity>
 
         <!-- The periodic launcher refresh; only the system runs it. -->

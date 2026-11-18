@@ -16,7 +16,7 @@ import cloud.rawkoon.tv.data.Fetcher
 import cloud.rawkoon.tv.data.Prefs
 import cloud.rawkoon.tv.data.Profile
 import cloud.rawkoon.tv.jellyfin.MediaWords
-import cloud.rawkoon.tv.launcher.LauncherLink
+import cloud.rawkoon.tv.launcher.DeepLink
 import cloud.rawkoon.tv.live.LiveKind
 import cloud.rawkoon.tv.live.LivePage
 import cloud.rawkoon.tv.live.LiveUpdates
@@ -29,6 +29,7 @@ import cloud.rawkoon.tv.screens.HomeScreen
 import cloud.rawkoon.tv.screens.PinScreen
 import cloud.rawkoon.tv.screens.ProfilesScreen
 import cloud.rawkoon.tv.screens.RailScreen
+import cloud.rawkoon.tv.screens.ShelfScreen
 import cloud.rawkoon.tv.screens.linkPage
 import cloud.rawkoon.tv.ui.KeyHold
 import cloud.rawkoon.tv.ui.Tokens
@@ -73,30 +74,32 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         root = FrameLayout(this)
         setContentView(root)
-        // A recreation (language change) keeps the intent: only a real launch opens its card
-        val link = if (savedInstanceState == null) LauncherLink.from(intent) else null
+        // A recreation (language change) keeps the intent: only a real launch opens its link
+        val link = if (savedInstanceState == null) DeepLink.from(intent) else null
         // "Who's watching?" on every launch; a plain launch (no card, not a recreation) may skip it
         push(ProfilesScreen(this, autoOpen = savedInstanceState == null && link == null))
         openLink(link)
     }
 
-    /** A launcher card tapped while the app runs; any other intent leaves the screens as they are. */
+    /** A launcher card or a `rawkoon://` link while the app runs; any other intent leaves the screens as they are. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val link = LauncherLink.from(intent) ?: return
+        val link = DeepLink.from(intent) ?: return
         // Start from "Who's watching?" again, so a PIN or the home never lands on a stale stack
         resetTo(ProfilesScreen(this))
         openLink(link)
     }
 
     /**
-     * Opens a launcher card's page on top of its profile's home: straight away, or after the PIN
-     * for a profile that has one. "Who's watching?" stays below it, and a profile that is gone
-     * leaves the normal launch.
+     * Opens a link's page on top of its profile's home (the profile used last when the link names
+     * none): straight away, or after the PIN for a profile that has one. "Who's watching?" stays
+     * below it, and a profile that is gone leaves the normal launch.
      */
-    private fun openLink(link: LauncherLink?) {
-        val profile = app.profiles.get(link?.profileId ?: return) ?: return
+    private fun openLink(link: DeepLink?) {
+        link ?: return
+        val profile = link.profileId?.let { app.profiles.get(it) ?: return }
+            ?: app.profiles.lastUsed() ?: return
         if (profile.hasPin) {
             push(PinScreen(this, PinScreen.Mode.Verify(profile)) { enter(profile, link) })
         } else {
@@ -104,12 +107,15 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun enter(profile: Profile, link: LauncherLink) {
-        val link = link.trusted(profile)
+    private fun enter(profile: Profile, link: DeepLink) {
         app.profiles.markUsed(profile.id)
         val home = HomeScreen(this, app.profiles.get(profile.id) ?: profile)
         resetTo(ProfilesScreen(this), home)
-        push(linkPage(this, home.session, link))
+        when (link) {
+            is DeepLink.Title -> push(linkPage(this, home.session, link.card.trusted(profile)))
+            is DeepLink.Shelf -> push(ShelfScreen(this, home.session, link.shelfId, underShelves = false))
+            is DeepLink.Page -> home.go(link.destination)
+        }
     }
 
     fun push(screen: Screen) {

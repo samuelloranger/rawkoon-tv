@@ -86,6 +86,9 @@ abstract class RailScreen(activity: MainActivity, val session: JellyfinSession, 
     /** Where focus goes when it leaves the rail: what the page had focused last. */
     open fun contentFocus(): View? = lastContent?.takeIf { it.isAttachedToWindow && it.isShown && it.isFocusable }
 
+    /** Opens [destination] as its rail entry would, e.g. for a `rawkoon://` link. */
+    fun go(destination: Destination) = navigate(destination)
+
     protected open fun navigate(destination: Destination) {
         when (destination) {
             Destination.PROFILE -> activity.popTo { it is ProfilesScreen }
