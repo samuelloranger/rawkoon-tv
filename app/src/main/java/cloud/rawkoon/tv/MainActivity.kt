@@ -99,7 +99,7 @@ class MainActivity : Activity() {
     private fun openLink(link: DeepLink?) {
         link ?: return
         val profile = link.profileId?.let { app.profiles.get(it) ?: return }
-            ?: app.profiles.all().maxByOrNull { it.lastUsed } ?: return
+            ?: app.profiles.lastUsed() ?: return
         if (profile.hasPin) {
             push(PinScreen(this, PinScreen.Mode.Verify(profile)) { enter(profile, link) })
         } else {

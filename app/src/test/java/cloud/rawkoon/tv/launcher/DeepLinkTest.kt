@@ -38,12 +38,14 @@ class DeepLinkTest {
         assertNull(DeepLink.parse("rawkoon://item/$id?kind=episode"))
         assertNull(DeepLink.parse("rawkoon://item/$id"))
         assertNull(DeepLink.parse("rawkoon://item/not-an-id?kind=movie"))
+        assertEquals(MediaItem.Kind.MOVIE, (DeepLink.parse("rawkoon://item/$id/?kind=%6Dovie") as DeepLink.Title).card.kind)
     }
 
     @Test
     fun `anything else is refused`() {
         assertNull(DeepLink.parse("rawkoon://nope"))
         assertNull(DeepLink.parse("rawkoon://movies?profile=../../etc"))
+        assertNull(DeepLink.parse("rawkoon://movies?profile="))
         assertNull(DeepLink.parse("https://example.com/movies"))
         assertNull(DeepLink.parse("not a url"))
     }
