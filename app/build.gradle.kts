@@ -155,6 +155,9 @@ dependencies {
     // libass for ASS/SSA subtitles, as Jellyfin Android TV 0.20 draws them
     implementation("io.github.peerless2012:ass-media:0.5.1")
 
+    // Debug builds only: reports retained screens and bitmaps in logcat (tag LeakCanary)
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20260814")
 }
