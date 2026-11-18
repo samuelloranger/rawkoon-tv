@@ -40,6 +40,20 @@ Versions 1-2 were a [Wholphin](https://github.com/damontecres/Wholphin) fork; 3+
 Needs Android 8 or later (Android TV or Fire TV) and a Rawkoon server with its Jellyfin integration
 set up against Jellyfin 12 or later; see the [TV app guide](https://samlo.cloud/rawkoon/tv-app).
 
+## Screenshots
+
+<p align="center">
+<table><tr>
+<td><img src="assets/screenshots/home.jpg" alt="Home" width="420"/><br/><sub>Home</sub></td>
+<td><img src="assets/screenshots/movies.jpg" alt="The Movies library" width="420"/><br/><sub>Movies</sub></td>
+</tr><tr>
+<td><img src="assets/screenshots/details.jpg" alt="A movie's page" width="420"/><br/><sub>A movie's page</sub></td>
+<td><img src="assets/screenshots/playback.jpg" alt="The player over a paused film" width="420"/><br/><sub>Player</sub></td>
+</tr><tr>
+<td><img src="assets/screenshots/discover.jpg" alt="Discover" width="420"/><br/><sub>Discover</sub></td>
+</tr></table>
+</p>
+
 ## Building
 
 ```sh
