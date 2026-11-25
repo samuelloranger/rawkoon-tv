@@ -29,4 +29,18 @@ class StreamAudioIndexTest {
         assertNull(streamAudioIndex(PlayMethod.TRANSCODE, null))
         assertNull(streamAudioIndex(PlayMethod.TRANSCODE, "/x?SubtitleStreamIndex=4"))
     }
+
+    @Test
+    fun `the stream URL beats both the requested track and the default`() {
+        // The server default says 3 while the URL still carries 1: track 1 is what plays
+        assertEquals(1, playedAudioIndex(PlayMethod.TRANSCODE, url, requested = null, default = 3))
+        assertEquals(1, playedAudioIndex(PlayMethod.DIRECT_STREAM, url, requested = 2, default = 3))
+    }
+
+    @Test
+    fun `without a URL index the requested track beats the default`() {
+        assertEquals(2, playedAudioIndex(PlayMethod.DIRECT_PLAY, url, requested = 2, default = 3))
+        assertEquals(2, playedAudioIndex(PlayMethod.TRANSCODE, null, requested = 2, default = 3))
+        assertEquals(3, playedAudioIndex(PlayMethod.DIRECT_PLAY, null, requested = null, default = 3))
+    }
 }

@@ -122,8 +122,7 @@ class PlaybackService(private val context: Context, private val session: Jellyfi
                 name = s.title, forced = s.isForced, hearingImpaired = s.isHearingImpaired,
             )
         }
-        // The stream URL decides what plays; the default can disagree when a server plugin rewrites it
-        val defaultAudio = streamAudioIndex(method, source.transcodingUrl) ?: audioIndex ?: source.defaultAudioStreamIndex
+        val defaultAudio = playedAudioIndex(method, source.transcodingUrl, audioIndex, source.defaultAudioStreamIndex)
         val defaultSubtitle = subtitleIndex ?: source.defaultSubtitleStreamIndex ?: -1
         if (remembered != null) {
             // The server picked by the profile's languages; ask again when the show's own picks differ
@@ -301,3 +300,12 @@ private val AUDIO_STREAM_INDEX = Regex("[?&]AudioStreamIndex=(\\d+)", RegexOptio
 internal fun streamAudioIndex(method: PlayMethod, transcodingUrl: String?): Int? =
     if (method == PlayMethod.DIRECT_PLAY || transcodingUrl == null) null
     else AUDIO_STREAM_INDEX.find(transcodingUrl)?.groupValues?.get(1)?.toIntOrNull()
+
+/**
+ * The audio track that will actually play. A server-built stream's URL wins over both the
+ * [requested] track and the server's [default]: it is what the server sends, and a plugin can
+ * rewrite the default after building it. Labelling the requested track instead would show one
+ * language while another plays.
+ */
+internal fun playedAudioIndex(method: PlayMethod, transcodingUrl: String?, requested: Int?, default: Int?): Int? =
+    streamAudioIndex(method, transcodingUrl) ?: requested ?: default
